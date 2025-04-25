@@ -8,7 +8,8 @@ Abogen is a powerful text-to-speech conversion tool that makes it easy to turn e
 <img title="Abogen Main" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen.png' width="380"> <img title="Abogen Processing" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen2.png' width="380">
 
 ## Demo
-<video src="https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/demo.webm" controls width="100%"></video>
+https://github.com/user-attachments/assets/fc223d7a-5a99-473d-9509-595c160926bc
+
 > This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/README.md).
 
 ## `How to install?`
