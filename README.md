@@ -5,12 +5,11 @@
 
 Abogen is a powerful text-to-speech conversion tool that makes it easy to turn ePub, PDF, or text files into high-quality audio with matching subtitles in seconds. Use it for audiobooks, voiceovers for Instagram, YouTube, TikTok, or any project that needs natural-sounding text-to-speech, using [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M).
 
-<img title="Abogen Main" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen.png' width="380"> 
-<img title="Abogen Processing" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen2.png' width="380">
+<img title="Abogen Main" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen.png' width="350"> 
+<img title="Abogen Processing" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen2.png' width="350">
 
 ## Demo
-
-  <video src="https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/demo.webm" controls width="100%"></video>
+<video src="https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/demo.webm" controls width="100%"></video>
 > This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/README.md).
 
 ## `How to install?`
@@ -62,7 +61,7 @@ abogen
 3) Hit Start
 
 ## `In action`
-<img title="Abogen in action" src='https://github.com/denizsafak/AutoSubSync/blob/main/demo/abogen.gif'> 
+<img title="Abogen in action" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen.gif'> 
 
 Here’s Abogen in action: in this demo, it processes ∼3,000 characters of text in just 11 seconds and turns it into 3 minutes and 28 seconds of audio, and I have a low-end **GTX 2060 Mobile laptop GPU**. Your results may vary depending on your hardware.
 
