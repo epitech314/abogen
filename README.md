@@ -1,17 +1,17 @@
-# abogen: Audiobook Generator <img width="30px" title="abogen icon" src="https://github.com/denizsafak/AutoSubSync/blob/main/abogen/assets/icon.ico" align="right" style="padding-left: 10px; padding-top:5px;">
+# abogen: Audiobook Generator <img width="30px" title="abogen icon" src="https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/abogen/assets/icon.ico" align="right" style="padding-left: 10px; padding-top:5px;">
 
 [![Python Versions](https://img.shields.io/pypi/pyversions/abogen.svg)](https://pypi.org/project/abogen)
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 
 Abogen is a powerful text-to-speech conversion tool that makes it easy to turn ePub, PDF, or text files into high-quality audio with matching subtitles in seconds. Use it for audiobooks, voiceovers for Instagram, YouTube, TikTok, or any project that needs natural-sounding text-to-speech, using [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M).
 
-<img title="Abogen Main" src='https://github.com/denizsafak/AutoSubSync/blob/main/demo/abogen.png' width="380"> 
-<img title="Abogen Processing" src='https://github.com/denizsafak/AutoSubSync/blob/main/demo/abogen2.png' width="380">
+<img title="Abogen Main" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen.png' width="380"> 
+<img title="Abogen Processing" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen2.png' width="380">
 
 ## Demo
 
-  <video src="https://github.com/denizsafak/AutoSubSync/blob/main/demo/demo.webm" controls width="100%"></video>
-> This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://github.com/denizsafak/abogen/blob/main/demo/README.md).
+  <video src="https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/demo.webm" controls width="100%"></video>
+> This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/README.md).
 
 ## `How to install?`
 ### Windows
@@ -125,7 +125,7 @@ Feel free to explore the code and make any changes you like.
 Abogen uses [Kokoro](https://github.com/hexgrad/kokoro) for its high-quality, natural-sounding text-to-speech synthesis. Huge thanks to the Kokoro project and its contributors for making this possible.
 
 ## `License`
-This project is available under the MIT License - see the [LICENSE](https://github.com/denizsafak/abogen/blob/main/LICENSE) file for details.
+This project is available under the MIT License - see the [LICENSE](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/LICENSE) file for details.
 [Kokoro](https://github.com/hexgrad/kokoro) is licensed under [Apache-2.0](https://github.com/hexgrad/kokoro/blob/main/LICENSE) which allows commercial use, modification, distribution, and private use.
 
 > [!IMPORTANT]
