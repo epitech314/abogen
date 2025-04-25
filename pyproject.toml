@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "abogen"
+description = "Generate audiobooks from EPUBs, PDFs and text with synchronized captions."
+authors = [
+    { name="Deniz Şafak", email="denizsafak98@gmail.com" }
+]
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10, <3.13"
+keywords = ["audiobook", "epub", "pdf", "text-to-speech", "subtitle", "tts", "kokoro", "accessibility", "book-converter", "voice-synthesis", "multilingual", "chapter-management", "subtitles", "content-creation", "media-generation"]
+dependencies = [
+    "PyQt5>=5.15.11",
+    "kokoro>=0.9.4",
+    "ebooklib>=0.18",
+    "beautifulsoup4>=4.13.4",
+    "PyMuPDF>=1.25.5",
+    "soundfile>=0.13.1",
+    "pygame>=2.6.1"
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/denizsafak/abogen"
+Documentation = "https://github.com/denizsafak/abogen"
+Repository = "https://github.com/denizsafak/abogen"
+Issues = "https://github.com/denizsafak/abogen/issues"
+
+[project.gui-scripts]
+abogen = "abogen.main:main"
+
+[tool.setuptools]
+packages = ["abogen", "abogen.assets"]
+
+[tool.setuptools.package-data]
+abogen = [
+    "assets/*.ico",
+    "assets/*.gif", 
+    "assets/*.png",
+    "VERSION"
+]
+
+[tool.setuptools.dynamic]
+version = { file = "abogen/VERSION" }
