@@ -133,6 +133,13 @@ Abogen is a standalone project, but it is inspired by and shares some similariti
 - [ ] Add support for kokoro-onnx.
 - [ ] Add dark mode.
 
+# `Troubleshooting`
+If you encounter any issues while running Abogen, try launching it from the command line with:
+```
+abogen-cli
+```
+This will start Abogen in command-line mode and display detailed error messages. Please open a new issue on the [Issues](https://github.com/denizsafak/abogen/issues) page with the error message and a description of your problem.
+
 ## `Contributing`
 I welcome contributions! If you have ideas for new features, improvements, or bug fixes, please fork the repository and submit a pull request.
 ### For developers and contributors
