@@ -2,6 +2,8 @@
 
 The demo video showcases Abogen - an all-in-one tool for turning text into something you can see and hear. This guide explains how I created such a small yet effective demonstration video.
 
+https://github.com/user-attachments/assets/9e4fc237-a3cd-46bd-b82c-c608336d6411
+
 ## About the Demo
 
 The demo video shows how Abogen:
@@ -36,17 +38,17 @@ sudo apt install ffmpeg
 Run this command to process Abogen's subtitle file:
 
 ```
-python convert.py abogen_subtitles.srt
+python convert.py your_subtitle.srt
 ```
 
-This creates a properly formatted subtitle file called "abogen_subtitles_demo.ass" with centered text and appropriate styling.
+This creates a properly formatted subtitle file called "your_subtitle_demo.ass" with centered text and appropriate styling.
 
 ### Step 2: Create the Video
 
 Run this FFmpeg command to create the tiny video:
 
 ```
-ffmpeg -loop 1 -framerate 24 -i bg.jpg -i audio.wav -vf "ass=abogen_subtitles_demo.ass" -c:v libvpx-vp9 -b:v 0 -crf 30 -c:a libopus -shortest demo.webm
+ffmpeg -loop 1 -framerate 24 -i bg.jpg -i audio.wav -vf "ass=your_subtitle_demo.ass" -c:v libvpx-vp9 -b:v 0 -crf 30 -c:a libopus -shortest demo.webm
 ```
 
 That's it! The magic happens because:
@@ -59,7 +61,7 @@ That's it! The magic happens because:
 If you need better quality for distribution, use this command instead:
 
 ```
-ffmpeg -loop 1 -framerate 24 -i bg.jpg -i audio.wav -vf "ass=abogen_subtitles_demo.ass" -c:v libx264 -preset slow -crf 18 -movflags +faststart -c:a copy -shortest demo.mp4
+ffmpeg -loop 1 -framerate 24 -i bg.jpg -i audio.wav -vf "ass=your_subtitle_demo.ass" -c:v libx264 -preset slow -crf 18 -movflags +faststart -c:a copy -shortest demo.mp4
 ```
 
 This creates an MP4 file that's compatible with more devices but larger in size.
