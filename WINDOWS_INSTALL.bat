@@ -218,11 +218,20 @@ if errorlevel 1 (
     exit /b
 )
 
-:: Install sphinx and hatchling
-echo Installing sphinx and hatchling...
-%PYTHON_CONSOLE_PATH% -m pip install --upgrade sphinx hatchling --no-warn-script-location
+:: Install docopt's fixed version
+echo Installing fixed version of docopt...
+%PYTHON_CONSOLE_PATH% -m pip install --force-reinstall https://github.com/denizsafak/abogen/raw/refs/heads/main/abogen/resources/docopt-0.6.2-py2.py3-none-any.whl --no-warn-script-location
 if errorlevel 1 (
-    echo Failed to install hatchling.
+    echo Failed to install fixed version of docopt.
+    pause
+    exit /b
+)
+
+:: Install setup requirements
+echo Installing setup requirements...
+%PYTHON_CONSOLE_PATH% -m pip install --upgrade setuptools wheel sphinx hatchling --no-warn-script-location
+if errorlevel 1 (
+    echo Failed to install setup requirements.
     pause
     exit /b
 )
@@ -295,5 +304,3 @@ echo Starting %NAME%...
 start "" %RUN% %*
 
 exit /b
-
-

@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 from abogen.gui import abogen
 from abogen.utils import get_resource_path
+from abogen import PROGRAM_NAME, VERSION
 
 # Ensure sys.stdout and sys.stderr are valid in GUI mode
 if sys.stdout is None:
@@ -20,7 +21,7 @@ if platform.system() == "Darwin" and platform.processor() == "arm":
 if platform.system() == "Windows":
     import ctypes
 
-    app_id = "abogen.v1.0.0"
+    app_id = f"{PROGRAM_NAME}.{VERSION}"
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
 
 # Handle Wayland on Linux GNOME
