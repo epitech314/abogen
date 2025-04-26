@@ -14,14 +14,16 @@ Abogen is a powerful text-to-speech conversion tool that makes it easy to turn e
 https://github.com/user-attachments/assets/cb66512d-0a52-48c3-bda4-f1e6a03fb8d6
 
 
-> This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/README.md).
+> This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://github.com/denizsafak/abogen/tree/main/demo).
 
 ## `How to install?`
 ### Windows
 Go to [espeak-ng latest release](https://github.com/espeak-ng/espeak-ng/releases/latest) download and run the *.msi file.
 ```bash
 # For NVIDIA GPUs:
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+
+# Install abogen
 pip install abogen
 ```
 Alternatively, for an easier setup on Windows:
@@ -33,17 +35,24 @@ This method handles everything automatically - installing all dependencies inclu
 
 ### Mac
 ```bash
+# Install espeak-ng
 brew install espeak-ng
+
+# Install abogen
 pip install abogen # (I have not tested it)
 ```
 ### Linux
 ```bash
+# Install espeak-ng
+
 # Ubuntu/Debian
 sudo apt install espeak-ng
 # Arch Linux
 sudo pacman -S espeak-ng
 # Fedora
 sudo dnf install espeak-ng
+
+# Install abogen
 pip install abogen
 ```
 > If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux.
@@ -67,7 +76,7 @@ abogen
 ## `In action`
 <img title="Abogen in action" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen.gif'> 
 
-Here’s Abogen in action: in this demo, it processes ∼3,000 characters of text in just 11 seconds and turns it into 3 minutes and 28 seconds of audio, and I have a low-end **GTX 2060 Mobile laptop GPU**. Your results may vary depending on your hardware.
+Here’s Abogen in action: in this demo, it processes ∼3,000 characters of text in just 11 seconds and turns it into 3 minutes and 28 seconds of audio, and I have a low-end **RTX 2060 Mobile laptop GPU**. Your results may vary depending on your hardware.
 
 ## `Key Features`
 - **Supported formats**: `ePub`, `PDF`, or `.TXT` files (or use built-in text editor)
@@ -114,13 +123,15 @@ Abogen is a standalone project, but it is inspired by and shares some similariti
 - [audiblez](https://github.com/santinic/audiblez): Generate audiobooks from e-books. **(Has CLI and GUI support)**
 - [autiobooks](https://github.com/plusuncold/autiobooks): Automatically convert epubs to audiobooks
 - [pdf-narrator](https://github.com/mateogon/pdf-narrator): Convert your PDFs and EPUBs into audiobooks effortlessly.
+- [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook): EPUB to audiobook converter, optimized for Audiobookshelf
 
 ## `Roadmap`
 - [ ] Improve PDF support for better text extraction.
 - [ ] Add chapter metadata for .m4a files using ffmpeg-bin.
 - [ ] Add support for different languages in GUI.
-- [ ] Add voice formula feature that enables mixing different voice models.
+- [ ] Add voice formula feature that enables mixing different voice models. https://github.com/denizsafak/abogen/issues/1
 - [ ] Add support for kokoro-onnx.
+- [ ] Add dark mode.
 
 ## `Contributing`
 I welcome contributions! If you have ideas for new features, improvements, or bug fixes, please fork the repository and submit a pull request.
@@ -138,7 +149,7 @@ Feel free to explore the code and make any changes you like.
 Abogen uses [Kokoro](https://github.com/hexgrad/kokoro) for its high-quality, natural-sounding text-to-speech synthesis. Huge thanks to the Kokoro project and its contributors for making this possible.
 
 ## `License`
-This project is available under the MIT License - see the [LICENSE](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/LICENSE) file for details.
+This project is available under the MIT License - see the [LICENSE](https://github.com/denizsafak/abogen/blob/main/LICENSE) file for details.
 [Kokoro](https://github.com/hexgrad/kokoro) is licensed under [Apache-2.0](https://github.com/hexgrad/kokoro/blob/main/LICENSE) which allows commercial use, modification, distribution, and private use.
 
 > [!IMPORTANT]
