@@ -21,4 +21,4 @@ jobs:
       - name: Install abogen
         run: python -m pip install abogen
       - name: Run abogen
-        run: python -m abogen --version
+        run: abogen
