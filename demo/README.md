@@ -1,34 +1,23 @@
 # How to Create Videos Like the Demo (52 seconds in just 736kB!)
 
-The demo video showcases Abogen - an all-in-one tool for turning text into something you can see and hear. This guide explains how I created such a small yet effective demonstration video.
+This guide explains how I created such a small yet effective demonstration video, being only **736kB** for a **52-second video**!
 
 https://github.com/user-attachments/assets/9e4fc237-a3cd-46bd-b82c-c608336d6411
-
-## About the Demo
-
-The demo video shows how Abogen:
-- Converts text files (ePub, PDF, text) into audio with synchronized subtitles
-- Uses Kokoro (a powerful text-to-speech engine) to create natural voices
-- Works completely on your computer for privacy and security
-- Offers an easy interface for creating audiobooks and voiceovers
-- Can be used for Instagram, YouTube, TikTok, or any content creation
-
-And it does all this while being only **736kB** for a **52-second video**!
-
-## How I Created This Tiny Video
 
 ### What You Need
 
 - A background image (bg.jpg)
-- The subtitle file (.srt) created by Abogen
-- The audio recording (.wav) created by Abogen
+- The subtitle file (.srt) **(created by Abogen)**
+- The audio recording (.wav) **(created by Abogen)**
 - FFmpeg installed on your computer:
 
 ```bash
 # Windows
 winget install ffmpeg
+
 # MacOS
 brew install ffmpeg
+
 # Linux
 sudo apt install ffmpeg
 ```
@@ -43,7 +32,7 @@ python convert.py your_subtitle.srt
 
 This creates a properly formatted subtitle file called "your_subtitle_demo.ass" with centered text and appropriate styling.
 
-### Step 2: Create the Video
+### Step 2: Create the Video (.webm)
 
 Run this FFmpeg command to create the tiny video:
 
@@ -56,7 +45,7 @@ That's it! The magic happens because:
 - The subtitles are stored as text (vector data), not as pixels
 - VP9 video codec with Opus audio provides excellent compression
 
-## For Higher Quality (But Larger) Video
+## For Higher Quality (But Larger) Video (.mp4)
 
 If you need better quality for distribution, use this command instead:
 
