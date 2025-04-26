@@ -99,6 +99,16 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 ```
 For a complete list of supported languages and voices, refer to Kokoro's [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md). To listen to sample audio outputs, see [SAMPLES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/SAMPLES.md).
 
+## `MPV Config`
+I highly recommend using [MPV](https://mpv.io/installation/) to play your audio files, as it supports displaying subtitles even without a video track. Here's my `mpv.conf`:
+```
+save-position-on-quit
+keep-open=yes
+--audio-device=openal
+--sub-margin-x=235
+--sub-pos=60
+```
+
 ## `Similar Projects`
 Abogen is a standalone project, but it is inspired by and shares some similarities with other projects. Here are a few:
 - [audiblez](https://github.com/santinic/audiblez): Generate audiobooks from e-books. **(Has CLI and GUI support)**
