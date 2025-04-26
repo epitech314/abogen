@@ -1,5 +1,5 @@
-name: Install using pip
-run-name: Install using pip
+name: pip install
+run-name: pip install
 on: 
   push:
   pull_request:
