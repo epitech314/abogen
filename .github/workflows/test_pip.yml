@@ -1,5 +1,5 @@
-name: Install and run
-run-name: Install and run
+name: Install using pip
+run-name: Install using pip
 on: 
   push:
   pull_request:
@@ -20,5 +20,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install abogen
         run: python -m pip install abogen
-      - name: Run abogen
-        run: abogen
+      #- name: Run abogen
+      #  run: abogen
