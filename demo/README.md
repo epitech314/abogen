@@ -9,7 +9,7 @@ https://github.com/user-attachments/assets/9e4fc237-a3cd-46bd-b82c-c608336d6411
 - A background image (bg.jpg)
 - The subtitle file (.srt) **(created by Abogen)**
 - The audio recording (.wav) **(created by Abogen)**
-- FFmpeg installed on your computer:
+- [Python](https://www.python.org/downloads/) and FFmpeg installed on your computer:
 
 ```bash
 # Windows

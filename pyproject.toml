@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=77.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "abogen"
@@ -45,16 +45,19 @@ Issues = "https://github.com/denizsafak/abogen/issues"
 [project.gui-scripts]
 abogen = "abogen.main:main"
 
-[tool.setuptools]
-packages = ["abogen", "abogen.assets"]
-
-[tool.setuptools.package-data]
-abogen = [
-    "assets/*.ico",
-    "assets/*.gif", 
-    "assets/*.png",
-    "VERSION"
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.github",
+    "/demo",
+    "/demo",
+    "/abogen/assets/create_shortcuts.bat",
+    "WINDOWS_INSTALL.bat",
+    
 ]
 
-[tool.setuptools.dynamic]
-version = { file = "abogen/VERSION" }
+[tool.hatch.build.targets.wheel]
+packages = ["abogen"]
+
+[tool.hatch.version]
+path = "abogen/VERSION"
+pattern = "^(?P<version>.+)$"

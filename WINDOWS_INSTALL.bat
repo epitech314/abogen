@@ -218,11 +218,11 @@ if errorlevel 1 (
     exit /b
 )
 
-:: Install setuptools, wheel, and poetry-core
-echo Installing setuptools...
-%PYTHON_CONSOLE_PATH% -m pip install setuptools wheel hatchling editables --no-warn-script-location
+:: Install sphinx and hatchling
+echo Installing sphinx and hatchling...
+%PYTHON_CONSOLE_PATH% -m pip install --upgrade sphinx hatchling --no-warn-script-location
 if errorlevel 1 (
-    echo Failed to install setuptools.
+    echo Failed to install hatchling.
     pause
     exit /b
 )
@@ -231,7 +231,7 @@ if errorlevel 1 (
 echo Checking and installing project dependencies...
 if exist %PYPROJECT_FILE% (
     echo Installing project from pyproject.toml...
-    %PYTHON_CONSOLE_PATH% -m pip install -e . --no-warn-script-location
+    %PYTHON_CONSOLE_PATH% -m pip install . --no-warn-script-location
     if errorlevel 1 (
         echo Failed to install from pyproject.toml.
         pause
