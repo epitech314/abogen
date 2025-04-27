@@ -2,7 +2,14 @@ name: pip install
 run-name: pip install
 on: 
   push:
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
   pull_request:
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - '.github/workflows/**'
   workflow_dispatch:
 jobs:
   install-and-run:
