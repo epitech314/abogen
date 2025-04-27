@@ -21,7 +21,7 @@ from PyQt5.QtWidgets import (
     QMenu,
 )
 from PyQt5.QtCore import Qt
-from abogen.utils import clean_text, calculate_text_length
+from utils import clean_text, calculate_text_length
 import os
 
 

@@ -5,8 +5,8 @@ import time
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
-from abogen.utils import clean_text, SAMPLE_VOICE_TEXTS, LANGUAGE_DESCRIPTIONS
-from abogen import PROGRAM_NAME
+from utils import clean_text
+from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
 
 
 def get_sample_voice_text(lang_code):
@@ -688,6 +688,7 @@ class PlayAudioThread(QThread):
         try:
             import pygame
             import time as _time
+
             pygame.mixer.init()
             pygame.mixer.music.load(self.wav_path)
             pygame.mixer.music.play()

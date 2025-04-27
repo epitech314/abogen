@@ -46,7 +46,7 @@ from PyQt5.QtGui import (
     QColor,
     QMovie,
 )
-from abogen.utils import (
+from utils import (
     load_config,
     save_config,
     get_gpu_acceleration,
@@ -56,14 +56,19 @@ from abogen.utils import (
     calculate_text_length,
     get_resource_path,
     LoadPipelineThread,
+)
+from conversion import ConversionThread, VoicePreviewThread, PlayAudioThread
+from book_handler import HandlerDialog
+from constants import (
+    PROGRAM_NAME,
+    VERSION,
+    GITHUB_URL,
+    PROGRAM_DESCRIPTION,
+    LANGUAGE_DESCRIPTIONS,
     FLAGS,
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
-    LANGUAGE_DESCRIPTIONS,
 )
-from abogen.conversion import ConversionThread, VoicePreviewThread, PlayAudioThread
-from abogen.book_handler import HandlerDialog
-from abogen import PROGRAM_NAME, VERSION, GITHUB_URL, PROGRAM_DESCRIPTION
 from threading import Thread
 
 # Import ctypes for Windows-specific taskbar icon
@@ -1271,6 +1276,7 @@ class abogen(QWidget):
         if self.preview_playing:
             try:
                 import pygame
+
                 pygame.mixer.music.stop()
             except Exception:
                 pass
@@ -1470,7 +1476,7 @@ class abogen(QWidget):
 
     def show_chapter_options_dialog(self, chapter_count):
         """Show dialog to ask user about chapter processing options when chapters are detected in a .txt file"""
-        from abogen.conversion import ChapterOptionsDialog
+        from conversion import ChapterOptionsDialog
 
         dialog = ChapterOptionsDialog(chapter_count, parent=self)
         dialog.setWindowModality(Qt.ApplicationModal)
@@ -1539,7 +1545,7 @@ class abogen(QWidget):
 
     def reveal_config_in_explorer(self):
         """Open the configuration file location in file explorer."""
-        from abogen.utils import get_user_config_path
+        from utils import get_user_config_path
 
         try:
             config_path = get_user_config_path()

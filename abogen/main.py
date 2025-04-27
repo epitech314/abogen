@@ -3,9 +3,12 @@ import sys
 import platform
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
-from abogen.gui import abogen
-from abogen.utils import get_resource_path
-from abogen import PROGRAM_NAME, VERSION
+
+# Add the directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+from gui import abogen
+from utils import get_resource_path
+from constants import PROGRAM_NAME, VERSION
 
 # Ensure sys.stdout and sys.stderr are valid in GUI mode
 if sys.stdout is None:
@@ -28,7 +31,11 @@ if platform.system() == "Windows":
 if platform.system() == "Linux":
     xdg_session = os.environ.get("XDG_SESSION_TYPE", "").lower()
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
-    if "gnome" in desktop and xdg_session == "wayland" and "QT_QPA_PLATFORM" not in os.environ:
+    if (
+        "gnome" in desktop
+        and xdg_session == "wayland"
+        and "QT_QPA_PLATFORM" not in os.environ
+    ):
         os.environ["QT_QPA_PLATFORM"] = "wayland"
 
 
