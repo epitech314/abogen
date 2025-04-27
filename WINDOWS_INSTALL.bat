@@ -46,8 +46,7 @@ if exist "%VERSION_FILE%" (
     set "LOCAL_VERSION_CLEAN=!LOCAL_VERSION:.=!"
 
     :: First verify GitHub is accessible by checking HTTP status code
-    curl -s -o nul -w "%%{http_code}" "%VERSION_URL%" > "%TEMP%\abogen_http_status.txt"
-    set /p abogen_http_status=<"%TEMP%\abogen_http_status.txt"
+    for /f %%i in ('curl -s -o nul -w "%%{http_code}" "%VERSION_URL%"') do set abogen_http_status=%%i
     
     if not "!abogen_http_status!"=="200" (
         echo Failed to access GitHub repository ^(HTTP status: !abogen_http_status!^). Continuing with current version.
@@ -55,14 +54,8 @@ if exist "%VERSION_FILE%" (
     )
     
     :: Get the remote version (only if GitHub is accessible)
-    curl -s -o "%TEMP%\abogen_remote_version.txt" "%VERSION_URL%"
-    findstr "^" "%TEMP%\abogen_remote_version.txt" >nul 2>&1
-    if errorlevel 1 (
-        echo Failed to retrieve version information. Continuing with current version.
-        goto continue_with_current_version
-    )
+    for /f "delims=" %%i in ('curl -s "%VERSION_URL%"') do set abogen_remote_version=%%i
     
-    set /p abogen_remote_version=<"%TEMP%\abogen_remote_version.txt"
     if "!abogen_remote_version!"=="" (
         echo Empty version information received. Continuing with current version.
         goto continue_with_current_version
@@ -97,8 +90,7 @@ if exist "%VERSION_FILE%" (
         echo Downloading the latest update...
         
         :: Test the zip URL before downloading
-        curl -s -o nul -w "%%{http_code}" "%UPDATE_ZIP_URL%" > "%TEMP%\abogen_zip_status.txt"
-        set /p abogen_zip_status=<"%TEMP%\abogen_zip_status.txt"
+        for /f %%i in ('curl -s -o nul -w "%%{http_code}" "%UPDATE_ZIP_URL%"') do set abogen_zip_status=%%i
         
         if not "!abogen_zip_status!"=="302" (
             echo Failed to access update zip file ^(HTTP status: !abogen_zip_status!^). Continuing with current version.
@@ -137,7 +129,7 @@ if exist "%VERSION_FILE%" (
         )
     ) else (
         echo Current version: !LOCAL_VERSION!, Remote version: !abogen_remote_version!
-        echo You are usering the latest version.
+        echo You are using the latest version.
     )
 ) else (
     echo VERSION file not found. Cannot check for updates.
