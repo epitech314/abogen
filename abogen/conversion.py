@@ -279,6 +279,14 @@ class ConversionThread(QThread):
                 parent_dir = os.path.dirname(base_path)
             else:
                 parent_dir = self.output_folder or os.getcwd()
+            # Ensure the output folder exists, error if it doesn't
+            if not os.path.exists(parent_dir):
+                self.log_updated.emit(
+                    (
+                        f"Output folder does not exist: {parent_dir}",
+                        "red",
+                    )
+                )
             # Find a unique suffix for both folder and merged file, always
             counter = 1
             while True:
