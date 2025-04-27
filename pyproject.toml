@@ -19,7 +19,9 @@ dependencies = [
     "beautifulsoup4>=4.13.4",
     "PyMuPDF>=1.25.5",
     "soundfile>=0.13.1",
-    "pygame>=2.6.1"
+    "pygame>=2.6.1",
+    "charset_normalizer>=3.4.1",
+    "chardet>=5.2.0"
 ]
 
 classifiers = [
@@ -52,10 +54,9 @@ abogen-cli = "abogen.main:main"
 exclude = [
     "/.github",
     "/demo",
-    "/demo",
+    "/abogen/resources",
     "/abogen/assets/create_shortcuts.bat",
     "WINDOWS_INSTALL.bat",
-    
 ]
 
 [tool.hatch.build.targets.wheel]

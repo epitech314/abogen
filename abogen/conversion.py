@@ -2,6 +2,8 @@ import os
 import re
 import tempfile
 import time
+import chardet
+import charset_normalizer
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
@@ -11,6 +13,21 @@ from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
 
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
+
+def detect_encoding(file_path):
+    with open(file_path, "rb") as f:
+        raw_data = f.read()
+    detected_encoding = None
+    for detectors in (charset_normalizer, chardet):
+        try:
+            result = detectors.detect(raw_data)["encoding"]
+        except Exception:
+            continue
+        if result is not None:
+            detected_encoding = result
+            break
+    encoding = detected_encoding if detected_encoding else "utf-8"
+    return encoding.lower()
 
 
 class ChapterOptionsDialog(QDialog):
@@ -183,7 +200,8 @@ class ConversionThread(QThread):
             if self.is_direct_text:
                 text = self.file_name  # Treat file_name as direct text input
             else:
-                with open(self.file_name, "r", encoding="utf-8") as file:
+                encoding = detect_encoding(self.file_name)
+                with open(self.file_name, "r", encoding=encoding, errors="replace") as file:
                     text = file.read()
 
             # Clean up text using utility function
@@ -455,7 +473,7 @@ class ConversionThread(QThread):
                         chapter_srt_path = os.path.join(
                             chapters_out_dir, f"{chapter_filename}.srt"
                         )
-                        with open(chapter_srt_path, "w", encoding="utf-8") as srt_file:
+                        with open(chapter_srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
                             for i, (start, end, text) in enumerate(
                                 chapter_subtitle_entries, 1
                             ):
@@ -496,7 +514,7 @@ class ConversionThread(QThread):
                 srt_path = os.path.splitext(out_path)[0] + ".srt"
                 sf.write(out_path, audio, 24000, format=self.output_format)
                 if self.subtitle_mode != "Disabled":
-                    with open(srt_path, "w", encoding="utf-8") as srt_file:
+                    with open(srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
                         for i, (start, end, text) in enumerate(subtitle_entries, 1):
                             srt_file.write(
                                 f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
