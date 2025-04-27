@@ -1328,6 +1328,8 @@ class abogen(QWidget):
     def _play_preview_audio(self):
         temp_wav = self.preview_thread.temp_wav
         if not temp_wav:
+            self.loading_movie.stop()
+            self.btn_preview.setIcon(self.play_icon)
             self._show_error_message_box(
                 "Preview Error", "Preview error: No audio generated."
             )
