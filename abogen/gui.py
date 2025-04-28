@@ -570,15 +570,9 @@ class abogen(QWidget):
         )
         voice_row.addWidget(self.voice_combo)
         
-        # voice formula - text box for now, add a dialog later
-        self.voice_formula = QTextEdit(self)
-        self.voice_formula.setAcceptRichText(False)
-        self.voice_formula.setPlaceholderText("Enter voice formula here...")
-        self.voice_formula.setText('0.242 * am_michael + 0.758 * bf_isabella')
-        voice_row.addWidget(self.voice_formula)
-
+        # Voice formula button
         self.btn_voice_formula_mixer = QPushButton(self)
-        self.btn_voice_formula_mixer.setText("☺") # TODO add voice formula icon
+        self.btn_voice_formula_mixer.setText("🛠") # TODO add voice formula icon
         self.btn_voice_formula_mixer.setToolTip("Mix and match voices")
         self.btn_voice_formula_mixer.setFixedSize(40, 36)
         self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")

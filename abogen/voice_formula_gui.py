@@ -39,6 +39,7 @@ class VoiceMixer(QWidget):
         # Checkbox at the top
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(initial_status)
+        self.checkbox.stateChanged.connect(self.toggle_inputs)
         self.checkbox.stateChanged.connect(self.update_formula_callback)
         layout.addWidget(self.checkbox, alignment=Qt.AlignCenter)
 
@@ -78,7 +79,15 @@ class VoiceMixer(QWidget):
 
         layout.addLayout(slider_layout)
         self.setLayout(layout)
+
+        # Disable inputs initially if the checkbox is unchecked
+        self.toggle_inputs()
         
+    def toggle_inputs(self):
+        """Enable or disable inputs based on the checkbox state."""
+        is_enabled = self.checkbox.isChecked()
+        self.spin_box.setEnabled(is_enabled)
+        self.slider.setEnabled(is_enabled)
 
     def get_voice_gender(self):
         if self.voice_name in VOICES_INTERNAL:
@@ -133,8 +142,8 @@ class VoiceFormulaDialog(QDialog):
         cancel_button = QPushButton("Cancel")
 
         # Connect buttons to appropriate slots
-        ok_button.clicked.connect(self.accept)      # Close dialog and return QDialog.Accepted
-        cancel_button.clicked.connect(self.reject)  # Close dialog and return QDialog.Rejected
+        ok_button.clicked.connect(self.accept)      
+        cancel_button.clicked.connect(self.reject)  
 
         button_layout.addStretch()  # Push buttons to the right
         button_layout.addWidget(ok_button)
