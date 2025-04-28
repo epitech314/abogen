@@ -459,6 +459,7 @@ class abogen(QWidget):
         self.last_output_path = None
         self.selected_voice = self.config.get("selected_voice", "af_heart")
         self.selected_lang = self.selected_voice[0]
+        self.mixed_voice_state = None  # Store the mixed voice state
         self.is_converting = False
         self.subtitle_mode = self.config.get("subtitle_mode", "Sentence")
         self.max_subtitle_words = self.config.get(
@@ -1662,7 +1663,17 @@ class abogen(QWidget):
         save_config(self.config)
         
     def show_voice_formula_dialog(self):
-        VoiceFormulaDialog(self).exec_()
+        # get the current voice mix
+        if self.mixed_voice_state is None:
+            # if no voice mix is set, use the selected voice
+            self.mixed_voice_state = [(self.selected_voice, 1.0)]
+        
+        dialog = VoiceFormulaDialog(self, initial_state=self.mixed_voice_state)
+        if dialog.exec_() == QDialog.Accepted:
+            self.mixed_voice_state = dialog.get_selected_voices()
+            print("Selected voices and weights:", self.mixed_voice_state)
+        else:
+            print("Dialog canceled")
        
     def show_about_dialog(self):
         """Show an About dialog with program information including GitHub link."""

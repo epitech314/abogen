@@ -21,7 +21,7 @@ from constants import (
 voice_mixer_width = 160
 
 class VoiceMixer(QWidget):
-    def __init__(self, voice_name, language_icon, update_formula_callback):
+    def __init__(self, voice_name, language_icon, update_formula_callback, initial_status=False, initial_weight=0.0):
         super().__init__()
 
         self.voice_name = voice_name
@@ -38,7 +38,7 @@ class VoiceMixer(QWidget):
 
         # Checkbox at the top
         self.checkbox = QCheckBox()
-        self.checkbox.setChecked(True)
+        self.checkbox.setChecked(initial_status)
         self.checkbox.stateChanged.connect(self.update_formula_callback)
         layout.addWidget(self.checkbox, alignment=Qt.AlignCenter)
 
@@ -56,11 +56,12 @@ class VoiceMixer(QWidget):
         self.spin_box.setRange(0, 1)
         self.spin_box.setSingleStep(0.01)
         self.spin_box.setDecimals(2)
+        self.spin_box.setValue(initial_weight)
         self.spin_box.valueChanged.connect(self.update_formula_callback)
 
         self.slider = QSlider(Qt.Vertical)  # Set slider orientation to vertical
         self.slider.setRange(0, 100)
-        self.slider.setValue(100)  # Default to 1.0
+        self.slider.setValue(int(initial_weight * 100))
         self.slider.setFixedHeight(180)
         self.slider.valueChanged.connect(
             lambda val: self.spin_box.setValue(val / 100)
@@ -92,8 +93,14 @@ class VoiceMixer(QWidget):
         return ""
 
 
+    def get_voice_weight(self):
+        """Return the voice and its weight if selected."""
+        if self.checkbox.isChecked():
+            return self.voice_name, self.spin_box.value()
+        return None
+
 class VoiceFormulaDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, initial_state=None):
         super().__init__(parent)
 
         self.setWindowTitle("Voice Mixer")
@@ -106,7 +113,7 @@ class VoiceFormulaDialog(QDialog):
         # Scroll Area for Voice Panels
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setFixedSize(1000, 500)  # Keep scroll area height within 500
+        self.scroll_area.setFixedSize(1000, 400)  # Keep scroll area height within 500
         self.voice_list_widget = QWidget()
         self.voice_list_layout = QHBoxLayout()  
         self.voice_list_widget.setLayout(self.voice_list_layout)
@@ -138,16 +145,16 @@ class VoiceFormulaDialog(QDialog):
         self.setLayout(main_layout)
         
         # Initialize with fixed voices
-        self.add_voices()
-
-
-    def add_voices(self):
         for voice in VOICES_INTERNAL:
             flag = FLAGS.get(voice[0], "")
-            self.add_voice(voice, flag)
+            matching_voice = next((item for item in initial_state if item[0] == voice), None)
+            initial_status = matching_voice is not None
+            initial_weight = matching_voice[1] if matching_voice else 1.0
+            self.add_voice(voice, flag, initial_status, initial_weight)
 
-    def add_voice(self, voice_name, language_icon):
-        voice_mixer = VoiceMixer(voice_name, language_icon, self.update_formula)
+        
+    def add_voice(self, voice_name, language_icon, initial_status=False, initial_weight=1.0):
+        voice_mixer = VoiceMixer(voice_name, language_icon, self.update_formula, initial_status, initial_weight)
         self.voice_mixers.append(voice_mixer)
         self.voice_list_layout.addWidget(voice_mixer)
         self.update_formula()
@@ -163,3 +170,10 @@ class VoiceFormulaDialog(QDialog):
         ]
         formula = " + ".join(filter(None, formula_components))
         self.formula_label.setText(f"Voice Formula: {formula}")
+
+    def get_selected_voices(self):
+        """Return the list of selected voices and their weights."""
+        selected_voices = [
+            mixer.get_voice_weight() for mixer in self.voice_mixers
+        ]
+        return [voice for voice in selected_voices if voice]  # Filter out None
