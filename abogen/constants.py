@@ -1,4 +1,4 @@
-from utils import get_version, get_user_config_path
+from utils import get_version
 
 # Program Information
 PROGRAM_NAME = "abogen"

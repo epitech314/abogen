@@ -1,1 +1,2 @@
+- Added "Replace single newlines with spaces" option in the menu. This can be useful for texts that have imaginary line breaks (for example LICENSE files).
 - Fixed "'utf-8' codec can't decode byte" error, mentioned in #3 by @nigelp

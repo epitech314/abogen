@@ -56,7 +56,7 @@ sudo dnf install espeak-ng
 # Install abogen
 pip install abogen
 ```
-> If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux.
+> If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
 
 Then simply run by typing:
 
@@ -117,6 +117,11 @@ keep-open=yes
 --audio-device=openal
 --sub-margin-x=235
 --sub-pos=60
+# --- Audio Quality ---
+audio-spdif=ac3,dts,eac3,truehd,dts-hd
+audio-channels=auto
+audio-samplerate=48000
+volume-max=200
 ```
 
 ## `Similar Projects`

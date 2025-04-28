@@ -40,11 +40,6 @@ Run this FFmpeg command to create the tiny video:
 ffmpeg -loop 1 -framerate 24 -i bg.jpg -i audio.wav -vf "ass=your_subtitle_demo.ass" -c:v libvpx-vp9 -b:v 0 -crf 30 -c:a libopus -shortest demo.webm
 ```
 
-That's it! The magic happens because:
-- We use a single static background image instead of many frames
-- The subtitles are stored as text (vector data), not as pixels
-- VP9 video codec with Opus audio provides excellent compression
-
 ## For Higher Quality (But Larger) Video (.mp4)
 
 If you need better quality for distribution, use this command instead:
