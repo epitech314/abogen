@@ -42,7 +42,7 @@ class VoiceMixer(QWidget):
         self.spin_box.setDecimals(2)
         self.spin_box.valueChanged.connect(self.update_formula_callback)
 
-        self.slider = QSlider(Qt.Horizontal)
+        self.slider = QSlider(Qt.Vertical)  # Set slider orientation to vertical
         self.slider.setRange(0, 100)
         self.slider.setValue(50)  # Default to 0.5
         self.slider.valueChanged.connect(
@@ -52,16 +52,13 @@ class VoiceMixer(QWidget):
             lambda val: self.slider.setValue(int(val * 100))
         )
 
-        slider_layout = QHBoxLayout()
-        slider_layout.addWidget(QLabel("0"))
+        slider_layout = QVBoxLayout()
+        slider_layout.addWidget(self.spin_box)
+        slider_layout.addWidget(QLabel("1", alignment=Qt.AlignCenter))
         slider_layout.addWidget(self.slider)
-        slider_layout.addWidget(QLabel("1"))
+        slider_layout.addWidget(QLabel("0", alignment=Qt.AlignCenter))
 
-        input_layout = QVBoxLayout()
-        input_layout.addWidget(self.spin_box)
-        input_layout.addLayout(slider_layout)
-
-        layout.addLayout(input_layout)
+        layout.addLayout(slider_layout)
         self.setLayout(layout)
 
     def get_formula_component(self):
@@ -69,6 +66,7 @@ class VoiceMixer(QWidget):
             weight = self.spin_box.value()
             return f"{weight:.3f} * {self.voice_name.lower().replace(' ', '_')}"
         return ""
+
 
 class VoiceFormulaDialog(QDialog):
     def __init__(self, parent=None):
@@ -84,7 +82,7 @@ class VoiceFormulaDialog(QDialog):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.voice_list_widget = QWidget()
-        self.voice_list_layout = QVBoxLayout()
+        self.voice_list_layout = QHBoxLayout()
         self.voice_list_widget.setLayout(self.voice_list_layout)
         self.scroll_area.setWidget(self.voice_list_widget)
         main_layout.addWidget(self.scroll_area)
@@ -134,48 +132,3 @@ class VoiceFormulaDialog(QDialog):
         ]
         formula = " + ".join(filter(None, formula_components))
         self.formula_label.setText(f"Voice Formula: {formula}")
-
-    #     """ Show a dialog to mix the voice formula """
-    #     ### todo
-    #     # Get application icon for dialog
-    #     icon = self.windowIcon()
-
-    #     # Create custom dialog
-    #     dialog = QDialog(self)
-    #     dialog.setWindowTitle(f"Voice Formula Mixer")
-    #     dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)   
-    #     dialog.setFixedSize(1200, 400)  # Increased height for new button
-        
-    #     layout = QVBoxLayout(dialog)
-    #     layout.setSpacing(10)
-
-    #     # add a picker for each voice
-    #     # TODO add all voices
-    #     voices = ['af_bella','af_sarah','am_eric']
-    #     language_icon = '🇺🇸'
-    #     for voice in voices:
-    #         self.add_voice(voice, language_icon)
-
-    #     # Scroll Area for Voice Panels
-    #     self.scroll_area = QScrollArea()
-    #     self.scroll_area.setWidgetResizable(True)
-    #     self.voice_list_widget = QWidget()
-    #     self.voice_list_layout = QVBoxLayout()
-    #     self.voice_list_widget.setLayout(self.voice_list_layout)
-    #     self.scroll_area.setWidget(self.voice_list_widget)
-    #     layout.addWidget(self.scroll_area)
-
-    #     # TODO add all voices
-    #     self.add_fixed_voices()
-
-
-
-    #     # Close button
-    #     close_btn = QPushButton("Close")
-    #     close_btn.clicked.connect(dialog.accept)
-    #     close_btn.setFixedHeight(32)
-    #     layout.addWidget(close_btn)
-
-    #     dialog.exec_()
-
- 
