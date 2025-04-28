@@ -567,6 +567,13 @@ class abogen(QWidget):
             '"a" => American English\n"b" => British English\n"e" => Spanish\n"f" => French\n"h" => Hindi\n"i" => Italian\n"j" => Japanese\n"p" => Brazilian Portuguese\n"z" => Mandarin Chinese\nThe second character represents the gender:\n"m" => Male\n"f" => Female'
         )
         voice_row.addWidget(self.voice_combo)
+        
+        # voice formula - text box for now, add a dialog later
+        self.voice_formula = QTextEdit(self)
+        self.voice_formula.setAcceptRichText(False)
+        self.voice_formula.setPlaceholderText("Enter voice formula here...")
+        self.voice_formula.setText('0.242 * am_michael + 0.758 * bf_isabella')
+        voice_row.addWidget(self.voice_formula)
 
         # Play/Stop icons
         def make_icon(color, shape):
@@ -1037,12 +1044,15 @@ class abogen(QWidget):
                 if not self.subtitle_combo.isEnabled()
                 else self.subtitle_mode
             )
-
+            
+            voice_formula = self.voice_formula.toPlainText()
+            
             self.conversion_thread = ConversionThread(
                 self.selected_file,
                 self.selected_lang,
                 speed,
-                self.selected_voice,
+                #self.selected_voice,
+                voice_formula,
                 self.save_option,
                 self.selected_output_folder,
                 subtitle_mode=actual_subtitle_mode,

@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButt
 import soundfile as sf
 from utils import clean_text
 from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
+from voice_formulas import get_new_voice
 
 
 def get_sample_voice_text(lang_code):
@@ -346,9 +347,12 @@ class ConversionThread(QThread):
 
                 # Set split_pattern to \n+ which will split on one or more newlines
                 split_pattern = r"\n+"
+                
+                loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
+                
                 for result in tts(
                     chapter_text,
-                    voice=self.voice,
+                    voice=loaded_voice,
                     speed=self.speed,
                     split_pattern=split_pattern,
                 ):
