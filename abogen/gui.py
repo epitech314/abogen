@@ -1049,13 +1049,17 @@ class abogen(QWidget):
                 else self.subtitle_mode
             )
             
-            voice_formula = self.voice_formula.toPlainText()
-            
+            # if voice formula is not None, use the selected voice
+            if self.mixed_voice_state:
+                formula_components = [f"{weight} * {name}" for name, weight in self.mixed_voice_state]
+                voice_formula = " + ".join(filter(None, formula_components))
+            else:
+                voice_formula = self.selected_voice
+
             self.conversion_thread = ConversionThread(
                 self.selected_file,
                 self.selected_lang,
                 speed,
-                #self.selected_voice,
                 voice_formula,
                 self.save_option,
                 self.selected_output_folder,

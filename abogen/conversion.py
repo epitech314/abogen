@@ -348,7 +348,11 @@ class ConversionThread(QThread):
                 # Set split_pattern to \n+ which will split on one or more newlines
                 split_pattern = r"\n+"
                 
-                loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
+                # Check if the voice is a formula and load it if necessary
+                if '*' in self.voice:
+                    loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
+                else:
+                    loaded_voice = self.voice
                 
                 for result in tts(
                     chapter_text,
