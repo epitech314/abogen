@@ -70,6 +70,7 @@ from constants import (
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
 )
 from threading import Thread
+from voice_formula_gui import VoiceFormulaDialog
 
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
@@ -574,6 +575,14 @@ class abogen(QWidget):
         self.voice_formula.setPlaceholderText("Enter voice formula here...")
         self.voice_formula.setText('0.242 * am_michael + 0.758 * bf_isabella')
         voice_row.addWidget(self.voice_formula)
+
+        self.btn_voice_formula_mixer = QPushButton(self)
+        self.btn_voice_formula_mixer.setText("☺") # TODO add voice formula icon
+        self.btn_voice_formula_mixer.setToolTip("Mix and match voices")
+        self.btn_voice_formula_mixer.setFixedSize(40, 36)
+        self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")
+        self.btn_voice_formula_mixer.clicked.connect(self.show_voice_formula_dialog)
+        voice_row.addWidget(self.btn_voice_formula_mixer)
 
         # Play/Stop icons
         def make_icon(color, shape):
@@ -1651,7 +1660,10 @@ class abogen(QWidget):
     def toggle_check_updates(self, checked):
         self.config["check_updates"] = checked
         save_config(self.config)
-
+        
+    def show_voice_formula_dialog(self):
+        VoiceFormulaDialog(self).exec_()
+       
     def show_about_dialog(self):
         """Show an About dialog with program information including GitHub link."""
         # Get application icon for dialog
