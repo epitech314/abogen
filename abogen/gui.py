@@ -1056,7 +1056,7 @@ class abogen(QWidget):
             else:
                 voice_formula = self.selected_voice
             # selected language - use the first voice of the mix
-            selected_lang = self.selected_voice[0]
+            selected_lang = voice_formula[0]
 
             self.conversion_thread = ConversionThread(
                 self.selected_file,
