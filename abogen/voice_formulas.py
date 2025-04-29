@@ -1,3 +1,4 @@
+import re
 from constants import VOICES_INTERNAL
 
 # Calls parsing and loads the voice to gpu or cpu
@@ -11,24 +12,26 @@ def get_new_voice(pipeline, formula, use_gpu):
     
 # Parse the formula and get the combined voice tensor        
 def parse_voice_formula(pipeline, formula):
-    """Parse the voice formula string and return the combined voice tensor."""
     if not formula.strip():
         raise ValueError("Empty voice formula")
         
     # Initialize the weighted sum
     weighted_sum = None
     
+    total_weight = calculate_sum_from_formula(formula)
+
     # Split the formula into terms
-    terms = formula.split('+')
+    voices = formula.split('+')
     
-    for term in terms:
+    for term in voices:
         # Parse each term (format: "0.333 * voice_name")
         weight, voice_name = term.strip().split('*')
         weight = float(weight.strip())
+        # normalize the weight
+        weight /= total_weight if total_weight > 0 else 1.0
         voice_name = voice_name.strip()
         
         # Get the voice tensor
-        # use VOICES_INTERNAL
         if voice_name not in VOICES_INTERNAL:
             raise ValueError(f"Unknown voice: {voice_name}")
             
@@ -41,3 +44,8 @@ def parse_voice_formula(pipeline, formula):
             weighted_sum += weight * voice_tensor
             
     return weighted_sum
+
+def calculate_sum_from_formula(formula):
+    weights = re.findall(r'([\d.]+) \*', formula)
+    total_sum = sum(float(weight) for weight in weights)
+    return total_sum
