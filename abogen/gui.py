@@ -3,6 +3,7 @@ import time
 import tempfile
 import platform
 import base64
+import re
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -1056,7 +1057,8 @@ class abogen(QWidget):
             else:
                 voice_formula = self.selected_voice
             # selected language - use the first voice of the mix
-            selected_lang = voice_formula[0]
+            match = re.search(r'\b([a-z])', voice_formula)
+            selected_lang = match.group(1)
 
             self.conversion_thread = ConversionThread(
                 self.selected_file,
@@ -1671,9 +1673,6 @@ class abogen(QWidget):
         dialog = VoiceFormulaDialog(self, initial_state=self.mixed_voice_state)
         if dialog.exec_() == QDialog.Accepted:
             self.mixed_voice_state = dialog.get_selected_voices()
-            print("Selected voices and weights:", self.mixed_voice_state)
-        else:
-            print("Dialog canceled")
        
     def show_about_dialog(self):
         """Show an About dialog with program information including GitHub link."""
