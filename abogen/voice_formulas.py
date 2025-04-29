@@ -4,8 +4,11 @@ from constants import VOICES_INTERNAL
 # Calls parsing and loads the voice to gpu or cpu
 def get_new_voice(pipeline, formula, use_gpu):
     try:
-        weighted_voice = parse_voice_formula(pipeline, formula)            
-        device = "cuda" if use_gpu else "cpu"
+        weighted_voice = parse_voice_formula(pipeline, formula)
+        # device = "cuda" if use_gpu else "cpu"
+        # Setting the device "cuda" gives "Error occurred: split_with_sizes(): argument 'split_sizes' (position 2)"
+        # error when the device is gpu. So disabling this for now.
+        device = "cpu"
         return weighted_voice.to(device)
     except Exception as e:
         raise ValueError(f"Failed to create voice: {str(e)}")
