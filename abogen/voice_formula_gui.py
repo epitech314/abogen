@@ -11,7 +11,10 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QSizePolicy
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import (
+    Qt,
+    QTimer
+)
 from constants import (
     VOICES_INTERNAL, 
     FLAGS
@@ -152,22 +155,31 @@ class VoiceFormulaDialog(QDialog):
         self.add_voices(initial_state)
 
     def add_voices(self, initial_state):
+        """Add voice mixers to the dialog based on the initial state and scroll to first enabled one."""
+        first_enabled_voice = None 
+
         for voice in VOICES_INTERNAL:
             flag = FLAGS.get(voice[0], "")
             matching_voice = next((item for item in initial_state if item[0] == voice), None)
             initial_status = matching_voice is not None
             initial_weight = matching_voice[1] if matching_voice else 1.0
-            self.add_voice(voice, flag, initial_status, initial_weight)
+            voice_mixer = self.add_voice(voice, flag, initial_status, initial_weight)
+            # remember the first enabled voice
+            if initial_status and first_enabled_voice is None:
+                first_enabled_voice = voice_mixer
+        
+        if first_enabled_voice:
+            self.scroll_to_voice(first_enabled_voice)
         
     def add_voice(self, voice_name, language_icon, initial_status=False, initial_weight=1.0):
         voice_mixer = VoiceMixer(voice_name, language_icon, initial_status, initial_weight)
         self.voice_mixers.append(voice_mixer)
         self.voice_list_layout.addWidget(voice_mixer)
+        return voice_mixer
 
-    def update_scroll_area_width(self):
-        # Calculate the width of the scrollable area based on the number of VoiceMixers
-        width = len(self.voice_mixers) * VOICE_MIXER_WIDTH
-        self.voice_list_widget.setFixedWidth(width)
+    def scroll_to_voice(self, voice_mixer):
+        """Scroll the QScrollArea to ensure the given VoiceMixer is visible."""        
+        QTimer.singleShot(0, lambda: self.scroll_area.ensureWidgetVisible(voice_mixer))
 
     def get_selected_voices(self):
         """Return the list of selected voices and their weights."""
