@@ -88,6 +88,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 - **Save location**: `Save next to input file`, `Save to desktop`, or `Choose output folder`
 - **Chapter Control**: Select specific `chapters` from ePUBs or `chapters + pages` from PDFs.
 - **Options**:
+    - **Replace single newlines with spaces**: Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks.
     - **Configure max words per subtitle**: Automatically configures the maximum number of words per subtitle entry.
     - **Create desktop shortcut**: Creates a shortcut on your desktop for easy access.
     - **Open config.json directory**: Opens the directory where the configuration file is stored.

@@ -19,6 +19,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QCheckBox,
     QMenu,
+    QLabel,
 )
 from PyQt5.QtCore import Qt
 from utils import clean_text, calculate_text_length
@@ -128,74 +129,234 @@ class HandlerDialog(QDialog):
     def _preprocess_content(self):
         """Pre-process content from the document"""
         if self.file_type == "epub":
-            self._preprocess_epub_content()
+            # Always process EPUB content using the anchor-based approach
+            self._process_epub_content()
         else:
             self._preprocess_pdf_content()
 
-    def _preprocess_epub_content(self):
-        """Extract EPUB content with preserved formatting."""
-        book, spine = self.book, [
-            item.get_name()
-            for item in self.book.get_items_of_type(ebooklib.ITEM_DOCUMENT)
-        ]
+    def _process_epub_content(self, split_anchors=True):
+        """
+        Process EPUB content by globally ordering TOC entries and slicing content between them.
+        Ensures all content between defined TOC start points is captured.
+        """
+        # split_anchors parameter kept for compatibility but always treated as True
+        book = self.book
 
-        # Get TOC entries with titles
-        toc = []
-        for entry in book.toc:
-            if isinstance(entry, ebooklib.epub.Link):
-                toc.append((entry.href.split("#")[0], entry.title))
-            elif isinstance(entry, tuple) and hasattr(entry[0], "href"):
-                href = getattr(entry[0], "href", None)
+        # 1. Cache all document HTML and determine spine order
+        self.doc_content = {}
+        # Correctly get hrefs from spine items
+        spine_docs = []
+        for spine_item_tuple in book.spine:
+            item_id = spine_item_tuple[0]
+            item = book.get_item_with_id(item_id)
+            if item:
+                spine_docs.append(item.get_name())  # Use get_name() for href
+            else:
+                print(f"Warning: Spine item with id '{item_id}' not found in book items.")
+
+        doc_order = {href: i for i, href in enumerate(spine_docs)}
+
+        for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+            href = item.get_name()
+            if href in doc_order:  # Only process docs in spine
+                try:
+                    html_content = item.get_content().decode('utf-8', errors='ignore')
+                    self.doc_content[href] = html_content
+                except Exception:
+                    self.doc_content[href] = ""  # Handle decoding errors
+
+        # 2. Get all TOC entries with hrefs and determine their positions
+        toc_entries_with_pos = []
+
+        def find_position(doc_href, fragment_id):
+            if doc_href not in self.doc_content:
+                return -1
+            html_content = self.doc_content[doc_href]
+            if not fragment_id:  # No fragment, position is 0
+                return 0
+
+            # Find position of fragment identifier (id= or name=)
+            id_match_str = f'id="{fragment_id}"'
+            name_match_str = f'name="{fragment_id}"'
+
+            id_pos = html_content.find(id_match_str)
+            name_pos = html_content.find(name_match_str)
+
+            pos = -1
+            if id_pos != -1 and name_pos != -1:
+                pos = min(id_pos, name_pos)
+            elif id_pos != -1:
+                pos = id_pos
+            elif name_pos != -1:
+                pos = name_pos
+            else:
+                return -1  # Anchor not found by simple string search
+
+            # Backtrack to the start of the tag '<'
+            tag_start_pos = html_content.rfind('<', 0, pos)
+            return tag_start_pos if tag_start_pos != -1 else 0  # Default to 0 if '<' not found
+
+        def collect_toc_entries(entries):
+            collected = []
+            for entry in entries:
+                href, title = None, "Unknown"
+                children = []
+                entry_obj = None  # Store the original entry object
+
+                if isinstance(entry, ebooklib.epub.Link):
+                    href, title = entry.href, entry.title or entry.href
+                    entry_obj = entry
+                elif isinstance(entry, tuple) and len(entry) >= 1:
+                    section_or_link = entry[0]
+                    entry_obj = section_or_link
+                    if isinstance(section_or_link, ebooklib.epub.Section):
+                        title = section_or_link.title
+                        href = getattr(section_or_link, "href", None)
+                    elif isinstance(section_or_link, ebooklib.epub.Link):
+                        href, title = section_or_link.href, section_or_link.title or section_or_link.href
+
+                    if len(entry) > 1 and isinstance(entry[1], list):
+                        children = entry[1]
+
                 if href:
-                    toc.append(
-                        (
-                            href.split("#")[0],
-                            entry[0].title if hasattr(entry[0], "title") else None,
-                        )
-                    )
+                    base_href, fragment = href.split('#', 1) if '#' in href else (href, None)
+                    if base_href in doc_order:  # Only consider entries pointing to spine documents
+                        position = find_position(base_href, fragment)
+                        if position != -1:  # Only add if position is valid
+                            collected.append({
+                                "href": href,  # Use the original href from TOC as the key
+                                "title": title,
+                                "doc_href": base_href,
+                                "position": position,
+                                "doc_order": doc_order[base_href]
+                            })
 
-        # Find chapter ranges and process content
-        toc = [(h, t) for h, t in toc if h in spine and t]
-        chapter_indices = [spine.index(h) for h, _ in toc if h in spine] + [len(spine)]
+                if children:
+                    collected.extend(collect_toc_entries(children))
+            return collected
 
-        def process_html(item):
-            if not item:
-                return ""
-            soup = BeautifulSoup(item.get_content(), "html.parser")
-            for br in soup.find_all("br"):
-                br.replace_with("\n")
-            for p in soup.find_all(["p", "div"]):
-                p.append("\n\n")
-            return re.sub(r"\n{3,}", "\n\n", clean_text(soup.get_text())).strip()
+        all_toc_entries = collect_toc_entries(self.book.toc)
 
-        # Process chapters
-        for i in range(len(toc)):
-            href, title = toc[i]
-            start, end = chapter_indices[i], chapter_indices[i + 1]
+        # Handle case where book has no TOC or empty TOC
+        if not all_toc_entries:
+            # Create a synthetic TOC entry for the first spine document
+            if spine_docs:
+                # Process all content as a single chapter
+                all_content_html = ""
+                for doc_href in spine_docs:
+                    all_content_html += self.doc_content.get(doc_href, "")
 
-            texts = [
-                process_html(book.get_item_with_href(spine[idx]))
-                for idx in range(start, end)
-            ]
-            texts = [t for t in texts if t]
+                if all_content_html:
+                    soup = BeautifulSoup(all_content_html, 'html.parser')
+                    text = clean_text(soup.get_text()).strip()
+                    
+                    # Use the first spine document as the identifier
+                    first_doc = spine_docs[0]
+                    self.content_texts[first_doc] = text
+                    self.content_lengths[first_doc] = len(text)
+                    
+                    # Create a synthetic TOC entry for tree building
+                    self.book.toc = [(epub.Link(first_doc, "Main Content", first_doc),)]
+            return
 
-            full_text = "\n\n".join(texts)
-            if title and full_text.lower().startswith(title.lower()):
-                full_text = (
-                    full_text[: len(title)].rstrip()
-                    + "\n\n"
-                    + full_text[len(title) :].lstrip()
-                )
+        # 3. Sort TOC entries globally
+        all_toc_entries.sort(key=lambda x: (x["doc_order"], x["position"]))
 
-            self.content_texts[href] = full_text
-            self.content_lengths[href] = calculate_text_length(full_text)
+        # 4. Slice content between sorted entries
+        self.content_texts = {}
+        self.content_lengths = {}
+        num_entries = len(all_toc_entries)
 
-        # Process any spine items not in TOC
-        for href in spine:
-            if href not in self.content_texts:
-                text = process_html(book.get_item_with_href(href))
-                self.content_texts[href] = text
-                self.content_lengths[href] = calculate_text_length(text)
+        for i in range(num_entries):
+            current_entry = all_toc_entries[i]
+            current_href = current_entry["href"]
+            current_doc = current_entry["doc_href"]
+            current_pos = current_entry["position"]
+            current_doc_html = self.doc_content.get(current_doc, "")
+
+            start_slice_pos = current_pos
+            slice_html = ""
+
+            # Find the start of the next TOC entry
+            next_entry = all_toc_entries[i + 1] if (i + 1) < num_entries else None
+
+            if next_entry:
+                next_doc = next_entry["doc_href"]
+                next_pos = next_entry["position"]
+
+                if current_doc == next_doc:
+                    # Next entry is in the same document
+                    slice_html = current_doc_html[start_slice_pos:next_pos]
+                else:
+                    # Next entry is in a different document
+                    # Take content from current position to end of current document
+                    slice_html = current_doc_html[start_slice_pos:]
+                    # Include content from intermediate documents in the spine
+                    current_doc_index = current_entry["doc_order"]
+                    next_doc_index = next_entry["doc_order"]
+                    for doc_idx in range(current_doc_index + 1, next_doc_index):
+                        intermediate_doc_href = spine_docs[doc_idx]
+                        slice_html += self.doc_content.get(intermediate_doc_href, "")
+                    # Add content from the beginning of the next document up to the next entry's position
+                    next_doc_html = self.doc_content.get(next_doc, "")
+                    slice_html += next_doc_html[:next_pos]
+            else:
+                # This is the last TOC entry
+                # Take content from current position to end of current document
+                slice_html = current_doc_html[start_slice_pos:]
+                # Include content from all remaining documents in the spine
+                current_doc_index = current_entry["doc_order"]
+                for doc_idx in range(current_doc_index + 1, len(spine_docs)):
+                    intermediate_doc_href = spine_docs[doc_idx]
+                    slice_html += self.doc_content.get(intermediate_doc_href, "")
+
+            # 5. Extract text and store
+            slice_soup = BeautifulSoup(slice_html, 'html.parser')
+            
+            # Remove sup and sub tags from the HTML before extracting text
+            for tag in slice_soup.find_all(['sup', 'sub']):
+                tag.decompose()
+                
+            text = clean_text(slice_soup.get_text()).strip()
+            self.content_texts[current_href] = text  # Store using the original TOC href
+            self.content_lengths[current_href] = len(text)
+
+        # 6. Handle content BEFORE the first TOC entry
+        if all_toc_entries:
+            first_entry = all_toc_entries[0]
+            first_doc_href = first_entry["doc_href"]
+            first_pos = first_entry["position"]
+            first_doc_order = first_entry["doc_order"]
+            prefix_html = ""
+            # Include content from documents before the first entry's document
+            for doc_idx in range(first_doc_order):
+                intermediate_doc_href = spine_docs[doc_idx]
+                prefix_html += self.doc_content.get(intermediate_doc_href, "")
+            # Include content from the start of the first entry's document up to its position
+            first_doc_html = self.doc_content.get(first_doc_href, "")
+            prefix_html += first_doc_html[:first_pos]
+
+            if prefix_html.strip():
+                prefix_soup = BeautifulSoup(prefix_html, 'html.parser')
+                # Remove sup and sub tags
+                for tag in prefix_soup.find_all(['sup', 'sub']):
+                    tag.decompose()
+                prefix_text = clean_text(prefix_soup.get_text()).strip()
+                
+                if prefix_text:
+                    # Create a new chapter for content before the first TOC entry
+                    # Use a synthetic href to avoid collision with real TOC entries
+                    prefix_chapter_href = "prefix_content_chapter"
+                    self.content_texts[prefix_chapter_href] = prefix_text
+                    self.content_lengths[prefix_chapter_href] = len(prefix_text)
+                    
+                    # Add a new entry to the TOC for the prefix content
+                    prefix_link = epub.Link(prefix_chapter_href, "Introduction", prefix_chapter_href)
+                    # Insert at beginning of TOC
+                    if isinstance(self.book.toc, list):
+                        self.book.toc.insert(0, (prefix_link,))
+                    else:
+                        self.book.toc = [(prefix_link,)] + (self.book.toc or [])
 
     def _preprocess_pdf_content(self):
         """Pre-process all page contents from PDF document"""
@@ -228,16 +389,21 @@ class HandlerDialog(QDialog):
 
     def _build_epub_tree(self):
         """Build the tree for EPUB files from TOC"""
-        checkable_hrefs = set()
+        self.treeWidget.clear()
+        info_item = QTreeWidgetItem(self.treeWidget, ["Information"])
+        info_item.setData(0, Qt.UserRole, "info:bookinfo")
+        info_item.setFlags(info_item.flags() & ~Qt.ItemIsUserCheckable)
+        font = info_item.font(0)
+        font.setBold(True)
+        info_item.setFont(0, font)
 
+        # Regular tree building
         def build_tree(toc_entries, parent_item):
             for entry in toc_entries:
                 href, title, children = None, "Unknown", []
-
                 if isinstance(entry, ebooklib.epub.Link):
                     href, title = entry.href, entry.title or entry.href
                 elif isinstance(entry, tuple) and len(entry) >= 1:
-                    # Handle nested sections
                     section_or_link = entry[0]
                     if isinstance(section_or_link, ebooklib.epub.Section):
                         title = section_or_link.title
@@ -247,44 +413,28 @@ class HandlerDialog(QDialog):
                             section_or_link.href,
                             section_or_link.title or section_or_link.href,
                         )
-
                     if len(entry) > 1 and isinstance(entry[1], list):
                         children = entry[1]
                 else:
-                    continue  # Skip unknown entry types
+                    continue
 
-                # Use the href without fragment for content lookup
-                lookup_href = href.split("#")[0] if href else None
-
+                # Create tree item
                 item = QTreeWidgetItem(parent_item, [title])
-                item.setData(0, Qt.UserRole, href)  # Store original href
+                item.setData(0, Qt.UserRole, href)
 
-                # Make item checkable if it has content or children
-                has_content = (
-                    lookup_href
-                    and lookup_href in self.content_texts
-                    and self.content_texts[lookup_href]
-                )
-                is_potentially_checkable = has_content or children
-
-                # Only make the first occurrence of a given lookup_href checkable
-                if is_potentially_checkable and (
-                    not lookup_href or lookup_href not in checkable_hrefs
-                ):
+                # Make item checkable if it has content
+                has_content = href and href in self.content_texts and self.content_texts[href].strip()
+                if has_content or children:
                     item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                    if lookup_href:
-                        checkable_hrefs.add(lookup_href)
-                    # Set initial state based on provided checks
                     is_checked = href and href in self.checked_chapters
                     item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
                 else:
-                    # Not checkable if duplicate content or no content/children
                     item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
 
+                # Process children
                 if children:
                     build_tree(children, item)
 
-        # Build the tree from the TOC
         build_tree(self.book.toc, self.treeWidget)
 
     def _build_pdf_tree(self):
@@ -501,6 +651,20 @@ class HandlerDialog(QDialog):
         self.previewEdit.setMinimumWidth(300)
         self.previewEdit.setStyleSheet("QTextEdit { border: none; }")
 
+        # Create informative text label below preview
+        self.previewInfoLabel = QLabel("*Note: You can modify the content later using the \"Edit\" button in the input box or by accessing the temporary files directory through settings.", self)
+        self.previewInfoLabel.setWordWrap(True)
+        self.previewInfoLabel.setStyleSheet("QLabel { color: #666; font-style: italic; }")
+
+        # Right panel layout (preview and info label)
+        previewLayout = QVBoxLayout()
+        previewLayout.setContentsMargins(0, 0, 0, 0)
+        previewLayout.addWidget(self.previewEdit, 1)
+        previewLayout.addWidget(self.previewInfoLabel, 0)
+        
+        rightWidget = QWidget()
+        rightWidget.setLayout(previewLayout)
+
         # Dialog buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         buttons.accepted.connect(self.accept)
@@ -589,7 +753,7 @@ class HandlerDialog(QDialog):
         # Create splitter for left panel and preview
         self.splitter = QSplitter(Qt.Horizontal)
         self.splitter.addWidget(leftWidget)
-        self.splitter.addWidget(self.previewEdit)
+        self.splitter.addWidget(rightWidget)  # Now using rightWidget that includes preview and label
         self.splitter.setSizes([280, 420])
 
         # Set main layout
@@ -858,20 +1022,19 @@ class HandlerDialog(QDialog):
         # Get content based on file type
         text = None
         if self.file_type == "epub":
-            lookup_href = identifier.split("#")[0] if identifier else None
-            text = self.content_texts.get(lookup_href, None)
+            # For EPUB, always use the exact href from the TOC
+            text = self.content_texts.get(identifier)
         else:  # PDF
-            text = self.content_texts.get(identifier, None)
+            text = self.content_texts.get(identifier)
 
-        # Display content or placeholder text
+        # Display content or placeholder text - never remove titles
         if text is None:
-            self.previewEdit.setPlainText(
-                "(Section title - select a sub-item for content)"
-                if current.childCount() > 0
-                else "(No content associated with this entry)"
-            )
+            title = current.text(0)
+            # Add title to preview even if no content
+            self.previewEdit.setPlainText(f"{title}\n\n(No content available for this item)")
         elif not text.strip():
-            self.previewEdit.setPlainText("(Item is empty)")
+            title = current.text(0)
+            self.previewEdit.setPlainText(f"{title}\n\n(This item is empty)")
         else:
             self.previewEdit.setPlainText(text)
 
@@ -1011,35 +1174,29 @@ class HandlerDialog(QDialog):
     def _get_epub_selected_text(self):
         """Get selected text from EPUB content"""
         all_checked_hrefs = set()
-        included_text_hrefs = set()
         chapter_titles = []
 
-        # Collect all checked hrefs
+        # Collect all checked hrefs in tree order to preserve chapter sequence
+        ordered_checked_items = []
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
             if item.checkState(0) == Qt.Checked:
                 href = item.data(0, Qt.UserRole)
-                if href:
+                if href and href != "info:bookinfo":
                     all_checked_hrefs.add(href)
+                    ordered_checked_items.append((item, href))
             iterator += 1
 
-        # Include content for all checked items
-        iterator = QTreeWidgetItemIterator(self.treeWidget)
-        while iterator.value():
-            item = iterator.value()
-            if item.checkState(0) == Qt.Checked:
-                href = item.data(0, Qt.UserRole)
-                if href:
-                    lookup_href = href.split("#")[0]
-                    text = self.content_texts.get(lookup_href, "")
-                    if text and lookup_href not in included_text_hrefs:
-                        title = item.text(0)
-                        title = re.sub(r"^\s*-\s*", "", title).strip()
-                        marker = f"<<CHAPTER_MARKER:{title}>>"
-                        chapter_titles.append((title, marker + "\n" + text))
-                        included_text_hrefs.add(lookup_href)
-            iterator += 1
+        # Process checked items in order
+        for item, href in ordered_checked_items:
+            # Always use the exact href (including fragment) from the TOC
+            text = self.content_texts.get(href)
+            if text and text.strip():
+                title = item.text(0)
+                title = re.sub(r"^\s*-\s*", "", title).strip()
+                marker = f"<<CHAPTER_MARKER:{title}>>"
+                chapter_titles.append((title, marker + "\n" + text))
 
         return "\n\n".join([t[1] for t in chapter_titles]), all_checked_hrefs
 
@@ -1080,7 +1237,7 @@ class HandlerDialog(QDialog):
             return "\n\n".join(all_content), all_checked_identifiers
 
         # For PDFs with bookmarks, process content with parent-child relationships
-        # New logic: if only child pages are selected (not parent), use parent's name as chapter marker at first selected child
+        # If only child pages are selected (not parent), use parent's name as chapter marker at first selected child
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()

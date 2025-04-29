@@ -73,15 +73,14 @@ def clean_text(text, *args, **kwargs):
     # Load replace_single_newlines from config
     cfg = load_config()
     replace_single_newlines = cfg.get("replace_single_newlines", False)
-    # Trim spaces and tabs at the start and end of each line, preserving blank lines
-    text = "\n".join(line.strip() for line in text.splitlines())
+    # Collapse all whitespace (excluding newlines) into single spaces per line and trim edges
+    lines = [re.sub(r"[^\S\n]+", " ", line).strip() for line in text.splitlines()]
+    text = "\n".join(lines)
     # Standardize paragraph breaks (multiple newlines become exactly two) and trim overall whitespace
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     # Optionally replace single newlines with spaces, but preserve double newlines
     if replace_single_newlines:
         text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
-    # Collapse multiple spaces and tabs into a single space
-    text = re.sub(r"[ \t]+", " ", text)
     return text
 
 
