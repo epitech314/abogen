@@ -9,7 +9,8 @@ from PyQt5.QtWidgets import (
     QScrollArea,
     QWidget,
     QPushButton,
-    QSizePolicy
+    QSizePolicy,
+    QMessageBox
 )
 from PyQt5.QtCore import (
     Qt,
@@ -22,6 +23,11 @@ from constants import (
 
 # Constants for voice names and flags
 VOICE_MIXER_WIDTH = 160
+SLIDER_WIDTH = 32  # Added slider width
+MIN_WINDOW_WIDTH = 600  # Minimum window width
+MIN_WINDOW_HEIGHT = 400  # Minimum window height
+INITIAL_WINDOW_WIDTH = 1000  # Initial window width
+INITIAL_WINDOW_HEIGHT = 500  # Initial window height
 FEMALE = "👩‍🦰"
 MALE = "👨"
 
@@ -33,6 +39,7 @@ class VoiceMixer(QWidget):
 
         # Set fixed width for this widget
         self.setFixedWidth(VOICE_MIXER_WIDTH)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # TODO Set CSS for rounded corners
         # self.setObjectName("VoiceMixer")
         # self.setStyleSheet(self.ROUNDED_CSS)
@@ -64,7 +71,8 @@ class VoiceMixer(QWidget):
         self.slider = QSlider(Qt.Vertical)  # Set slider orientation to vertical
         self.slider.setRange(0, 100)
         self.slider.setValue(int(initial_weight * 100))
-        self.slider.setFixedHeight(180)
+        self.slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Fixed width, expanding height
+        self.slider.setFixedWidth(SLIDER_WIDTH)  # Set fixed width for slider
         self.slider.valueChanged.connect(
             lambda val: self.spin_box.setValue(val / 100)
         )
@@ -75,10 +83,11 @@ class VoiceMixer(QWidget):
         slider_layout = QVBoxLayout()
         slider_layout.addWidget(self.spin_box)
         slider_layout.addWidget(QLabel("1", alignment=Qt.AlignCenter))
-        slider_layout.addWidget(self.slider, alignment=Qt.AlignCenter)
+        slider_layout.addWidget(self.slider, alignment=Qt.AlignCenter, stretch=1)  # Use stretch to expand slider
         slider_layout.addWidget(QLabel("0", alignment=Qt.AlignCenter))
+        slider_layout.setStretch(2, 2)  # Make slider take all available vertical space
 
-        layout.addLayout(slider_layout)
+        layout.addLayout(slider_layout, stretch=1)  # Make slider layout expand
         self.setLayout(layout)
 
         # Disable inputs initially if the checkbox is unchecked
@@ -114,25 +123,27 @@ class VoiceFormulaDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle("Voice Mixer")
-        self.setFixedSize(1000, 500)
+        self.setMinimumWidth(MIN_WINDOW_WIDTH)
+        self.setMinimumHeight(MIN_WINDOW_HEIGHT)
+        self.resize(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT)
         self.voice_mixers = []
 
         # Main Layout
         main_layout = QVBoxLayout()
 
         # Header Label
-        header_label = QLabel("Select Voices For the Mix and Adjust Weights")
-        main_layout.addWidget(header_label)
+        self.header_label = QLabel("Select Voices For the Mix and Adjust Weights")
+        main_layout.addWidget(self.header_label)
 
         # Weighted Sums Label
         self.weighted_sums_label = QLabel()
         self.weighted_sums_label.setAlignment(Qt.AlignCenter)  # Center align the label
+        self.weighted_sums_label.setWordWrap(True)  # Enable word wrap
         main_layout.addWidget(self.weighted_sums_label)
 
         # Scroll Area for Voice Panels
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setFixedSize(1000, 400)  # Keep scroll area height within 500
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.viewport().installEventFilter(self)  # Install event filter for wheel events
@@ -140,7 +151,7 @@ class VoiceFormulaDialog(QDialog):
         self.voice_list_widget = QWidget()
         self.voice_list_layout = QHBoxLayout()  
         self.voice_list_widget.setLayout(self.voice_list_layout)
-        self.voice_list_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.voice_list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.scroll_area.setWidget(self.voice_list_widget)
         main_layout.addWidget(self.scroll_area)
 
@@ -172,7 +183,7 @@ class VoiceFormulaDialog(QDialog):
             flag = FLAGS.get(voice[0], "")
             matching_voice = next((item for item in initial_state if item[0] == voice), None)
             initial_status = matching_voice is not None
-            initial_weight = matching_voice[1] if matching_voice else 1.0
+            initial_weight = matching_voice[1] if matching_voice else 0.0
             voice_mixer = self.add_voice(voice, flag, initial_status, initial_weight)
             # remember the first enabled voice
             if initial_status and first_enabled_voice is None:
@@ -227,3 +238,31 @@ class VoiceFormulaDialog(QDialog):
                 horiz_bar.setValue(horiz_bar.value() + 120)  # Scroll right
             return True
         return super().eventFilter(source, event)
+
+    def resizeEvent(self, event):
+        """Handle resize events to adjust slider heights"""
+        super().resizeEvent(event)
+        
+        # Calculate available height for sliders
+        header_height = self.header_label.height() + self.weighted_sums_label.height()
+        button_area_height = 50  # Approximate height for button area
+        available_height = self.height() - header_height - button_area_height - 220  # Add more margin for safety
+        
+        # Set slider height (don't make them too small)
+        slider_height = max(available_height, 100)
+        
+        # Update all sliders
+        for mixer in self.voice_mixers:
+            mixer.slider.setFixedHeight(slider_height)  # Use fixed height instead of minimum height
+
+    def accept(self):
+        selected_voices = self.get_selected_voices()
+        total_weight = sum(weight for _, weight in selected_voices)
+        if total_weight == 0:
+            QMessageBox.warning(
+                self,
+                "Invalid Weights",
+                "The total weight of selected voices cannot be zero. Please select at least one voice or adjust the weights."
+            )
+            return
+        super().accept()
