@@ -124,6 +124,11 @@ class VoiceFormulaDialog(QDialog):
         header_label = QLabel("Select Voices For the Mix and Adjust Weights")
         main_layout.addWidget(header_label)
 
+        # Weighted Sums Label
+        self.weighted_sums_label = QLabel()
+        self.weighted_sums_label.setAlignment(Qt.AlignCenter)  # Center align the label
+        main_layout.addWidget(self.weighted_sums_label)
+
         # Scroll Area for Voice Panels
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -157,6 +162,7 @@ class VoiceFormulaDialog(QDialog):
         self.setLayout(main_layout)
         
         self.add_voices(initial_state)
+        self.update_weighted_sums()
 
     def add_voices(self, initial_state):
         """Add voice mixers to the dialog based on the initial state and scroll to first enabled one."""
@@ -179,6 +185,9 @@ class VoiceFormulaDialog(QDialog):
         voice_mixer = VoiceMixer(voice_name, language_icon, initial_status, initial_weight)
         self.voice_mixers.append(voice_mixer)
         self.voice_list_layout.addWidget(voice_mixer)
+        # Connect signals to update weighted sums
+        voice_mixer.checkbox.stateChanged.connect(self.update_weighted_sums)
+        voice_mixer.spin_box.valueChanged.connect(self.update_weighted_sums)
         return voice_mixer
 
     def scroll_to_voice(self, voice_mixer):
@@ -191,6 +200,16 @@ class VoiceFormulaDialog(QDialog):
             mixer.get_voice_weight() for mixer in self.voice_mixers
         ]
         return [voice for voice in selected_voices if voice]  # Filter out None
+
+    def update_weighted_sums(self):
+        selected = [(m.voice_name, m.spin_box.value()) for m in self.voice_mixers if m.checkbox.isChecked()]
+        total = sum(w for _, w in selected)
+        if total > 0:
+            lines = [f"{name}: {weight/total*100:.1f}%" for name, weight in selected]
+            joined = " | ".join(lines)
+        else:
+            joined = ""
+        self.weighted_sums_label.setText(joined)  # Remove the prefix
 
     def eventFilter(self, source, event):
         """Event filter to handle mouse wheel events for horizontal scrolling."""
