@@ -470,6 +470,7 @@ class abogen(QWidget):
         self.use_gpu = self.config.get(
             "use_gpu", True
         )  # Load GPU setting with default True
+        self.replace_single_newlines = self.config.get("replace_single_newlines", False)
         self._pending_close_event = None
         self.gpu_ok = False  # Initialize GPU availability status
 
@@ -1081,6 +1082,8 @@ class abogen(QWidget):
             self.conversion_thread.file_size_str = file_size_str
             # Pass max_subtitle_words from config
             self.conversion_thread.max_subtitle_words = self.max_subtitle_words
+            # Pass replace_single_newlines setting
+            self.conversion_thread.replace_single_newlines = self.replace_single_newlines
             # Pass chapter count for EPUB or PDF files
             if self.selected_file_type in ["epub", "pdf"] and hasattr(
                 self, "selected_chapters"
@@ -1521,6 +1524,13 @@ class abogen(QWidget):
         """Show a dropdown menu for settings options."""
         menu = QMenu(self)
 
+        # Add replace single newlines option
+        newline_action = QAction("Replace single newlines with spaces", self)
+        newline_action.setCheckable(True)
+        newline_action.setChecked(self.replace_single_newlines)
+        newline_action.triggered.connect(self.toggle_replace_single_newlines)
+        menu.addAction(newline_action)
+
         # Add max words per subtitle option
         max_words_action = QAction("Configure max words per subtitle", self)
         max_words_action.triggered.connect(self.set_max_subtitle_words)
@@ -1566,6 +1576,11 @@ class abogen(QWidget):
         menu.addAction(about_action)
 
         menu.exec_(self.settings_btn.mapToGlobal(QPoint(0, self.settings_btn.height())))
+
+    def toggle_replace_single_newlines(self, checked):
+        self.replace_single_newlines = checked
+        self.config["replace_single_newlines"] = checked
+        save_config(self.config)
 
     def reveal_config_in_explorer(self):
         """Open the configuration file location in file explorer."""

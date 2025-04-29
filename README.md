@@ -56,7 +56,7 @@ sudo dnf install espeak-ng
 # Install abogen
 pip install abogen
 ```
-> If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux.
+> If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
 
 Then simply run by typing:
 
@@ -88,6 +88,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 - **Save location**: `Save next to input file`, `Save to desktop`, or `Choose output folder`
 - **Chapter Control**: Select specific `chapters` from ePUBs or `chapters + pages` from PDFs.
 - **Options**:
+    - **Replace single newlines with spaces**: Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks.
     - **Configure max words per subtitle**: Automatically configures the maximum number of words per subtitle entry.
     - **Create desktop shortcut**: Creates a shortcut on your desktop for easy access.
     - **Open config.json directory**: Opens the directory where the configuration file is stored.
@@ -117,6 +118,11 @@ keep-open=yes
 --audio-device=openal
 --sub-margin-x=235
 --sub-pos=60
+# --- Audio Quality ---
+audio-spdif=ac3,dts,eac3,truehd,dts-hd
+audio-channels=auto
+audio-samplerate=48000
+volume-max=200
 ```
 
 ## `Similar Projects`

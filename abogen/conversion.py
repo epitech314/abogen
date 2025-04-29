@@ -171,6 +171,10 @@ class ConversionThread(QThread):
             self.log_updated.emit(f"- Subtitle mode: {self.subtitle_mode}")
             self.log_updated.emit(f"- Output format: {self.output_format}")
             self.log_updated.emit(f"- Save option: {self.save_option}")
+            if self.replace_single_newlines:
+                self.log_updated.emit(
+                    f"- Replace single newlines: Yes"
+                )
 
             # Display save_chapters_separately flag if it's set
             if hasattr(self, "save_chapters_separately"):
