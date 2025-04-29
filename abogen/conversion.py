@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButt
 import soundfile as sf
 from utils import clean_text
 from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
+from voice_formulas import get_new_voice
 
 
 def get_sample_voice_text(lang_code):
@@ -283,6 +284,14 @@ class ConversionThread(QThread):
                 parent_dir = os.path.dirname(base_path)
             else:
                 parent_dir = self.output_folder or os.getcwd()
+            # Ensure the output folder exists, error if it doesn't
+            if not os.path.exists(parent_dir):
+                self.log_updated.emit(
+                    (
+                        f"Output folder does not exist: {parent_dir}",
+                        "red",
+                    )
+                )
             # Find a unique suffix for both folder and merged file, always
             counter = 1
             while True:
@@ -342,9 +351,16 @@ class ConversionThread(QThread):
 
                 # Set split_pattern to \n+ which will split on one or more newlines
                 split_pattern = r"\n+"
+                
+                # Check if the voice is a formula and load it if necessary
+                if '*' in self.voice:
+                    loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
+                else:
+                    loaded_voice = self.voice
+                
                 for result in tts(
                     chapter_text,
-                    voice=self.voice,
+                    voice=loaded_voice,
                     speed=self.speed,
                     split_pattern=split_pattern,
                 ):

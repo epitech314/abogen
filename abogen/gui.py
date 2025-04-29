@@ -3,6 +3,7 @@ import time
 import tempfile
 import platform
 import base64
+import re
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -70,6 +71,7 @@ from constants import (
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
 )
 from threading import Thread
+from voice_formula_gui import VoiceFormulaDialog
 
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
@@ -458,6 +460,7 @@ class abogen(QWidget):
         self.last_output_path = None
         self.selected_voice = self.config.get("selected_voice", "af_heart")
         self.selected_lang = self.selected_voice[0]
+        self.mixed_voice_state = None  # Store the mixed voice state
         self.is_converting = False
         self.subtitle_mode = self.config.get("subtitle_mode", "Sentence")
         self.max_subtitle_words = self.config.get(
@@ -568,6 +571,15 @@ class abogen(QWidget):
             '"a" => American English\n"b" => British English\n"e" => Spanish\n"f" => French\n"h" => Hindi\n"i" => Italian\n"j" => Japanese\n"p" => Brazilian Portuguese\n"z" => Mandarin Chinese\nThe second character represents the gender:\n"m" => Male\n"f" => Female'
         )
         voice_row.addWidget(self.voice_combo)
+        
+        # Voice formula button
+        self.btn_voice_formula_mixer = QPushButton(self)
+        self.btn_voice_formula_mixer.setText("🛠") # TODO add voice formula icon
+        self.btn_voice_formula_mixer.setToolTip("Mix and match voices")
+        self.btn_voice_formula_mixer.setFixedSize(40, 36)
+        self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")
+        self.btn_voice_formula_mixer.clicked.connect(self.show_voice_formula_dialog)
+        voice_row.addWidget(self.btn_voice_formula_mixer)
 
         # Play/Stop icons
         def make_icon(color, shape):
@@ -1038,12 +1050,22 @@ class abogen(QWidget):
                 if not self.subtitle_combo.isEnabled()
                 else self.subtitle_mode
             )
+            
+            # if voice formula is not None, use the selected voice
+            if self.mixed_voice_state:
+                formula_components = [f"{weight} * {name}" for name, weight in self.mixed_voice_state]
+                voice_formula = " + ".join(filter(None, formula_components))
+            else:
+                voice_formula = self.selected_voice
+            # selected language - use the first voice of the mix
+            match = re.search(r'\b([a-z])', voice_formula)
+            selected_lang = match.group(1)
 
             self.conversion_thread = ConversionThread(
                 self.selected_file,
-                self.selected_lang,
+                selected_lang,
                 speed,
-                self.selected_voice,
+                voice_formula,
                 self.save_option,
                 self.selected_output_folder,
                 subtitle_mode=actual_subtitle_mode,
@@ -1656,7 +1678,17 @@ class abogen(QWidget):
     def toggle_check_updates(self, checked):
         self.config["check_updates"] = checked
         save_config(self.config)
-
+        
+    def show_voice_formula_dialog(self):
+        # get the current voice mix
+        if self.mixed_voice_state is None:
+            # if no voice mix is set, use the selected voice
+            self.mixed_voice_state = [(self.selected_voice, 1.0)]
+        
+        dialog = VoiceFormulaDialog(self, initial_state=self.mixed_voice_state)
+        if dialog.exec_() == QDialog.Accepted:
+            self.mixed_voice_state = dialog.get_selected_voices()
+       
     def show_about_dialog(self):
         """Show an About dialog with program information including GitHub link."""
         # Get application icon for dialog
