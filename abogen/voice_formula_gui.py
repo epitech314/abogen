@@ -71,7 +71,7 @@ class VoiceMixer(QWidget):
         self.spin_box.valueChanged.connect(
             lambda val: self.slider.setValue(int(val * 100))
         )
-
+ 
         slider_layout = QVBoxLayout()
         slider_layout.addWidget(self.spin_box)
         slider_layout.addWidget(QLabel("1", alignment=Qt.AlignCenter))
@@ -128,6 +128,10 @@ class VoiceFormulaDialog(QDialog):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFixedSize(1000, 400)  # Keep scroll area height within 500
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.viewport().installEventFilter(self)  # Install event filter for wheel events
+
         self.voice_list_widget = QWidget()
         self.voice_list_layout = QHBoxLayout()  
         self.voice_list_widget.setLayout(self.voice_list_layout)
@@ -187,3 +191,20 @@ class VoiceFormulaDialog(QDialog):
             mixer.get_voice_weight() for mixer in self.voice_mixers
         ]
         return [voice for voice in selected_voices if voice]  # Filter out None
+
+    def eventFilter(self, source, event):
+        """Event filter to handle mouse wheel events for horizontal scrolling."""
+        if (source is self.scroll_area.viewport() and event.type() == event.Wheel):
+
+            # Check if the event is over a slider
+            # Check if mouse is over an enabled slider
+            if any(mixer.slider.underMouse() and mixer.slider.isEnabled() for mixer in self.voice_mixers):
+                return False
+            # Convert vertical wheel movement to horizontal scrolling
+            horiz_bar = self.scroll_area.horizontalScrollBar()
+            if event.angleDelta().y() > 0:
+                horiz_bar.setValue(horiz_bar.value() - 120)  # Scroll left
+            else:
+                horiz_bar.setValue(horiz_bar.value() + 120)  # Scroll right
+            return True
+        return super().eventFilter(source, event)
