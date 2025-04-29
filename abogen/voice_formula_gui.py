@@ -19,6 +19,8 @@ from constants import (
 
 # Constants for voice names and flags
 voice_mixer_width = 160
+FEMALE = "👩‍🦰"
+MALE = "👨"
 
 class VoiceMixer(QWidget):
     def __init__(self, voice_name, language_icon, update_formula_callback, initial_status=False, initial_weight=0.0):
@@ -92,7 +94,7 @@ class VoiceMixer(QWidget):
     def get_voice_gender(self):
         if self.voice_name in VOICES_INTERNAL:
             gender = self.voice_name[1]
-            return "👩‍🦰" if gender == "f" else "👨"
+            return FEMALE if gender == "f" else MALE
         return ""
 
     def get_formula_component(self):
@@ -160,7 +162,6 @@ class VoiceFormulaDialog(QDialog):
             initial_status = matching_voice is not None
             initial_weight = matching_voice[1] if matching_voice else 1.0
             self.add_voice(voice, flag, initial_status, initial_weight)
-
         
     def add_voice(self, voice_name, language_icon, initial_status=False, initial_weight=1.0):
         voice_mixer = VoiceMixer(voice_name, language_icon, self.update_formula, initial_status, initial_weight)
