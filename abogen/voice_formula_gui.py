@@ -18,19 +18,18 @@ from constants import (
 )
 
 # Constants for voice names and flags
-voice_mixer_width = 160
+VOICE_MIXER_WIDTH = 160
 FEMALE = "👩‍🦰"
 MALE = "👨"
 
 class VoiceMixer(QWidget):
-    def __init__(self, voice_name, language_icon, update_formula_callback, initial_status=False, initial_weight=0.0):
+    def __init__(self, voice_name, language_icon, initial_status=False, initial_weight=0.0):
         super().__init__()
 
         self.voice_name = voice_name
-        self.update_formula_callback = update_formula_callback
 
         # Set fixed width for this widget
-        self.setFixedWidth(voice_mixer_width)
+        self.setFixedWidth(VOICE_MIXER_WIDTH)
         # TODO Set CSS for rounded corners
         # self.setObjectName("VoiceMixer")
         # self.setStyleSheet(self.ROUNDED_CSS)
@@ -42,16 +41,14 @@ class VoiceMixer(QWidget):
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(initial_status)
         self.checkbox.stateChanged.connect(self.toggle_inputs)
-        self.checkbox.stateChanged.connect(self.update_formula_callback)
         layout.addWidget(self.checkbox, alignment=Qt.AlignCenter)
 
         voice_gender = self.get_voice_gender()
         name = voice_name[3:].capitalize()
         name_label = QLabel(f"{language_icon} {voice_gender} {name}")
-        name_label.setStyleSheet("font-size: 16px;")
         name_layout = QHBoxLayout()
         name_layout.addWidget(name_label)
-        name_layout.addStretch()
+        name_layout.setAlignment(name_label, Qt.AlignCenter)
         layout.addLayout(name_layout)
 
         # Input and Slider
@@ -60,7 +57,6 @@ class VoiceMixer(QWidget):
         self.spin_box.setSingleStep(0.01)
         self.spin_box.setDecimals(2)
         self.spin_box.setValue(initial_weight)
-        self.spin_box.valueChanged.connect(self.update_formula_callback)
 
         self.slider = QSlider(Qt.Vertical)  # Set slider orientation to vertical
         self.slider.setRange(0, 100)
@@ -121,6 +117,10 @@ class VoiceFormulaDialog(QDialog):
         # Main Layout
         main_layout = QVBoxLayout()
 
+        # Header Label
+        header_label = QLabel("Select Voices For the Mix and Adjust Weights")
+        main_layout.addWidget(header_label)
+
         # Scroll Area for Voice Panels
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -131,12 +131,6 @@ class VoiceFormulaDialog(QDialog):
         self.voice_list_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.scroll_area.setWidget(self.voice_list_widget)
         main_layout.addWidget(self.scroll_area)
-
-        # Formula Label
-        self.formula_label = QLabel("Voice Combination Formula: ")
-        self.formula_label.setStyleSheet("font-size: 14px;")
-        main_layout.addWidget(self.formula_label)
-
 
         # Add buttons
         button_layout = QHBoxLayout()
@@ -155,7 +149,9 @@ class VoiceFormulaDialog(QDialog):
 
         self.setLayout(main_layout)
         
-        # Initialize with fixed voices
+        self.add_voices(initial_state)
+
+    def add_voices(self, initial_state):
         for voice in VOICES_INTERNAL:
             flag = FLAGS.get(voice[0], "")
             matching_voice = next((item for item in initial_state if item[0] == voice), None)
@@ -164,22 +160,14 @@ class VoiceFormulaDialog(QDialog):
             self.add_voice(voice, flag, initial_status, initial_weight)
         
     def add_voice(self, voice_name, language_icon, initial_status=False, initial_weight=1.0):
-        voice_mixer = VoiceMixer(voice_name, language_icon, self.update_formula, initial_status, initial_weight)
+        voice_mixer = VoiceMixer(voice_name, language_icon, initial_status, initial_weight)
         self.voice_mixers.append(voice_mixer)
         self.voice_list_layout.addWidget(voice_mixer)
-        self.update_formula()
 
     def update_scroll_area_width(self):
         # Calculate the width of the scrollable area based on the number of VoiceMixers
-        width = len(self.voice_mixers) * voice_mixer_width
+        width = len(self.voice_mixers) * VOICE_MIXER_WIDTH
         self.voice_list_widget.setFixedWidth(width)
-
-    def update_formula(self):
-        formula_components = [
-            mixer.get_formula_component() for mixer in self.voice_mixers
-        ]
-        formula = " + ".join(filter(None, formula_components))
-        self.formula_label.setText(f"Voice Formula: {formula}")
 
     def get_selected_voices(self):
         """Return the list of selected voices and their weights."""
