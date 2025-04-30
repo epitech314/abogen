@@ -1,6 +1,1 @@
-- Enhanced EPUB handling by treating all items in chapter list (including anchors) as chapters, improving navigation and organization for poorly structured books, mentioned by @Darthagnon in #4
-- Fixed the issue with some chapters in EPUB files had missing content.
-- Fixed the issue with some EPUB files only having one chapter caused the program to ignore the entire book.
-- Fixed "utf-8' codec can't decode byte" error, mentioned by @nigelp in #3
-- Added "Replace single newlines with spaces" option in the menu. This can be useful for texts that have imaginary line breaks.
-- Improvements in code and documentation.
+- Added voice mixing functionality that enables combining multiple voices into a single "Mixed voice", as suggested by @PulsarFTW in #1. (Special thanks to @jborza for making this feature possible with his contributions in #5)

@@ -15,6 +15,7 @@ from voice_formulas import get_new_voice
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
 
+
 def detect_encoding(file_path):
     with open(file_path, "rb") as f:
         raw_data = f.read()
@@ -172,9 +173,7 @@ class ConversionThread(QThread):
             self.log_updated.emit(f"- Output format: {self.output_format}")
             self.log_updated.emit(f"- Save option: {self.save_option}")
             if self.replace_single_newlines:
-                self.log_updated.emit(
-                    f"- Replace single newlines: Yes"
-                )
+                self.log_updated.emit(f"- Replace single newlines: Yes")
 
             # Display save_chapters_separately flag if it's set
             if hasattr(self, "save_chapters_separately"):
@@ -206,7 +205,9 @@ class ConversionThread(QThread):
                 text = self.file_name  # Treat file_name as direct text input
             else:
                 encoding = detect_encoding(self.file_name)
-                with open(self.file_name, "r", encoding=encoding, errors="replace") as file:
+                with open(
+                    self.file_name, "r", encoding=encoding, errors="replace"
+                ) as file:
                     text = file.read()
 
             # Clean up text using utility function
@@ -351,13 +352,13 @@ class ConversionThread(QThread):
 
                 # Set split_pattern to \n+ which will split on one or more newlines
                 split_pattern = r"\n+"
-                
+
                 # Check if the voice is a formula and load it if necessary
-                if '*' in self.voice:
+                if "*" in self.voice:
                     loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
                 else:
                     loaded_voice = self.voice
-                
+
                 for result in tts(
                     chapter_text,
                     voice=loaded_voice,
@@ -493,7 +494,9 @@ class ConversionThread(QThread):
                         chapter_srt_path = os.path.join(
                             chapters_out_dir, f"{chapter_filename}.srt"
                         )
-                        with open(chapter_srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
+                        with open(
+                            chapter_srt_path, "w", encoding="utf-8", errors="replace"
+                        ) as srt_file:
                             for i, (start, end, text) in enumerate(
                                 chapter_subtitle_entries, 1
                             ):
@@ -534,7 +537,9 @@ class ConversionThread(QThread):
                 srt_path = os.path.splitext(out_path)[0] + ".srt"
                 sf.write(out_path, audio, 24000, format=self.output_format)
                 if self.subtitle_mode != "Disabled":
-                    with open(srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
+                    with open(
+                        srt_path, "w", encoding="utf-8", errors="replace"
+                    ) as srt_file:
                         for i, (start, end, text) in enumerate(subtitle_entries, 1):
                             srt_file.write(
                                 f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"

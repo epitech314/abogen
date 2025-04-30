@@ -152,7 +152,9 @@ class HandlerDialog(QDialog):
             if item:
                 spine_docs.append(item.get_name())  # Use get_name() for href
             else:
-                print(f"Warning: Spine item with id '{item_id}' not found in book items.")
+                print(
+                    f"Warning: Spine item with id '{item_id}' not found in book items."
+                )
 
         doc_order = {href: i for i, href in enumerate(spine_docs)}
 
@@ -160,7 +162,7 @@ class HandlerDialog(QDialog):
             href = item.get_name()
             if href in doc_order:  # Only process docs in spine
                 try:
-                    html_content = item.get_content().decode('utf-8', errors='ignore')
+                    html_content = item.get_content().decode("utf-8", errors="ignore")
                     self.doc_content[href] = html_content
                 except Exception:
                     self.doc_content[href] = ""  # Handle decoding errors
@@ -193,8 +195,10 @@ class HandlerDialog(QDialog):
                 return -1  # Anchor not found by simple string search
 
             # Backtrack to the start of the tag '<'
-            tag_start_pos = html_content.rfind('<', 0, pos)
-            return tag_start_pos if tag_start_pos != -1 else 0  # Default to 0 if '<' not found
+            tag_start_pos = html_content.rfind("<", 0, pos)
+            return (
+                tag_start_pos if tag_start_pos != -1 else 0
+            )  # Default to 0 if '<' not found
 
         def collect_toc_entries(entries):
             collected = []
@@ -213,23 +217,32 @@ class HandlerDialog(QDialog):
                         title = section_or_link.title
                         href = getattr(section_or_link, "href", None)
                     elif isinstance(section_or_link, ebooklib.epub.Link):
-                        href, title = section_or_link.href, section_or_link.title or section_or_link.href
+                        href, title = (
+                            section_or_link.href,
+                            section_or_link.title or section_or_link.href,
+                        )
 
                     if len(entry) > 1 and isinstance(entry[1], list):
                         children = entry[1]
 
                 if href:
-                    base_href, fragment = href.split('#', 1) if '#' in href else (href, None)
-                    if base_href in doc_order:  # Only consider entries pointing to spine documents
+                    base_href, fragment = (
+                        href.split("#", 1) if "#" in href else (href, None)
+                    )
+                    if (
+                        base_href in doc_order
+                    ):  # Only consider entries pointing to spine documents
                         position = find_position(base_href, fragment)
                         if position != -1:  # Only add if position is valid
-                            collected.append({
-                                "href": href,  # Use the original href from TOC as the key
-                                "title": title,
-                                "doc_href": base_href,
-                                "position": position,
-                                "doc_order": doc_order[base_href]
-                            })
+                            collected.append(
+                                {
+                                    "href": href,  # Use the original href from TOC as the key
+                                    "title": title,
+                                    "doc_href": base_href,
+                                    "position": position,
+                                    "doc_order": doc_order[base_href],
+                                }
+                            )
 
                 if children:
                     collected.extend(collect_toc_entries(children))
@@ -247,14 +260,14 @@ class HandlerDialog(QDialog):
                     all_content_html += self.doc_content.get(doc_href, "")
 
                 if all_content_html:
-                    soup = BeautifulSoup(all_content_html, 'html.parser')
+                    soup = BeautifulSoup(all_content_html, "html.parser")
                     text = clean_text(soup.get_text()).strip()
-                    
+
                     # Use the first spine document as the identifier
                     first_doc = spine_docs[0]
                     self.content_texts[first_doc] = text
                     self.content_lengths[first_doc] = len(text)
-                    
+
                     # Create a synthetic TOC entry for tree building
                     self.book.toc = [(epub.Link(first_doc, "Main Content", first_doc),)]
             return
@@ -311,12 +324,12 @@ class HandlerDialog(QDialog):
                     slice_html += self.doc_content.get(intermediate_doc_href, "")
 
             # 5. Extract text and store
-            slice_soup = BeautifulSoup(slice_html, 'html.parser')
-            
+            slice_soup = BeautifulSoup(slice_html, "html.parser")
+
             # Remove sup and sub tags from the HTML before extracting text
-            for tag in slice_soup.find_all(['sup', 'sub']):
+            for tag in slice_soup.find_all(["sup", "sub"]):
                 tag.decompose()
-                
+
             text = clean_text(slice_soup.get_text()).strip()
             self.content_texts[current_href] = text  # Store using the original TOC href
             self.content_lengths[current_href] = len(text)
@@ -337,21 +350,23 @@ class HandlerDialog(QDialog):
             prefix_html += first_doc_html[:first_pos]
 
             if prefix_html.strip():
-                prefix_soup = BeautifulSoup(prefix_html, 'html.parser')
+                prefix_soup = BeautifulSoup(prefix_html, "html.parser")
                 # Remove sup and sub tags
-                for tag in prefix_soup.find_all(['sup', 'sub']):
+                for tag in prefix_soup.find_all(["sup", "sub"]):
                     tag.decompose()
                 prefix_text = clean_text(prefix_soup.get_text()).strip()
-                
+
                 if prefix_text:
                     # Create a new chapter for content before the first TOC entry
                     # Use a synthetic href to avoid collision with real TOC entries
                     prefix_chapter_href = "prefix_content_chapter"
                     self.content_texts[prefix_chapter_href] = prefix_text
                     self.content_lengths[prefix_chapter_href] = len(prefix_text)
-                    
+
                     # Add a new entry to the TOC for the prefix content
-                    prefix_link = epub.Link(prefix_chapter_href, "Introduction", prefix_chapter_href)
+                    prefix_link = epub.Link(
+                        prefix_chapter_href, "Introduction", prefix_chapter_href
+                    )
                     # Insert at beginning of TOC
                     if isinstance(self.book.toc, list):
                         self.book.toc.insert(0, (prefix_link,))
@@ -423,7 +438,11 @@ class HandlerDialog(QDialog):
                 item.setData(0, Qt.UserRole, href)
 
                 # Make item checkable if it has content
-                has_content = href and href in self.content_texts and self.content_texts[href].strip()
+                has_content = (
+                    href
+                    and href in self.content_texts
+                    and self.content_texts[href].strip()
+                )
                 if has_content or children:
                     item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                     is_checked = href and href in self.checked_chapters
@@ -652,16 +671,21 @@ class HandlerDialog(QDialog):
         self.previewEdit.setStyleSheet("QTextEdit { border: none; }")
 
         # Create informative text label below preview
-        self.previewInfoLabel = QLabel("*Note: You can modify the content later using the \"Edit\" button in the input box or by accessing the temporary files directory through settings.", self)
+        self.previewInfoLabel = QLabel(
+            '*Note: You can modify the content later using the "Edit" button in the input box or by accessing the temporary files directory through settings.',
+            self,
+        )
         self.previewInfoLabel.setWordWrap(True)
-        self.previewInfoLabel.setStyleSheet("QLabel { color: #666; font-style: italic; }")
+        self.previewInfoLabel.setStyleSheet(
+            "QLabel { color: #666; font-style: italic; }"
+        )
 
         # Right panel layout (preview and info label)
         previewLayout = QVBoxLayout()
         previewLayout.setContentsMargins(0, 0, 0, 0)
         previewLayout.addWidget(self.previewEdit, 1)
         previewLayout.addWidget(self.previewInfoLabel, 0)
-        
+
         rightWidget = QWidget()
         rightWidget.setLayout(previewLayout)
 
@@ -753,7 +777,9 @@ class HandlerDialog(QDialog):
         # Create splitter for left panel and preview
         self.splitter = QSplitter(Qt.Horizontal)
         self.splitter.addWidget(leftWidget)
-        self.splitter.addWidget(rightWidget)  # Now using rightWidget that includes preview and label
+        self.splitter.addWidget(
+            rightWidget
+        )  # Now using rightWidget that includes preview and label
         self.splitter.setSizes([280, 420])
 
         # Set main layout
@@ -1031,7 +1057,9 @@ class HandlerDialog(QDialog):
         if text is None:
             title = current.text(0)
             # Add title to preview even if no content
-            self.previewEdit.setPlainText(f"{title}\n\n(No content available for this item)")
+            self.previewEdit.setPlainText(
+                f"{title}\n\n(No content available for this item)"
+            )
         elif not text.strip():
             title = current.text(0)
             self.previewEdit.setPlainText(f"{title}\n\n(This item is empty)")

@@ -571,10 +571,10 @@ class abogen(QWidget):
             '"a" => American English\n"b" => British English\n"e" => Spanish\n"f" => French\n"h" => Hindi\n"i" => Italian\n"j" => Japanese\n"p" => Brazilian Portuguese\n"z" => Mandarin Chinese\nThe second character represents the gender:\n"m" => Male\n"f" => Female'
         )
         voice_row.addWidget(self.voice_combo)
-        
+
         # Voice formula button
         self.btn_voice_formula_mixer = QPushButton(self)
-        self.btn_voice_formula_mixer.setText("🛠") # TODO add voice formula icon
+        self.btn_voice_formula_mixer.setText("🛠")  # TODO add voice formula icon
         self.btn_voice_formula_mixer.setToolTip("Mix and match voices")
         self.btn_voice_formula_mixer.setFixedSize(40, 36)
         self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")
@@ -1050,15 +1050,17 @@ class abogen(QWidget):
                 if not self.subtitle_combo.isEnabled()
                 else self.subtitle_mode
             )
-            
+
             # if voice formula is not None, use the selected voice
             if self.mixed_voice_state:
-                formula_components = [f"{weight} * {name}" for name, weight in self.mixed_voice_state]
+                formula_components = [
+                    f"{weight} * {name}" for name, weight in self.mixed_voice_state
+                ]
                 voice_formula = " + ".join(filter(None, formula_components))
             else:
                 voice_formula = self.selected_voice
             # selected language - use the first voice of the mix
-            match = re.search(r'\b([a-z])', voice_formula)
+            match = re.search(r"\b([a-z])", voice_formula)
             selected_lang = match.group(1)
 
             self.conversion_thread = ConversionThread(
@@ -1083,7 +1085,9 @@ class abogen(QWidget):
             # Pass max_subtitle_words from config
             self.conversion_thread.max_subtitle_words = self.max_subtitle_words
             # Pass replace_single_newlines setting
-            self.conversion_thread.replace_single_newlines = self.replace_single_newlines
+            self.conversion_thread.replace_single_newlines = (
+                self.replace_single_newlines
+            )
             # Pass chapter count for EPUB or PDF files
             if self.selected_file_type in ["epub", "pdf"] and hasattr(
                 self, "selected_chapters"
@@ -1678,17 +1682,17 @@ class abogen(QWidget):
     def toggle_check_updates(self, checked):
         self.config["check_updates"] = checked
         save_config(self.config)
-        
+
     def show_voice_formula_dialog(self):
         # get the current voice mix
         if self.mixed_voice_state is None:
             # if no voice mix is set, use the selected voice
             self.mixed_voice_state = [(self.selected_voice, 1.0)]
-        
+
         dialog = VoiceFormulaDialog(self, initial_state=self.mixed_voice_state)
         if dialog.exec_() == QDialog.Accepted:
             self.mixed_voice_state = dialog.get_selected_voices()
-       
+
     def show_about_dialog(self):
         """Show an About dialog with program information including GitHub link."""
         # Get application icon for dialog
