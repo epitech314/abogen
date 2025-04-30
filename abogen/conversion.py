@@ -4,6 +4,7 @@ import tempfile
 import time
 import chardet
 import charset_normalizer
+from platformdirs import user_desktop_dir
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
@@ -280,7 +281,7 @@ class ConversionThread(QThread):
             base_path = self.display_path if self.display_path else self.file_name
             base_name = os.path.splitext(os.path.basename(base_path))[0]
             if self.save_option == "Save to Desktop":
-                parent_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+                parent_dir = user_desktop_dir()
             elif self.save_option == "Save next to input file":
                 parent_dir = os.path.dirname(base_path)
             else:

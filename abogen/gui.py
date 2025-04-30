@@ -72,6 +72,7 @@ from constants import (
 )
 from threading import Thread
 from voice_formula_gui import VoiceFormulaDialog
+from platformdirs import user_desktop_dir
 
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
@@ -1628,7 +1629,7 @@ class abogen(QWidget):
 
         try:
             # where to put the .lnk
-            desktop = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop")
+            desktop = user_desktop_dir()
             shortcut_path = os.path.join(desktop, "abogen.lnk")
 
             # target exe
