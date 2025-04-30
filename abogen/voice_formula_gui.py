@@ -16,10 +16,12 @@ from PyQt5.QtWidgets import (
     QStyle,
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint, QRect, QSize
+from PyQt5.QtGui import QPixmap
 from constants import VOICES_INTERNAL, FLAGS
+from utils import get_resource_path
 
 # Constants
-VOICE_MIXER_WIDTH = 160
+VOICE_MIXER_WIDTH = 120
 SLIDER_WIDTH = 32
 MIN_WINDOW_WIDTH = 600
 MIN_WINDOW_HEIGHT = 400
@@ -119,6 +121,7 @@ class VoiceMixer(QWidget):
     ):
         super().__init__()
         self.voice_name = voice_name
+        #self.setFixedWidth(VOICE_MIXER_WIDTH)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # TODO Set CSS for rounded corners
@@ -133,17 +136,18 @@ class VoiceMixer(QWidget):
         self.checkbox.stateChanged.connect(self.toggle_inputs)
         layout.addWidget(self.checkbox, alignment=Qt.AlignCenter)
 
-        # Voice name label
-        voice_gender = (
-            FEMALE
-            if self.voice_name in VOICES_INTERNAL and self.voice_name[1] == "f"
-            else MALE
-        )
+        # Voice name label with gender icon
+        is_female = self.voice_name in VOICES_INTERNAL and self.voice_name[1] == "f"
+        gender_icon_path = get_resource_path("abogen.assets", "female.png" if is_female else "male.png")
         name = voice_name[3:].capitalize()
         name_layout = QHBoxLayout()
-        name_layout.addWidget(
-            QLabel(f"{language_icon} {voice_gender} {name}"), alignment=Qt.AlignCenter
-        )
+        # Gender icon
+        pixmap = QPixmap(gender_icon_path)
+        if not pixmap.isNull():
+            gender_label = QLabel()
+            gender_label.setPixmap(pixmap.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            name_layout.addWidget(gender_label)
+        name_layout.addWidget(QLabel(f"{language_icon} {name}"), alignment=Qt.AlignCenter)
         layout.addLayout(name_layout)
 
         # Spinbox and slider
@@ -211,26 +215,30 @@ class HoverLabel(QLabel):
         self.delete_button.setStyleSheet(
             """
             QPushButton {
-                background-color: red;
+                background-color: #ff5555;
                 color: white;
-                border-radius: 8px;
+                border-radius: 7px;
                 font-weight: bold;
                 font-size: 12px;
                 border: none;
                 padding: 0px;
-                text-align: center;
+                margin: 0px;
             }
             QPushButton:hover {
-                background-color: #ff5555;
+                background-color: red;
             }
         """
         )
+        # Make sure the entire button is clickable, not just the text
+        self.delete_button.setFocusPolicy(Qt.NoFocus)
+        self.delete_button.setAttribute(Qt.WA_TransparentForMouseEvents, False)
         self.delete_button.setCursor(Qt.PointingHandCursor)
         self.delete_button.hide()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.delete_button.move(self.width() - 16, 0)
+        # Position the button in the top-right corner with a small margin
+        self.delete_button.move(self.width() - 16, + 0)
 
     def enterEvent(self, event):
         self.delete_button.show()
@@ -398,7 +406,8 @@ class VoiceFormulaDialog(QDialog):
             # Add voice labels
             for name, weight in selected:
                 percentage = weight / total * 100
-                voice_label = HoverLabel(f"{name}: {percentage:.1f}%", name)
+                # Make the voice name bold and include percentage
+                voice_label = HoverLabel(f"<b>{name}: {percentage:.1f}%</b>", name)
                 voice_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
                 voice_label.delete_button.clicked.connect(
                     lambda _, vn=name: self.disable_voice_by_name(vn)

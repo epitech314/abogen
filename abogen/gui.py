@@ -574,7 +574,8 @@ class abogen(QWidget):
 
         # Voice formula button
         self.btn_voice_formula_mixer = QPushButton(self)
-        self.btn_voice_formula_mixer.setText("🛠")  # TODO add voice formula icon
+        mixer_icon_path = get_resource_path("abogen.assets", "voice_mixer.png")
+        self.btn_voice_formula_mixer.setIcon(QIcon(mixer_icon_path))
         self.btn_voice_formula_mixer.setToolTip("Mix and match voices")
         self.btn_voice_formula_mixer.setFixedSize(40, 36)
         self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")
@@ -1318,6 +1319,7 @@ class abogen(QWidget):
         self.btn_preview.setEnabled(False)
         self.btn_preview.setToolTip("Loading...")
         self.voice_combo.setEnabled(False)
+        self.btn_voice_formula_mixer.setEnabled(False)  # Disable mixer button
         self.btn_start.setEnabled(False)  # Disable start button during preview
         # start loading animation
         self.loading_movie.start()
@@ -1339,6 +1341,7 @@ class abogen(QWidget):
             self.btn_preview.setEnabled(True)
             self.btn_preview.setToolTip("Preview selected voice")
             self.voice_combo.setEnabled(True)
+            self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
             self.btn_start.setEnabled(True)  # Re-enable start button on error
             return
 
@@ -1365,6 +1368,7 @@ class abogen(QWidget):
             self.btn_preview.setEnabled(True)
             self.btn_preview.setToolTip("Preview selected voice")
             self.voice_combo.setEnabled(True)
+            self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
             self.btn_start.setEnabled(True)
             return
         # stop loading animation, switch to stop icon
@@ -1414,6 +1418,7 @@ class abogen(QWidget):
         self.btn_preview.setToolTip("Preview selected voice")
         self.btn_preview.setEnabled(True)
         self.voice_combo.setEnabled(True)
+        self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
         self.btn_start.setEnabled(True)
 
     def _preview_error(self, msg):
