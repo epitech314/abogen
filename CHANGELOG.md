@@ -1,2 +1,3 @@
 - Added voice mixing functionality that enables combining multiple voices into a single "Mixed voice", as suggested by @PulsarFTW in #1. (Special thanks to @jborza for making this feature possible with his contributions in #5)
+- Added icons for flags and genders in the GUI, making it easier to identify different options.
 - Switched to platformdirs for determining the correct desktop path, instead of using old methods.

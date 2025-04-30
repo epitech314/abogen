@@ -32,6 +32,12 @@ def get_resource_path(package, resource):
     except (ImportError, FileNotFoundError):
         pass
 
+    # Always try to resolve as a relative path from this file
+    parts = package.split('.')
+    rel_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), *parts[1:], resource)
+    if os.path.exists(rel_path):
+        return rel_path
+
     # Fallback to local file system
     try:
         # Extract the subdirectory from package name (e.g., 'assets' from 'abogen.assets')

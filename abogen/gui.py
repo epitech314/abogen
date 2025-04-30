@@ -66,7 +66,6 @@ from constants import (
     GITHUB_URL,
     PROGRAM_DESCRIPTION,
     LANGUAGE_DESCRIPTIONS,
-    FLAGS,
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
 )
@@ -560,9 +559,19 @@ class abogen(QWidget):
         voice_layout.addWidget(QLabel("Select Voice:", self))
         voice_row = QHBoxLayout()
         self.voice_combo = QComboBox(self)
+        
         for v in VOICES_INTERNAL:
-            flag = FLAGS.get(v[0], "")
-            self.voice_combo.addItem(f"{flag} {v}", v)
+            # Get flag icon for this voice
+            lang_code = v[0]
+            flag_path = get_resource_path("abogen.assets.flags", f"{lang_code}.png")
+            
+            icon = QIcon()
+            if flag_path and os.path.exists(flag_path):
+                icon = QIcon(flag_path)
+            
+            # Add item with flag icon and voice name
+            self.voice_combo.addItem(icon, f"{v}", v)
+        
         self.voice_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )

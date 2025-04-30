@@ -17,11 +17,11 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint, QRect, QSize
 from PyQt5.QtGui import QPixmap
-from constants import VOICES_INTERNAL, FLAGS
+from constants import VOICES_INTERNAL
 from utils import get_resource_path
 
 # Constants
-VOICE_MIXER_WIDTH = 120
+VOICE_MIXER_WIDTH = 100
 SLIDER_WIDTH = 32
 MIN_WINDOW_WIDTH = 600
 MIN_WINDOW_HEIGHT = 400
@@ -117,11 +117,11 @@ class FlowLayout(QLayout):
 
 class VoiceMixer(QWidget):
     def __init__(
-        self, voice_name, language_icon, initial_status=False, initial_weight=0.0
+        self, voice_name, language_code, initial_status=False, initial_weight=0.0
     ):
         super().__init__()
         self.voice_name = voice_name
-        #self.setFixedWidth(VOICE_MIXER_WIDTH)
+        self.setFixedWidth(VOICE_MIXER_WIDTH)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # TODO Set CSS for rounded corners
@@ -130,25 +130,38 @@ class VoiceMixer(QWidget):
 
         layout = QVBoxLayout()
 
-        # Checkbox
+        # Name label at the top
+        name = voice_name
+        layout.addWidget(QLabel(name), alignment=Qt.AlignCenter)
+
+        # Voice name label with gender icon
+        is_female = self.voice_name in VOICES_INTERNAL and self.voice_name[1] == "f"
+
+        # Icons layout (flag and gender)
+        icons_layout = QHBoxLayout()
+        icons_layout.setSpacing(3)
+        icons_layout.setAlignment(Qt.AlignCenter)  # Center the icons horizontally
+        
+        # Flag icon
+        flag_icon_path = get_resource_path("abogen.assets.flags", f"{language_code}.png")
+        gender_icon_path = get_resource_path("abogen.assets", "female.png" if is_female else "male.png")
+        flag_label = QLabel()
+        gender_label = QLabel()
+        flag_pixmap = QPixmap(flag_icon_path)
+        flag_label.setPixmap(flag_pixmap.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        gender_pixmap = QPixmap(gender_icon_path)
+        gender_label.setPixmap(gender_pixmap.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        icons_layout.addWidget(flag_label)
+        icons_layout.addWidget(gender_label)
+        
+        # Add icons layout
+        layout.addLayout(icons_layout)
+        
+        # Checkbox (now below icons)
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(initial_status)
         self.checkbox.stateChanged.connect(self.toggle_inputs)
         layout.addWidget(self.checkbox, alignment=Qt.AlignCenter)
-
-        # Voice name label with gender icon
-        is_female = self.voice_name in VOICES_INTERNAL and self.voice_name[1] == "f"
-        gender_icon_path = get_resource_path("abogen.assets", "female.png" if is_female else "male.png")
-        name = voice_name[3:].capitalize()
-        name_layout = QHBoxLayout()
-        # Gender icon
-        pixmap = QPixmap(gender_icon_path)
-        if not pixmap.isNull():
-            gender_label = QLabel()
-            gender_label.setPixmap(pixmap.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            name_layout.addWidget(gender_label)
-        name_layout.addWidget(QLabel(f"{language_icon} {name}"), alignment=Qt.AlignCenter)
-        layout.addLayout(name_layout)
 
         # Spinbox and slider
         self.spin_box = QDoubleSpinBox()
@@ -212,6 +225,8 @@ class HoverLabel(QLabel):
         # Create delete button
         self.delete_button = QPushButton("×", self)
         self.delete_button.setFixedSize(16, 16)
+        self.delete_button = QPushButton("×", self)
+        self.delete_button.setFixedSize(16, 16)
         self.delete_button.setStyleSheet(
             """
             QPushButton {
@@ -251,6 +266,9 @@ class VoiceFormulaDialog(QDialog):
     def __init__(self, parent=None, initial_state=None):
         super().__init__(parent)
         self.setWindowTitle("Voice Mixer")
+        self.setWindowFlags(
+            Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint
+        )
         self.setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         self.resize(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT)
         self.voice_mixers = []
@@ -334,13 +352,13 @@ class VoiceFormulaDialog(QDialog):
     def add_voices(self, initial_state):
         first_enabled_voice = None
         for voice in VOICES_INTERNAL:
-            flag = FLAGS.get(voice[0], "")
+            language_code = voice[0]  # First character is the language code
             matching_voice = next(
                 (item for item in initial_state if item[0] == voice), None
             )
             initial_status = matching_voice is not None
             initial_weight = matching_voice[1] if matching_voice else 1.0
-            voice_mixer = self.add_voice(voice, flag, initial_status, initial_weight)
+            voice_mixer = self.add_voice(voice, language_code, initial_status, initial_weight)
             if initial_status and first_enabled_voice is None:
                 first_enabled_voice = voice_mixer
 
@@ -350,10 +368,10 @@ class VoiceFormulaDialog(QDialog):
             )
 
     def add_voice(
-        self, voice_name, language_icon, initial_status=False, initial_weight=1.0
+        self, voice_name, language_code, initial_status=False, initial_weight=1.0
     ):
         voice_mixer = VoiceMixer(
-            voice_name, language_icon, initial_status, initial_weight
+            voice_name, language_code, initial_status, initial_weight
         )
         self.voice_mixers.append(voice_mixer)
         self.voice_list_layout.addWidget(voice_mixer)
