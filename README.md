@@ -160,6 +160,7 @@ If you'd like to modify the code and contribute to development, you can [downloa
 ```bash
 # Go to the directory where you extracted the repository and run:
 pip install -e .      # Installs the package in editable mode
+pip install build     # Install the build package
 python -m build       # Builds the package in dist folder (optional)
 abogen                # Opens the GUI
 ```
