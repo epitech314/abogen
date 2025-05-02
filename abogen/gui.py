@@ -1545,7 +1545,11 @@ class abogen(QWidget):
 
     def _preview_cleanup(self):
         self.preview_playing = False
-        self.btn_preview.setIcon(self.play_icon)
+        try:
+            self.loading_movie.frameChanged.disconnect()
+        except Exception:
+            pass  # Ignore error if not connected
+        self.btn_preview.setIcon(self.play_icon) 
         self.btn_preview.setToolTip("Preview selected voice")
         self.btn_preview.setEnabled(True)
         self.voice_combo.setEnabled(True)
