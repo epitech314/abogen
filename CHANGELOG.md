@@ -2,6 +2,7 @@
 - Added profile system to voice mixer, allowing users to create and manage multiple voice profiles.
 - Improvements in the voice mixer, mostly for organizing controls and enhancing user experience.
 - Added icons for flags and genders in the GUI, making it easier to identify different options.
+- Improved the content and chapter extraction process for EPUB files, ensuring better handling of various structures.
 - Switched to platformdirs for determining the correct desktop path, instead of using old methods.
 - Fixed preview voices was not using GPU acceleration, which was causing performance issues.
 - Improvements in code and documentation.

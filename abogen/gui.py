@@ -1445,10 +1445,10 @@ class abogen(QWidget):
         # stop loading animation and restore icon on error
         if error:
             self.loading_movie.stop()
-            self.btn_preview.setIcon(self.play_icon)
             self._show_error_message_box(
                 "Loading Error", f"Error loading numpy or KPipeline: {error}"
             )
+            self.btn_preview.setIcon(self.play_icon)
             self.btn_preview.setEnabled(True)
             self.btn_preview.setToolTip("Preview selected voice")
             self.voice_combo.setEnabled(True)
@@ -1491,12 +1491,13 @@ class abogen(QWidget):
         temp_wav = self.preview_thread.temp_wav
         if not temp_wav:
             self.loading_movie.stop()
-            self.btn_preview.setIcon(self.play_icon)
+
             self._show_error_message_box(
                 "Preview Error", "Preview error: No audio generated."
             )
-            self.btn_preview.setEnabled(True)
+            self.btn_preview.setIcon(self.play_icon)
             self.btn_preview.setToolTip("Preview selected voice")
+            self.btn_preview.setEnabled(True)
             self.voice_combo.setEnabled(True)
             self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
             self.btn_start.setEnabled(True)
