@@ -1820,25 +1820,36 @@ class abogen(QWidget):
         save_config(self.config)
 
     def show_voice_formula_dialog(self):
-        # If a profile is selected in combo, open mixer with that profile
+        from voice_profiles import load_profiles
+        profiles = load_profiles()
         initial_state = None
         selected_profile = self.selected_profile_name
         if selected_profile:
-            entry = load_profiles().get(selected_profile, {})
-            # support new dict format
+            entry = profiles.get(selected_profile, {})
             if isinstance(entry, dict):
                 initial_state = entry.get("voices", [])
             else:
                 initial_state = entry
         elif self.mixed_voice_state is not None:
             initial_state = self.mixed_voice_state
+        elif self.selected_voice:
+            # If a single voice is selected, default to first profile if available
+            if profiles:
+                first_profile = next(iter(profiles))
+                entry = profiles[first_profile]
+                selected_profile = first_profile
+                if isinstance(entry, dict):
+                    initial_state = entry.get("voices", [])
+                else:
+                    initial_state = entry
+            else:
+                initial_state = []
         else:
-            initial_state = [(self.selected_voice, 1.0)] if self.selected_voice else []
+            initial_state = []
         dialog = VoiceFormulaDialog(
             self, initial_state=initial_state, selected_profile=selected_profile
         )
         if dialog.exec_() == QDialog.Accepted:
-            # After OK, select the profile in combo and update config
             if dialog.current_profile:
                 self.selected_profile_name = dialog.current_profile
                 self.config["selected_profile_name"] = dialog.current_profile
