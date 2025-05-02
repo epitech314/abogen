@@ -1,6 +1,8 @@
-- Enhanced EPUB handling by treating all items in chapter list (including anchors) as chapters, improving navigation and organization for poorly structured books, mentioned by @Darthagnon in #4
-- Fixed the issue with some chapters in EPUB files had missing content.
-- Fixed the issue with some EPUB files only having one chapter caused the program to ignore the entire book.
-- Fixed "utf-8' codec can't decode byte" error, mentioned by @nigelp in #3
-- Added "Replace single newlines with spaces" option in the menu. This can be useful for texts that have imaginary line breaks.
+- Added voice mixing, allowing multiple voices to be combined into a single “Mixed Voice”, a feature mentioned by @PulsarFTW in #1. Special thanks to @jborza for making this possible through his contributions in #5.
+- Added profile system to voice mixer, allowing users to create and manage multiple voice profiles.
+- Improvements in the voice mixer, mostly for organizing controls and enhancing user experience.
+- Added icons for flags and genders in the GUI, making it easier to identify different options.
+- Improved the content and chapter extraction process for EPUB files, ensuring better handling of various structures.
+- Switched to platformdirs for determining the correct desktop path, instead of using old methods.
+- Fixed preview voices was not using GPU acceleration, which was causing performance issues.
 - Improvements in code and documentation.

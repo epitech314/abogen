@@ -3,6 +3,7 @@ import time
 import tempfile
 import platform
 import base64
+import re
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -65,11 +66,13 @@ from constants import (
     GITHUB_URL,
     PROGRAM_DESCRIPTION,
     LANGUAGE_DESCRIPTIONS,
-    FLAGS,
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
 )
 from threading import Thread
+from voice_formula_gui import VoiceFormulaDialog
+from platformdirs import user_desktop_dir
+from voice_profiles import load_profiles
 
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
@@ -456,8 +459,17 @@ class abogen(QWidget):
         self.selected_chapters = set()
         self.last_opened_book_path = None  # Track the last opened book path
         self.last_output_path = None
-        self.selected_voice = self.config.get("selected_voice", "af_heart")
-        self.selected_lang = self.selected_voice[0]
+        # Only one of selected_profile_name or selected_voice should be set
+        self.selected_profile_name = self.config.get("selected_profile_name")
+        self.selected_voice = None
+        self.selected_lang = None
+        self.mixed_voice_state = None
+        if self.selected_profile_name:
+            self.selected_voice = None
+            self.selected_lang = None
+        else:
+            self.selected_voice = self.config.get("selected_voice", "af_heart")
+            self.selected_lang = self.selected_voice[0] if self.selected_voice else None
         self.is_converting = False
         self.subtitle_mode = self.config.get("subtitle_mode", "Sentence")
         self.max_subtitle_words = self.config.get(
@@ -465,8 +477,8 @@ class abogen(QWidget):
         )  # Default max words per subtitle
         self.selected_format = self.config.get("selected_format", "wav")
         self.use_gpu = self.config.get(
-            "use_gpu", True
-        )  # Load GPU setting with default True
+            "use_gpu", True  # Load GPU setting with default True
+        )
         self.replace_single_newlines = self.config.get("replace_single_newlines", False)
         self._pending_close_event = None
         self.gpu_ok = False  # Initialize GPU availability status
@@ -486,17 +498,32 @@ class abogen(QWidget):
         self.initUI()
         self.speed_slider.setValue(int(self.config.get("speed", 1.00) * 100))
         self.update_speed_label()
-        idx = self.voice_combo.findData(self.selected_voice)
+        # Set initial selection: prefer profile, else voice
+        idx = -1
+        if self.selected_profile_name:
+            idx = self.voice_combo.findData(f"profile:{self.selected_profile_name}")
+        elif self.selected_voice:
+            idx = self.voice_combo.findData(self.selected_voice)
         if idx >= 0:
             self.voice_combo.setCurrentIndex(idx)
+            # If a profile is selected at startup, load voices and language
+            if self.selected_profile_name:
+                from voice_profiles import load_profiles
+
+                entry = load_profiles().get(self.selected_profile_name, {})
+                if isinstance(entry, dict):
+                    self.mixed_voice_state = entry.get("voices", [])
+                    self.selected_lang = entry.get("language")
+                else:
+                    self.mixed_voice_state = entry
+                    self.selected_lang = entry[0][0] if entry and entry[0] else None
         if self.save_option == "Choose output folder" and self.selected_output_folder:
             self.save_path_label.setText(self.selected_output_folder)
             self.save_path_label.show()
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
-        # Enable/disable subtitle options based on selected language
-        self.subtitle_combo.setEnabled(
-            self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
-        )
+        # Enable/disable subtitle options based on selected language (profile or voice)
+        enable = self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
+        self.subtitle_combo.setEnabled(enable)
         # loading gif for preview button
         loading_gif_path = get_resource_path("abogen.assets", "loading.gif")
         if loading_gif_path:
@@ -556,18 +583,25 @@ class abogen(QWidget):
         voice_layout.addWidget(QLabel("Select Voice:", self))
         voice_row = QHBoxLayout()
         self.voice_combo = QComboBox(self)
-        for v in VOICES_INTERNAL:
-            flag = FLAGS.get(v[0], "")
-            self.voice_combo.addItem(f"{flag} {v}", v)
+        self.voice_combo.currentIndexChanged.connect(self.on_voice_combo_changed)
         self.voice_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
-        self.voice_combo.currentIndexChanged.connect(self.on_voice_changed)
         self.voice_combo.setToolTip(
             "The first character represents the language:\n"
             '"a" => American English\n"b" => British English\n"e" => Spanish\n"f" => French\n"h" => Hindi\n"i" => Italian\n"j" => Japanese\n"p" => Brazilian Portuguese\n"z" => Mandarin Chinese\nThe second character represents the gender:\n"m" => Male\n"f" => Female'
         )
         voice_row.addWidget(self.voice_combo)
+
+        # Voice formula button
+        self.btn_voice_formula_mixer = QPushButton(self)
+        mixer_icon_path = get_resource_path("abogen.assets", "voice_mixer.png")
+        self.btn_voice_formula_mixer.setIcon(QIcon(mixer_icon_path))
+        self.btn_voice_formula_mixer.setToolTip("Mix and match voices")
+        self.btn_voice_formula_mixer.setFixedSize(40, 36)
+        self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")
+        self.btn_voice_formula_mixer.clicked.connect(self.show_voice_formula_dialog)
+        voice_row.addWidget(self.btn_voice_formula_mixer)
 
         # Play/Stop icons
         def make_icon(color, shape):
@@ -627,10 +661,9 @@ class abogen(QWidget):
         )
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
         self.subtitle_combo.currentTextChanged.connect(self.on_subtitle_mode_changed)
-        # Enable/disable subtitle options based on selected language
-        self.subtitle_combo.setEnabled(
-            self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
-        )
+        # Enable/disable subtitle options based on selected language (profile or voice)
+        enable = self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
+        self.subtitle_combo.setEnabled(enable)
         subtitle_layout.addWidget(self.subtitle_combo)
         controls_layout.addLayout(subtitle_layout)
         # Output format
@@ -752,6 +785,7 @@ class abogen(QWidget):
         container_layout.addWidget(self.finish_widget)
         outer_layout.addWidget(container)
         self.setLayout(outer_layout)
+        self.populate_profiles_in_voice_combo()
 
     def open_file_dialog(self):
         if self.is_converting:
@@ -934,6 +968,87 @@ class abogen(QWidget):
         else:
             self.subtitle_combo.setEnabled(False)
 
+    def on_voice_combo_changed(self, index):
+        data = self.voice_combo.itemData(index)
+        if isinstance(data, str) and data.startswith("profile:"):
+            pname = data.split(":", 1)[1]
+            self.selected_profile_name = pname
+            from voice_profiles import load_profiles
+
+            entry = load_profiles().get(pname, {})
+            # set mixed voices and language
+            if isinstance(entry, dict):
+                self.mixed_voice_state = entry.get("voices", [])
+                self.selected_lang = entry.get("language")
+            else:
+                self.mixed_voice_state = entry
+                self.selected_lang = entry[0][0] if entry and entry[0] else None
+            self.selected_voice = None
+            self.config["selected_profile_name"] = pname
+            self.config.pop("selected_voice", None)
+            save_config(self.config)
+            # enable subtitles based on profile language
+            self.subtitle_combo.setEnabled(
+                self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
+            )
+        else:
+            self.mixed_voice_state = None
+            self.selected_profile_name = None
+            self.selected_voice, self.selected_lang = data, data[0]
+            self.config["selected_voice"] = data
+            if "selected_profile_name" in self.config:
+                del self.config["selected_profile_name"]
+            save_config(self.config)
+            if self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION:
+                self.subtitle_combo.setEnabled(True)
+                self.subtitle_mode = self.subtitle_combo.currentText()
+            else:
+                self.subtitle_combo.setEnabled(False)
+
+    def update_subtitle_combo_for_profile(self, profile_name):
+        from voice_profiles import load_profiles
+
+        entry = load_profiles().get(profile_name, {})
+        lang = entry.get("language") if isinstance(entry, dict) else None
+        enable = lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
+        self.subtitle_combo.setEnabled(enable)
+
+    def populate_profiles_in_voice_combo(self):
+        # preserve current voice or profile
+        current = self.voice_combo.currentData()
+        self.voice_combo.blockSignals(True)
+        self.voice_combo.clear()
+        # re-add profiles
+        profile_icon = QIcon(get_resource_path("abogen.assets", "profile.png"))
+        for pname in load_profiles().keys():
+            self.voice_combo.addItem(profile_icon, pname, f"profile:{pname}")
+        # re-add voices
+        for v in VOICES_INTERNAL:
+            icon = QIcon()
+            flag_path = get_resource_path("abogen.assets.flags", f"{v[0]}.png")
+            if flag_path and os.path.exists(flag_path):
+                icon = QIcon(flag_path)
+            self.voice_combo.addItem(icon, f"{v}", v)
+        # restore selection
+        idx = -1
+        if self.selected_profile_name:
+            idx = self.voice_combo.findData(f"profile:{self.selected_profile_name}")
+        elif current:
+            idx = self.voice_combo.findData(current)
+        if idx >= 0:
+            self.voice_combo.setCurrentIndex(idx)
+            # Also update subtitle combo for selected profile
+            data = self.voice_combo.itemData(idx)
+            if isinstance(data, str) and data.startswith("profile:"):
+                pname = data.split(":", 1)[1]
+                self.update_subtitle_combo_for_profile(pname)
+        self.voice_combo.blockSignals(False)
+        # If no profiles exist, clear selected_profile_name from config
+        if not load_profiles():
+            if "selected_profile_name" in self.config:
+                del self.config["selected_profile_name"]
+                save_config(self.config)
+
     def convert_input_box_to_log(self):
         self.input_box.hide()
         self.log_text.show()
@@ -1039,11 +1154,32 @@ class abogen(QWidget):
                 else self.subtitle_mode
             )
 
+            # if voice formula is not None, use the selected voice
+            if self.mixed_voice_state:
+                formula_components = [
+                    f"{name}*{weight}" for name, weight in self.mixed_voice_state
+                ]
+                voice_formula = " + ".join(filter(None, formula_components))
+            else:
+                voice_formula = self.selected_voice
+            # determine selected language: use profile setting if profile selected, else voice code
+            if self.selected_profile_name:
+                from voice_profiles import load_profiles
+
+                entry = load_profiles().get(self.selected_profile_name, {})
+                selected_lang = entry.get("language")
+            else:
+                selected_lang = self.selected_voice[0] if self.selected_voice else None
+            # fallback: extract from formula if missing
+            if not selected_lang:
+                m = re.search(r"\b([a-z])", voice_formula)
+                selected_lang = m.group(1) if m else None
+
             self.conversion_thread = ConversionThread(
                 self.selected_file,
-                self.selected_lang,
+                selected_lang,
                 speed,
-                self.selected_voice,
+                voice_formula,
                 self.save_option,
                 self.selected_output_folder,
                 subtitle_mode=actual_subtitle_mode,
@@ -1061,7 +1197,9 @@ class abogen(QWidget):
             # Pass max_subtitle_words from config
             self.conversion_thread.max_subtitle_words = self.max_subtitle_words
             # Pass replace_single_newlines setting
-            self.conversion_thread.replace_single_newlines = self.replace_single_newlines
+            self.conversion_thread.replace_single_newlines = (
+                self.replace_single_newlines
+            )
             # Pass chapter count for EPUB or PDF files
             if self.selected_file_type in ["epub", "pdf"] and hasattr(
                 self, "selected_chapters"
@@ -1292,6 +1430,7 @@ class abogen(QWidget):
         self.btn_preview.setEnabled(False)
         self.btn_preview.setToolTip("Loading...")
         self.voice_combo.setEnabled(False)
+        self.btn_voice_formula_mixer.setEnabled(False)  # Disable mixer button
         self.btn_start.setEnabled(False)  # Disable start button during preview
         # start loading animation
         self.loading_movie.start()
@@ -1306,23 +1445,43 @@ class abogen(QWidget):
         # stop loading animation and restore icon on error
         if error:
             self.loading_movie.stop()
-            self.btn_preview.setIcon(self.play_icon)
             self._show_error_message_box(
                 "Loading Error", f"Error loading numpy or KPipeline: {error}"
             )
+            self.btn_preview.setIcon(self.play_icon)
             self.btn_preview.setEnabled(True)
             self.btn_preview.setToolTip("Preview selected voice")
             self.voice_combo.setEnabled(True)
+            self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
             self.btn_start.setEnabled(True)  # Re-enable start button on error
             return
 
-        lang, voice, speed = (
-            self.selected_voice[0],
-            self.selected_voice,
-            self.speed_slider.value() / 100.0,
-        )
+        # Support preview for voice profiles
+        speed = self.speed_slider.value() / 100.0
+        if self.mixed_voice_state:
+            # Build voice formula string
+            components = [f"{name}*{weight}" for name, weight in self.mixed_voice_state]
+            voice = " + ".join(filter(None, components))
+            # determine language: use profile setting if available, else first voice code
+            if self.selected_profile_name:
+                from voice_profiles import load_profiles
+
+                entry = load_profiles().get(self.selected_profile_name, {})
+                lang = entry.get("language")
+            else:
+                lang = None
+            if not lang and self.mixed_voice_state:
+                lang = (
+                    self.mixed_voice_state[0][0][0]
+                    if self.mixed_voice_state and self.mixed_voice_state[0][0]
+                    else None
+                )
+        else:
+            lang = self.selected_voice[0]
+            voice = self.selected_voice
+
         self.preview_thread = VoicePreviewThread(
-            np_module, kpipeline_class, lang, voice, speed
+            np_module, kpipeline_class, lang, voice, speed, self.use_gpu
         )
         self.preview_thread.finished.connect(self._play_preview_audio)
         self.preview_thread.error.connect(self._preview_error)
@@ -1332,13 +1491,15 @@ class abogen(QWidget):
         temp_wav = self.preview_thread.temp_wav
         if not temp_wav:
             self.loading_movie.stop()
-            self.btn_preview.setIcon(self.play_icon)
+
             self._show_error_message_box(
                 "Preview Error", "Preview error: No audio generated."
             )
-            self.btn_preview.setEnabled(True)
+            self.btn_preview.setIcon(self.play_icon)
             self.btn_preview.setToolTip("Preview selected voice")
+            self.btn_preview.setEnabled(True)
             self.voice_combo.setEnabled(True)
+            self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
             self.btn_start.setEnabled(True)
             return
         # stop loading animation, switch to stop icon
@@ -1388,6 +1549,7 @@ class abogen(QWidget):
         self.btn_preview.setToolTip("Preview selected voice")
         self.btn_preview.setEnabled(True)
         self.voice_combo.setEnabled(True)
+        self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
         self.btn_start.setEnabled(True)
 
     def _preview_error(self, msg):
@@ -1524,7 +1686,7 @@ class abogen(QWidget):
             menu.addAction(add_shortcut_action)
 
         # Add reveal config option
-        reveal_config_action = QAction("Open config.json directory", self)
+        reveal_config_action = QAction("Open configuration directory", self)
         reveal_config_action.triggered.connect(self.reveal_config_in_explorer)
         menu.addAction(reveal_config_action)
 
@@ -1597,7 +1759,7 @@ class abogen(QWidget):
 
         try:
             # where to put the .lnk
-            desktop = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop")
+            desktop = user_desktop_dir()
             shortcut_path = os.path.join(desktop, "abogen.lnk")
 
             # target exe
@@ -1656,6 +1818,38 @@ class abogen(QWidget):
     def toggle_check_updates(self, checked):
         self.config["check_updates"] = checked
         save_config(self.config)
+
+    def show_voice_formula_dialog(self):
+        # If a profile is selected in combo, open mixer with that profile
+        initial_state = None
+        selected_profile = self.selected_profile_name
+        if selected_profile:
+            entry = load_profiles().get(selected_profile, {})
+            # support new dict format
+            if isinstance(entry, dict):
+                initial_state = entry.get("voices", [])
+            else:
+                initial_state = entry
+        elif self.mixed_voice_state is not None:
+            initial_state = self.mixed_voice_state
+        else:
+            initial_state = [(self.selected_voice, 1.0)] if self.selected_voice else []
+        dialog = VoiceFormulaDialog(
+            self, initial_state=initial_state, selected_profile=selected_profile
+        )
+        if dialog.exec_() == QDialog.Accepted:
+            # After OK, select the profile in combo and update config
+            if dialog.current_profile:
+                self.selected_profile_name = dialog.current_profile
+                self.config["selected_profile_name"] = dialog.current_profile
+                if "selected_voice" in self.config:
+                    del self.config["selected_voice"]
+                save_config(self.config)
+                self.populate_profiles_in_voice_combo()
+                idx = self.voice_combo.findData(f"profile:{dialog.current_profile}")
+                if idx >= 0:
+                    self.voice_combo.setCurrentIndex(idx)
+            self.mixed_voice_state = dialog.get_selected_voices()
 
     def show_about_dialog(self):
         """Show an About dialog with program information including GitHub link."""

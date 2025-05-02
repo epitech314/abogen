@@ -4,15 +4,18 @@ import tempfile
 import time
 import chardet
 import charset_normalizer
+from platformdirs import user_desktop_dir
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
 from utils import clean_text
 from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
+from voice_formulas import get_new_voice
 
 
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
+
 
 def detect_encoding(file_path):
     with open(file_path, "rb") as f:
@@ -149,6 +152,9 @@ class ConversionThread(QThread):
         self.max_subtitle_words = 50  # Default value, will be overridden from GUI
 
     def run(self):
+        print(
+            f"\nVoice: {self.voice}\nLanguage: {self.lang_code}\nSpeed: {self.speed}\nGPU: {self.use_gpu}\nFile: {self.file_name}\nSubtitle mode: {self.subtitle_mode}\nOutput format: {self.output_format}\nSave option: {self.save_option}\n"
+        )
         try:
             # Show configuration
             self.log_updated.emit("Configuration:")
@@ -171,9 +177,7 @@ class ConversionThread(QThread):
             self.log_updated.emit(f"- Output format: {self.output_format}")
             self.log_updated.emit(f"- Save option: {self.save_option}")
             if self.replace_single_newlines:
-                self.log_updated.emit(
-                    f"- Replace single newlines: Yes"
-                )
+                self.log_updated.emit(f"- Replace single newlines: Yes")
 
             # Display save_chapters_separately flag if it's set
             if hasattr(self, "save_chapters_separately"):
@@ -205,7 +209,9 @@ class ConversionThread(QThread):
                 text = self.file_name  # Treat file_name as direct text input
             else:
                 encoding = detect_encoding(self.file_name)
-                with open(self.file_name, "r", encoding=encoding, errors="replace") as file:
+                with open(
+                    self.file_name, "r", encoding=encoding, errors="replace"
+                ) as file:
                     text = file.read()
 
             # Clean up text using utility function
@@ -278,11 +284,19 @@ class ConversionThread(QThread):
             base_path = self.display_path if self.display_path else self.file_name
             base_name = os.path.splitext(os.path.basename(base_path))[0]
             if self.save_option == "Save to Desktop":
-                parent_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+                parent_dir = user_desktop_dir()
             elif self.save_option == "Save next to input file":
                 parent_dir = os.path.dirname(base_path)
             else:
                 parent_dir = self.output_folder or os.getcwd()
+            # Ensure the output folder exists, error if it doesn't
+            if not os.path.exists(parent_dir):
+                self.log_updated.emit(
+                    (
+                        f"Output folder does not exist: {parent_dir}",
+                        "red",
+                    )
+                )
             # Find a unique suffix for both folder and merged file, always
             counter = 1
             while True:
@@ -342,9 +356,16 @@ class ConversionThread(QThread):
 
                 # Set split_pattern to \n+ which will split on one or more newlines
                 split_pattern = r"\n+"
+
+                # Check if the voice is a formula and load it if necessary
+                if "*" in self.voice:
+                    loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
+                else:
+                    loaded_voice = self.voice
+
                 for result in tts(
                     chapter_text,
-                    voice=self.voice,
+                    voice=loaded_voice,
                     speed=self.speed,
                     split_pattern=split_pattern,
                 ):
@@ -477,7 +498,9 @@ class ConversionThread(QThread):
                         chapter_srt_path = os.path.join(
                             chapters_out_dir, f"{chapter_filename}.srt"
                         )
-                        with open(chapter_srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
+                        with open(
+                            chapter_srt_path, "w", encoding="utf-8", errors="replace"
+                        ) as srt_file:
                             for i, (start, end, text) in enumerate(
                                 chapter_subtitle_entries, 1
                             ):
@@ -518,7 +541,9 @@ class ConversionThread(QThread):
                 srt_path = os.path.splitext(out_path)[0] + ".srt"
                 sf.write(out_path, audio, 24000, format=self.output_format)
                 if self.subtitle_mode != "Disabled":
-                    with open(srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
+                    with open(
+                        srt_path, "w", encoding="utf-8", errors="replace"
+                    ) as srt_file:
                         for i, (start, end, text) in enumerate(subtitle_entries, 1):
                             srt_file.write(
                                 f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
@@ -661,7 +686,14 @@ class VoicePreviewThread(QThread):
     error = pyqtSignal(str)
 
     def __init__(
-        self, np_module, kpipeline_class, lang_code, voice, speed, parent=None
+        self,
+        np_module,
+        kpipeline_class,
+        lang_code,
+        voice,
+        speed,
+        use_gpu=False,
+        parent=None,
     ):
         super().__init__(parent)
         self.np_module = np_module
@@ -669,17 +701,26 @@ class VoicePreviewThread(QThread):
         self.lang_code = lang_code
         self.voice = voice
         self.speed = speed
-        self.temp_wav = None
+        self.use_gpu = use_gpu
 
     def run(self):
+        print(
+            f"\nVoice: {self.voice}\nLanguage: {self.lang_code}\nSpeed: {self.speed}\nGPU: {self.use_gpu}\n"
+        )
         try:
+            device = "cuda" if self.use_gpu else "cpu"
             tts = self.kpipeline_class(
-                lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M"
+                lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M", device=device
             )
+            # Enable voice formula support for preview
+            if "*" in self.voice:
+                loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
+            else:
+                loaded_voice = self.voice
             sample_text = get_sample_voice_text(self.lang_code)
             audio_segments = []
             for result in tts(
-                sample_text, voice=self.voice, speed=self.speed, split_pattern=None
+                sample_text, voice=loaded_voice, speed=self.speed, split_pattern=None
             ):
                 audio_segments.append(result.audio)
             if audio_segments:
