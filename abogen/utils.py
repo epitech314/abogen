@@ -33,8 +33,10 @@ def get_resource_path(package, resource):
         pass
 
     # Always try to resolve as a relative path from this file
-    parts = package.split('.')
-    rel_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), *parts[1:], resource)
+    parts = package.split(".")
+    rel_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), *parts[1:], resource
+    )
     if os.path.exists(rel_path):
         return rel_path
 
@@ -56,7 +58,7 @@ def get_resource_path(package, resource):
 def get_version():
     """Return the current version of the application."""
     try:
-        with open(get_resource_path("abogen", "VERSION"), "r") as f:
+        with open(get_resource_path("/", "VERSION"), "r") as f:
             return f.read().strip()
     except Exception:
         return "Unknown"

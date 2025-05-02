@@ -152,6 +152,9 @@ class ConversionThread(QThread):
         self.max_subtitle_words = 50  # Default value, will be overridden from GUI
 
     def run(self):
+        print(
+            f"\nVoice: {self.voice}\nLanguage: {self.lang_code}\nSpeed: {self.speed}\nGPU: {self.use_gpu}\nFile: {self.file_name}\nSubtitle mode: {self.subtitle_mode}\nOutput format: {self.output_format}\nSave option: {self.save_option}\n"
+        )
         try:
             # Show configuration
             self.log_updated.emit("Configuration:")
@@ -683,7 +686,14 @@ class VoicePreviewThread(QThread):
     error = pyqtSignal(str)
 
     def __init__(
-        self, np_module, kpipeline_class, lang_code, voice, speed, parent=None
+        self,
+        np_module,
+        kpipeline_class,
+        lang_code,
+        voice,
+        speed,
+        use_gpu=False,
+        parent=None,
     ):
         super().__init__(parent)
         self.np_module = np_module
@@ -691,17 +701,26 @@ class VoicePreviewThread(QThread):
         self.lang_code = lang_code
         self.voice = voice
         self.speed = speed
-        self.temp_wav = None
+        self.use_gpu = use_gpu
 
     def run(self):
+        print(
+            f"\nVoice: {self.voice}\nLanguage: {self.lang_code}\nSpeed: {self.speed}\nGPU: {self.use_gpu}\n"
+        )
         try:
+            device = "cuda" if self.use_gpu else "cpu"
             tts = self.kpipeline_class(
-                lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M"
+                lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M", device=device
             )
+            # Enable voice formula support for preview
+            if "*" in self.voice:
+                loaded_voice = get_new_voice(tts, self.voice, self.use_gpu)
+            else:
+                loaded_voice = self.voice
             sample_text = get_sample_voice_text(self.lang_code)
             audio_segments = []
             for result in tts(
-                sample_text, voice=self.voice, speed=self.speed, split_pattern=None
+                sample_text, voice=loaded_voice, speed=self.speed, split_pattern=None
             ):
                 audio_segments.append(result.audio)
             if audio_segments:

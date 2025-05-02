@@ -29,8 +29,8 @@ def parse_voice_formula(pipeline, formula):
     voices = formula.split("+")
 
     for term in voices:
-        # Parse each term (format: "0.333 * voice_name")
-        weight, voice_name = term.strip().split("*")
+        # Parse each term (format: "voice_name*0.333")
+        voice_name, weight = term.strip().split("*")
         weight = float(weight.strip())
         # normalize the weight
         weight /= total_weight if total_weight > 0 else 1.0
@@ -52,6 +52,6 @@ def parse_voice_formula(pipeline, formula):
 
 
 def calculate_sum_from_formula(formula):
-    weights = re.findall(r"([\d.]+) \*", formula)
+    weights = re.findall(r"\* *([\d.]+)", formula)
     total_sum = sum(float(weight) for weight in weights)
     return total_sum
