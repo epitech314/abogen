@@ -1480,8 +1480,11 @@ class abogen(QWidget):
             lang = self.selected_voice[0]
             voice = self.selected_voice
 
+        # use same gpu/cpu logic as in conversion
+        gpu_msg, gpu_ok = get_gpu_acceleration(self.use_gpu)
+
         self.preview_thread = VoicePreviewThread(
-            np_module, kpipeline_class, lang, voice, speed, self.use_gpu
+            np_module, kpipeline_class, lang, voice, speed, gpu_ok 
         )
         self.preview_thread.finished.connect(self._play_preview_audio)
         self.preview_thread.error.connect(self._preview_error)
@@ -1545,7 +1548,12 @@ class abogen(QWidget):
 
     def _preview_cleanup(self):
         self.preview_playing = False
-        self.btn_preview.setIcon(self.play_icon)
+        self.loading_movie.stop()
+        try:
+            self.loading_movie.frameChanged.disconnect()
+        except Exception:
+            pass  # Ignore error if not connected
+        self.btn_preview.setIcon(self.play_icon) 
         self.btn_preview.setToolTip("Preview selected voice")
         self.btn_preview.setEnabled(True)
         self.voice_combo.setEnabled(True)
