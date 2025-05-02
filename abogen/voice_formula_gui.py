@@ -846,10 +846,10 @@ class VoiceFormulaDialog(QDialog):
             self.update_weighted_sums()
 
     def _handle_zero_weight_profiles(self):
-        if self.profile_list.count() <= 1:
+        profiles = load_profiles()
+        if len(profiles) < 1:
             return False
         zero = []
-        profiles = load_profiles()
         for i in range(self.profile_list.count()):
             item = self.profile_list.item(i)
             name = item.text().lstrip("*")
@@ -868,7 +868,6 @@ class VoiceFormulaDialog(QDialog):
         if not zero:
             return False
         msg = f"{len(zero)} invalid profile(s) with no voices selected or their total weights are 0. They will be ignored and deleted. Do you want to delete?"
-        # Use Delete instead of Ignore
         reply = QMessageBox.question(
             self,
             "Invalid Profiles",
@@ -963,8 +962,17 @@ class VoiceFormulaDialog(QDialog):
         self.update_profile_list_colors()
 
     def new_profile(self):
-        name, ok = QInputDialog.getText(self, "New Profile", "Enter profile name:")
-        if ok and name:
+        import re
+        while True:
+            name, ok = QInputDialog.getText(self, "New Profile", "Enter profile name:")
+            if not ok or not name:
+                break
+            name = name.strip()  # Remove leading/trailing spaces
+            if not name:
+                continue
+            if not re.match(r'^[\w\- ]+$', name):
+                QMessageBox.warning(self, "Invalid Name", "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.")
+                continue
             profiles = load_profiles()
             # Remove 'New profile' placeholder if not persisted in JSON
             if (
@@ -977,7 +985,7 @@ class VoiceFormulaDialog(QDialog):
                 self._profile_dirty.pop("New profile", None)
             if name in profiles:
                 QMessageBox.warning(self, "Duplicate Name", "Profile already exists.")
-                return
+                continue
             profiles[name] = {
                 "voices": [],
                 "language": self.language_combo.currentData(),
@@ -996,6 +1004,7 @@ class VoiceFormulaDialog(QDialog):
             parent = self.parent()
             if hasattr(parent, "populate_profiles_in_voice_combo"):
                 parent.populate_profiles_in_voice_combo()
+            break
         self.update_profile_save_buttons()
         self.update_profile_list_colors()
         self.update_weighted_sums()
@@ -1182,21 +1191,38 @@ class VoiceFormulaDialog(QDialog):
                 )
 
     def rename_profile(self, item):
+        name = item.text().lstrip("*")
+        # block if profile has unsaved changes
+        if self._profile_dirty.get(name, False):
+            QMessageBox.warning(
+                self, "Unsaved Changes", "Please save the profile before renaming."
+            )
+            return
         old = item.text().lstrip("*")
-        new, ok = QInputDialog.getText(
-            self, "Rename Profile", f"Profile name:", text=old
-        )
-        if ok and new and new != old:
+        import re
+        while True:
+            new, ok = QInputDialog.getText(
+                self, "Rename Profile", f"Profile name:", text=old
+            )
+            if not ok or not new or new == old:
+                break
+            new = new.strip()  # Remove leading/trailing spaces
+            if not new:
+                continue
+            if not re.match(r'^[\w\- ]+$', new):
+                QMessageBox.warning(self, "Invalid Name", "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.")
+                continue
             profiles = load_profiles()
             if new in profiles:
                 QMessageBox.warning(self, "Duplicate Name", "Profile already exists.")
-                return
+                continue
             profiles[new] = profiles.pop(old)
             save_profiles(profiles)
             item.setText(new)
             parent = self.parent()
             if hasattr(parent, "populate_profiles_in_voice_combo"):
                 parent.populate_profiles_in_voice_combo()
+            break
         self.update_profile_save_buttons()
         self.update_profile_list_colors()
 
@@ -1227,6 +1253,13 @@ class VoiceFormulaDialog(QDialog):
         self.update_profile_list_colors()
 
     def duplicate_profile(self, item):
+        name = item.text().lstrip("*")
+        # block duplicating if profile has unsaved changes
+        if self._profile_dirty.get(name, False):
+            QMessageBox.warning(
+                self, "Unsaved Changes", "Please save the profile before duplicating."
+            )
+            return
         src = item.text().lstrip("*")
         profiles = load_profiles()
         base = f"{src}_duplicate"
