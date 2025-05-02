@@ -1192,8 +1192,8 @@ class VoiceFormulaDialog(QDialog):
 
     def rename_profile(self, item):
         name = item.text().lstrip("*")
-        # block if profile has unsaved changes
-        if self._profile_dirty.get(name, False):
+        # block if profile has unsaved changes and it's not a virtual New profile
+        if self._profile_dirty.get(name, False) and not (self._virtual_new_profile and name == "New profile"):
             QMessageBox.warning(
                 self, "Unsaved Changes", "Please save the profile before renaming."
             )
@@ -1212,13 +1212,39 @@ class VoiceFormulaDialog(QDialog):
             if not re.match(r'^[\w\- ]+$', new):
                 QMessageBox.warning(self, "Invalid Name", "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.")
                 continue
+            
             profiles = load_profiles()
             if new in profiles:
                 QMessageBox.warning(self, "Duplicate Name", "Profile already exists.")
                 continue
-            profiles[new] = profiles.pop(old)
-            save_profiles(profiles)
-            item.setText(new)
+                
+            # Special case for renaming the virtual "New profile"
+            if self._virtual_new_profile and name == "New profile":
+                # Create the profile with the new name
+                profiles[new] = {
+                    "voices": self.get_selected_voices(),
+                    "language": self.language_combo.currentData(),
+                }
+                save_profiles(profiles)
+                
+                # Update tracking properties
+                self._virtual_new_profile = False
+                self._profile_dirty.pop("New profile", None)
+                self._profile_dirty[new] = False
+                
+                # Update the current profile name
+                self.current_profile = new
+                item.setText(new)
+            else:
+                # Standard renaming for regular profiles
+                profiles[new] = profiles.pop(old)
+                save_profiles(profiles)
+                item.setText(new)
+                
+                # Update the current profile name if it was renamed
+                if self.current_profile == old:
+                    self.current_profile = new
+            
             parent = self.parent()
             if hasattr(parent, "populate_profiles_in_voice_combo"):
                 parent.populate_profiles_in_voice_combo()
