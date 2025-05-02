@@ -1545,6 +1545,7 @@ class abogen(QWidget):
 
     def _preview_cleanup(self):
         self.preview_playing = False
+        self.loading_movie.stop()
         try:
             self.loading_movie.frameChanged.disconnect()
         except Exception:
