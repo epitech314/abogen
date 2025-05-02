@@ -1,4 +1,6 @@
+- Merge pull request [#7](https://github.com/denizsafak/abogen/pull/7) by [@jborza](https://github.com/jborza) that improves voice preview and documentation.
 - Fixed the issue when a voice is selected, the voice mixer tries to pre-select that voice and ignores existing profiles.
 - Fixed the error while renaming the default "New profile" in the voice mixer.
+- Fixed subtitle_combo enabling/disabling when a voice in the voice mixer is selected.
 - Prevented using special characters in the profile name to avoid conflicts.
 - Improved invalid profile handling in the voice mixer.
