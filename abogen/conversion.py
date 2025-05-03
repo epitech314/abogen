@@ -12,6 +12,7 @@ from utils import clean_text
 from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
 from voice_formulas import get_new_voice
 import static_ffmpeg
+import threading  # for efficient waiting
 
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
@@ -128,6 +129,7 @@ class ConversionThread(QThread):
         use_gpu=True,
     ):  # Add use_gpu parameter
         super().__init__()
+        self._chapter_options_event = threading.Event()
         self.np = np_module
         self.KPipeline = kpipeline_class
         self.file_name = file_name
@@ -252,18 +254,12 @@ class ConversionThread(QThread):
                 and not self.chapter_options_set
             ):
 
-                self.waiting_for_user_input = True
-                # Emit signal to main thread to show dialog
+                # Emit signal to main thread and wait
                 self.chapters_detected.emit(total_chapters)
-
-                # Wait for chapter options to be set
-                while self.waiting_for_user_input and not self.cancel_requested:
-                    time.sleep(0.1)
-
+                self._chapter_options_event.wait()
                 if self.cancel_requested:
                     self.conversion_finished.emit("Cancelled", None)
                     return
-
                 self.chapter_options_set = True
 
             # Log all detected chapters at the beginning
@@ -607,6 +603,7 @@ class ConversionThread(QThread):
         self.save_chapters_separately = options["save_chapters_separately"]
         self.merge_chapters_at_end = options["merge_chapters_at_end"]
         self.waiting_for_user_input = False
+        self._chapter_options_event.set()
 
     def _generate_m4b_with_chapters(self, out_path, chapters_time):
         # generate chapters.txt in the same folder as the output file

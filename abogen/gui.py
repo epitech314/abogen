@@ -670,13 +670,18 @@ class abogen(QWidget):
         format_layout = QVBoxLayout()
         format_layout.addWidget(QLabel("Output Format:", self))
         self.format_combo = QComboBox(self)
-        self.format_combo.setStyleSheet(
-            "QComboBox { min-height: 20px; padding: 6px 12px; }"
+        self.format_combo.setStyleSheet("QComboBox { min-height: 20px; padding: 6px 12px; }")
+        # Add items with display labels and underlying keys
+        for key, label in [("wav","wav"),("flac","flac"),("mp3","mp3"),("m4b","m4b (with chapters)")]:
+            self.format_combo.addItem(label, key)
+        # Initialize selection by matching saved key
+        idx = self.format_combo.findData(self.selected_format)
+        if idx >= 0:
+            self.format_combo.setCurrentIndex(idx)
+        # Map selection back to key on change
+        self.format_combo.currentIndexChanged.connect(
+            lambda i: self.on_format_changed(self.format_combo.itemData(i))
         )
-        format_options = ["wav", "flac", "mp3", "m4b"]
-        self.format_combo.addItems(format_options)
-        self.format_combo.setCurrentText(self.selected_format)
-        self.format_combo.currentTextChanged.connect(self.on_format_changed)
         format_layout.addWidget(self.format_combo)
         controls_layout.addLayout(format_layout)
         # Save location
