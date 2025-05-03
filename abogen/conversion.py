@@ -496,14 +496,20 @@ class ConversionThread(QThread):
 
                     # Concatenate chapter audio and save
                     chapter_audio = self.np.concatenate(chapter_audio_segments)
+                    # If output format is m4b, save chapter as wav
+                    chapter_ext = self.output_format
+                    chapter_format = self.output_format
+                    if self.output_format == "m4b":
+                        chapter_ext = "wav"
+                        chapter_format = "wav"
                     chapter_out_path = os.path.join(
-                        chapters_out_dir, f"{chapter_filename}.{self.output_format}"
+                        chapters_out_dir, f"{chapter_filename}.{chapter_ext}"
                     )
                     sf.write(
                         chapter_out_path,
                         chapter_audio,
                         24000,
-                        format=self.output_format,
+                        format=chapter_format,
                     )
 
                     # Generate .srt subtitle file for chapter if not Disabled
