@@ -4,7 +4,6 @@
 # Use a docker base image that runs a window manager that can be viewed
 # outside the image with a web browser or VNC client.
 # https://github.com/jlesage/docker-baseimage-gui
-
 FROM jlesage/baseimage-gui:debian-12-v4
 
 # Load stuff needed by abogen
@@ -36,15 +35,8 @@ RUN echo '#!/bin/bash\nsource /app/venv/bin/activate\nexec abogen' > /startapp.s
   && mkdir /app /shared \
   && chown 1000:1000 /app /shared \
   && chmod 755 /app /shared
-
-# Switch to user 1000 to create the virtual environment
 USER 1000:1000
 RUN python3 -m venv /app/venv
-
-# Make /app the working dir, copy your project in, and install from “.”
-COPY . /app/
-WORKDIR /app
-RUN /bin/bash -c "source venv/bin/activate && pip install ."
-
-# Change back to root for the base‐image startup scripts
+RUN /bin/bash -c "source /app/venv/bin/activate && pip install abogen"
+# Change back to user ROOT as the startup scripts inside base image needs it
 USER root
