@@ -90,7 +90,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 - **Chapter Control**: Select specific `chapters` from ePUBs or `chapters + pages` from PDFs.
 - **Options**:
     - **Replace single newlines with spaces**: Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks.
-    - **Configure max words per subtitle**: Automatically configures the maximum number of words per subtitle entry.
+    - **Configure max words per subtitle**: Configures the maximum number of words per subtitle entry.
     - **Create desktop shortcut**: Creates a shortcut on your desktop for easy access.
     - **Open config.json directory**: Opens the directory where the configuration file is stored.
     - **Open temp directory**: Opens the temporary directory where converted text files are stored.
@@ -102,6 +102,30 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 <img title="Abogen Voice Mixer" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/voice_mixer.png'>
 
 With voice mixer, you can create custom voices by mixing different voice models. You can adjust the weight of each voice and save your custom voice as a profile for future use. The voice mixer allows you to create unique and personalized voices. (Huge thanks to [@jborza](https://github.com/jborza) for making this possible through his contributions in [#5](https://github.com/denizsafak/abogen/pull/5))
+
+## `About Chapter Markers`
+When you process ePUB or PDF files, abogen converts them into text files stored in your temporary directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
+
+```
+<CHAPTER_MARKER:Chapter Title>
+```
+These are chapter markers. They are automatically added when you process ePUB or PDF files, based on the chapters you select. They serve an important purpose:
+-  Allow you to split the text into separate audio files for each chapter
+-  Save time by letting you reprocess only specific chapters if errors occur, rather than the entire file
+
+You can manually add these markers to plain text files for the same benefits. Simply include them in your text like this:
+
+```
+<CHAPTER_MARKER:Introduction>  
+This is the beginning of my text...  
+
+<CHAPTER_MARKER:Main Content>  
+Here's another part...  
+```
+When you process the text file, abogen will detect these markers automatically and ask if you want to save each chapter separately and create a merged version.
+
+![Abogen Chapter Marker](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/chapter_marker.png)
+
 
 ## `Supported Languages`
 ```
