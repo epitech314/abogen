@@ -475,7 +475,6 @@ class VoiceFormulaDialog(QDialog):
 
         self.add_voices(initial_state or [])
         self.update_weighted_sums()
-        self.update_subtitle_combo_enabled()
 
         # assemble splitter
         splitter.addWidget(profile_widget)
@@ -496,8 +495,6 @@ class VoiceFormulaDialog(QDialog):
         for vm in self.voice_mixers:
             vm.spin_box.valueChanged.connect(self.mark_profile_modified)
             vm.checkbox.stateChanged.connect(lambda *_: self.mark_profile_modified())
-            vm.spin_box.valueChanged.connect(self.update_subtitle_combo_enabled)
-            vm.checkbox.stateChanged.connect(self.update_subtitle_combo_enabled)
 
     def keyPressEvent(self, event):
         # Bind Delete key to delete_profile when a profile is selected
@@ -682,8 +679,6 @@ class VoiceFormulaDialog(QDialog):
         voice_mixer.checkbox.stateChanged.connect(
             lambda *_: self.mark_profile_modified()
         )
-        voice_mixer.spin_box.valueChanged.connect(self.update_subtitle_combo_enabled)
-        voice_mixer.checkbox.stateChanged.connect(self.update_subtitle_combo_enabled)
         return voice_mixer
 
     def handle_voice_checkbox(self, voice_mixer, state):
@@ -742,20 +737,6 @@ class VoiceFormulaDialog(QDialog):
         else:
             self.error_label.show()
             self.weighted_sums_container.hide()
-
-    def update_subtitle_combo_enabled(self):
-        # Only enable subtitle_combo if at least one selected voice is from supported languages
-        selected_langs = set()
-        for vm in self.voice_mixers:
-            if vm.checkbox.isChecked() and vm.spin_box.value() > 0:
-                lang_code = vm.voice_name[0]
-                selected_langs.add(lang_code)
-        enable = any(
-            lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
-            for lang in selected_langs
-        )
-        if self.subtitle_combo:
-            self.subtitle_combo.setEnabled(enable)
 
     def disable_voice_by_name(self, voice_name):
         for mixer in self.voice_mixers:
@@ -819,7 +800,6 @@ class VoiceFormulaDialog(QDialog):
             # sync enabled state
             vm.toggle_inputs()
         self.update_weighted_sums()
-        self.update_subtitle_combo_enabled()
 
     def save_profile_by_name(self, name):
         profiles = load_profiles()
@@ -1192,8 +1172,8 @@ class VoiceFormulaDialog(QDialog):
 
     def rename_profile(self, item):
         name = item.text().lstrip("*")
-        # block if profile has unsaved changes
-        if self._profile_dirty.get(name, False):
+        # block if profile has unsaved changes and it's not a virtual New profile
+        if self._profile_dirty.get(name, False) and not (self._virtual_new_profile and name == "New profile"):
             QMessageBox.warning(
                 self, "Unsaved Changes", "Please save the profile before renaming."
             )
@@ -1212,13 +1192,39 @@ class VoiceFormulaDialog(QDialog):
             if not re.match(r'^[\w\- ]+$', new):
                 QMessageBox.warning(self, "Invalid Name", "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.")
                 continue
+            
             profiles = load_profiles()
             if new in profiles:
                 QMessageBox.warning(self, "Duplicate Name", "Profile already exists.")
                 continue
-            profiles[new] = profiles.pop(old)
-            save_profiles(profiles)
-            item.setText(new)
+                
+            # Special case for renaming the virtual "New profile"
+            if self._virtual_new_profile and name == "New profile":
+                # Create the profile with the new name
+                profiles[new] = {
+                    "voices": self.get_selected_voices(),
+                    "language": self.language_combo.currentData(),
+                }
+                save_profiles(profiles)
+                
+                # Update tracking properties
+                self._virtual_new_profile = False
+                self._profile_dirty.pop("New profile", None)
+                self._profile_dirty[new] = False
+                
+                # Update the current profile name
+                self.current_profile = new
+                item.setText(new)
+            else:
+                # Standard renaming for regular profiles
+                profiles[new] = profiles.pop(old)
+                save_profiles(profiles)
+                item.setText(new)
+                
+                # Update the current profile name if it was renamed
+                if self.current_profile == old:
+                    self.current_profile = new
+            
             parent = self.parent()
             if hasattr(parent, "populate_profiles_in_voice_combo"):
                 parent.populate_profiles_in_voice_combo()

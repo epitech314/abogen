@@ -66,10 +66,19 @@ def get_version():
 
 # Define config path
 def get_user_config_path():
-    if os.name == "nt":
-        config_dir = os.path.join(os.environ["APPDATA"], "abogen")
+    from platformdirs import user_config_dir
+    # TODO Config directory is changed for Linux and MacOS. But if old config exists, it will be used.
+    # On non‑Windows, prefer ~/.config/abogen if it already exists
+    if platform.system() != "Windows":
+        custom_dir = os.path.join(os.path.expanduser("~"), ".config", "abogen")
+        if os.path.exists(custom_dir):
+            config_dir = custom_dir
+        else:
+            config_dir = user_config_dir("abogen", appauthor=False, roaming=True)
     else:
-        config_dir = os.path.join(os.path.expanduser("~"), ".config", "abogen")
+        # Windows and fallback case
+        config_dir = user_config_dir("abogen", appauthor=False, roaming=True)
+
     os.makedirs(config_dir, exist_ok=True)
     return os.path.join(config_dir, "config.json")
 

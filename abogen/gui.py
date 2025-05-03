@@ -1417,7 +1417,6 @@ class abogen(QWidget):
         if self.preview_playing:
             try:
                 import pygame
-
                 pygame.mixer.music.stop()
             except Exception:
                 pass
@@ -1432,8 +1431,20 @@ class abogen(QWidget):
         self.voice_combo.setEnabled(False)
         self.btn_voice_formula_mixer.setEnabled(False)  # Disable mixer button
         self.btn_start.setEnabled(False)  # Disable start button during preview
-        # start loading animation
-        self.loading_movie.start()
+        
+        # Start loading animation - ensure signal connection is always active
+        if hasattr(self, 'loading_movie'):
+            # Disconnect previous connections to avoid multiple connections
+            try:
+                self.loading_movie.frameChanged.disconnect()
+            except TypeError:
+                pass  # Ignore error if not connected
+            
+            # Reconnect the signal
+            self.loading_movie.frameChanged.connect(
+                lambda: self.btn_preview.setIcon(QIcon(self.loading_movie.currentPixmap()))
+            )
+            self.loading_movie.start()
 
         def pipeline_loaded_callback(np_module, kpipeline_class, error):
             self._on_pipeline_loaded_for_preview(np_module, kpipeline_class, error)
@@ -1480,8 +1491,11 @@ class abogen(QWidget):
             lang = self.selected_voice[0]
             voice = self.selected_voice
 
+        # use same gpu/cpu logic as in conversion
+        gpu_msg, gpu_ok = get_gpu_acceleration(self.use_gpu)
+
         self.preview_thread = VoicePreviewThread(
-            np_module, kpipeline_class, lang, voice, speed, self.use_gpu
+            np_module, kpipeline_class, lang, voice, speed, gpu_ok 
         )
         self.preview_thread.finished.connect(self._play_preview_audio)
         self.preview_thread.error.connect(self._preview_error)
@@ -1545,7 +1559,12 @@ class abogen(QWidget):
 
     def _preview_cleanup(self):
         self.preview_playing = False
-        self.btn_preview.setIcon(self.play_icon)
+        self.loading_movie.stop()
+        try:
+            self.loading_movie.frameChanged.disconnect()
+        except Exception:
+            pass  # Ignore error if not connected
+        self.btn_preview.setIcon(self.play_icon) 
         self.btn_preview.setToolTip("Preview selected voice")
         self.btn_preview.setEnabled(True)
         self.voice_combo.setEnabled(True)

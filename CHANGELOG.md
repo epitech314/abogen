@@ -1,4 +1,1 @@
-- Fixed the issue when a voice is selected, the voice mixer tries to pre-select that voice and ignores existing profiles.
-- Fixed the error while renaming the default "New profile" in the voice mixer.
-- Prevented using special characters in the profile name to avoid conflicts.
-- Improved invalid profile handling in the voice mixer.
+- Better approach for detemining the correct configuration folder for Linux and MacOS, using platformdirs.
