@@ -107,7 +107,7 @@ With voice mixer, you can create custom voices by mixing different voice models.
 When you process ePUB or PDF files, abogen converts them into text files stored in your temporary directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
 
 ```
-<CHAPTER_MARKER:Chapter Title>
+<<CHAPTER_MARKER:Chapter Title>>
 ```
 These are chapter markers. They are automatically added when you process ePUB or PDF files, based on the chapters you select. They serve an important purpose:
 -  Allow you to split the text into separate audio files for each chapter
@@ -116,10 +116,10 @@ These are chapter markers. They are automatically added when you process ePUB or
 You can manually add these markers to plain text files for the same benefits. Simply include them in your text like this:
 
 ```
-<CHAPTER_MARKER:Introduction>  
+<<CHAPTER_MARKER:Introduction>>
 This is the beginning of my text...  
 
-<CHAPTER_MARKER:Main Content>  
+<<CHAPTER_MARKER:Main Content>> 
 Here's another part...  
 ```
 When you process the text file, abogen will detect these markers automatically and ask if you want to save each chapter separately and create a merged version.
