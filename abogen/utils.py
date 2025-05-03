@@ -66,10 +66,9 @@ def get_version():
 
 # Define config path
 def get_user_config_path():
-    if os.name == "nt":
-        config_dir = os.path.join(os.environ["APPDATA"], "abogen")
-    else:
-        config_dir = os.path.join(os.path.expanduser("~"), ".config", "abogen")
+    from platformdirs import user_config_dir
+    # Use platformdirs to get the user configuration directory
+    config_dir = user_config_dir("abogen", appauthor=False, roaming=True)
     os.makedirs(config_dir, exist_ok=True)
     return os.path.join(config_dir, "config.json")
 

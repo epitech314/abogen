@@ -1,6 +1,6 @@
 import os
 import json
-from utils import get_user_config_path, get_resource_path
+from utils import get_user_config_path
 
 
 def _get_profiles_path():
