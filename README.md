@@ -155,6 +155,38 @@ audio-samplerate=48000
 volume-max=200
 ```
 
+## `Docker Guide`
+If you want to run Abogen in a Docker container:
+1) [Download the repository](https://github.com/denizsafak/abogen/archive/refs/heads/main.zip) and extract, or clone it using git.
+2) Go to `abogen` folder. You should see `Dockerfile` there.
+3) Open your termminal in that directory and run the following commands:
+
+```bash
+# Build the Docker image:
+docker build --progress plain -t abogen .
+
+# Note that building the image may take a while.
+# After building is complete, run the Docker container:
+
+# Windows
+docker run --name abogen -v %cd%:/shared -p 5800:5800 -p 5900:5900 --gpus all abogen
+
+# Linux
+docker run --name abogen -v $(pwd):/shared -p 5800:5800 -p 5900:5900 --gpus all abogen
+
+# MacOS
+docker run --name abogen -v $(pwd):/shared -p 5800:5800 -p 5900:5900 abogen
+
+# We expose port 5800 for use by a web browser, 5900 if you want to connect with a VNC client.
+```
+
+Abogen launches automatically inside the container. 
+- You can access it via a web browser at `http://localhost:5800` or connect to it using a VNC client at `localhost:5900`.
+- You can use `/shared` directory to share files between your host and the container.
+- For later use, start it with `docker start abogen` and stop it with `docker stop abogen`.
+
+(Special thanks to [@geo38](https://www.reddit.com/user/geo38/) from Reddit, who provided the Dockerfile and instructions in [this comment](https://www.reddit.com/r/selfhosted/comments/1k8x1yo/comment/mpe0bz8/).)
+
 ## `Similar Projects`
 Abogen is a standalone project, but it is inspired by and shares some similarities with other projects. Here are a few:
 - [audiblez](https://github.com/santinic/audiblez): Generate audiobooks from e-books. **(Has CLI and GUI support)**
