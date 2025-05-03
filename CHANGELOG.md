@@ -1,6 +1,6 @@
-- Enhanced EPUB handling by treating all items in chapter list (including anchors) as chapters, improving navigation and organization for poorly structured books, mentioned by @Darthagnon in #4
-- Fixed the issue with some chapters in EPUB files had missing content.
-- Fixed the issue with some EPUB files only having one chapter caused the program to ignore the entire book.
-- Fixed "utf-8' codec can't decode byte" error, mentioned by @nigelp in #3
-- Added "Replace single newlines with spaces" option in the menu. This can be useful for texts that have imaginary line breaks.
-- Improvements in code and documentation.
+- Merge pull request [#7](https://github.com/denizsafak/abogen/pull/7) by [@jborza](https://github.com/jborza) that improves voice preview and documentation.
+- Fixed the issue when a voice is selected, the voice mixer tries to pre-select that voice and ignores existing profiles.
+- Fixed the error while renaming the default "New profile" in the voice mixer.
+- Fixed subtitle_combo enabling/disabling when a voice in the voice mixer is selected.
+- Prevented using special characters in the profile name to avoid conflicts.
+- Improved invalid profile handling in the voice mixer.
