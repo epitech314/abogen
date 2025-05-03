@@ -546,6 +546,7 @@ class ConversionThread(QThread):
                 or not self.save_chapters_separately
                 or getattr(self, "merge_chapters_at_end", True)
             )
+            m4b_picked = False  # Ensure m4b_picked is always defined
             if audio_segments and merge_chapters:
                 self.log_updated.emit("\nFinalizing audio file...\n")
                 audio = self.np.concatenate(audio_segments)
@@ -606,6 +607,12 @@ class ConversionThread(QThread):
         self._chapter_options_event.set()
 
     def _generate_m4b_with_chapters(self, out_path, chapters_time):
+        # If there is only one chapter, skip adding chapters and just return the wav file path
+        if not chapters_time or len(chapters_time) <= 1:
+            self.log_updated.emit(
+                ("File contains only one chapter or no chapters were detected. The audio will be saved as a standard .wav file instead.\n", "red")
+            )
+            return out_path
         # generate chapters.txt in the same folder as the output file
         chapters_info_path = os.path.splitext(out_path)[0] + "_chapters.txt"
         with open(chapters_info_path, "w", encoding="utf-8") as f:
