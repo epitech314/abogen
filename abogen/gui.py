@@ -673,7 +673,7 @@ class abogen(QWidget):
         self.format_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
-        format_options = ["wav", "flac", "mp3"]
+        format_options = ["wav", "flac", "mp3", "m4b"]
         self.format_combo.addItems(format_options)
         self.format_combo.setCurrentText(self.selected_format)
         self.format_combo.currentTextChanged.connect(self.on_format_changed)

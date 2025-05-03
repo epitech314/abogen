@@ -22,7 +22,8 @@ dependencies = [
     "soundfile>=0.13.1",
     "pygame>=2.6.1",
     "charset_normalizer>=3.4.1",
-    "chardet>=5.2.0"
+    "chardet>=5.2.0",
+    "static_ffmpeg>=2.13"
 ]
 
 classifiers = [
