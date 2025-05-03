@@ -555,7 +555,6 @@ class ConversionThread(QThread):
 
                 # in case the user picked m4b format, we need to change the output format to wav
                 if self.output_format == "m4b":
-                    picked_out_path = out_path
                     out_path = os.path.splitext(out_path)[0] + ".wav"
                     self.output_format = "wav"
                     m4b_picked = True
