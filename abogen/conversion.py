@@ -634,14 +634,18 @@ class ConversionThread(QThread):
             "-map_chapters", "1",
             out_path_m4b
         ]
-        try:
-            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-            # TODO Check for errors in the ffmpeg command
-        except subprocess.CalledProcessError as e:
-            self.log_updated.emit(
-                (f"FFmpeg error: {e.stderr}", "red")
-            )
+        
+        self.log_updated.emit("Adding chapters to the audio file...\n")
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        # Check for errors in the ffmpeg command
+        if result.returncode != 0:
+            self.log_updated.emit((f"FFmpeg error: {result.stderr}", "red"))
+            # Log error but continue with original file
+            self.log_updated.emit(("Falling back to the original audio file without chapters\n", "orange"))
             return out_path
+        else:
+            self.log_updated.emit(("Successfully added chapters to the audio file.\n", "green"))
+        
         # delete the chapters path and original (wav) file
         os.remove(chapters_info_path)
         os.remove(out_path)
