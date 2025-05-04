@@ -713,8 +713,9 @@ class VoiceFormulaDialog(QDialog):
         ]
 
         total = sum(w for _, w in selected)
-        # disable Preview if no voices selected
-        self.btn_preview_mix.setEnabled(total > 0)
+        # disable Preview if no voices selected, but don't enable while loading
+        if not getattr(self, "_loading", False):
+            self.btn_preview_mix.setEnabled(total > 0)
 
         if total > 0:
             self.error_label.hide()
@@ -1350,6 +1351,7 @@ class VoiceFormulaDialog(QDialog):
         # Disable preview until playback completes
         self.btn_preview_mix.setEnabled(False)
         self.btn_preview_mix.setText("Loading...")
+        self._loading = True
         parent = self.parent()
         if parent and hasattr(parent, "preview_voice"):
             # Apply mixed voices and selected language
@@ -1378,4 +1380,5 @@ class VoiceFormulaDialog(QDialog):
             elif getattr(self, "_started", False):
                 self.btn_preview_mix.setEnabled(True)
                 self.btn_preview_mix.setText("Preview")
+                self._loading = False
                 self._preview_poll_timer.stop()
