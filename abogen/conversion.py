@@ -11,7 +11,8 @@ import soundfile as sf
 from utils import clean_text
 from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
 from voice_formulas import get_new_voice
-
+import static_ffmpeg
+import threading  # for efficient waiting
 
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
@@ -128,6 +129,7 @@ class ConversionThread(QThread):
         use_gpu=True,
     ):  # Add use_gpu parameter
         super().__init__()
+        self._chapter_options_event = threading.Event()
         self.np = np_module
         self.KPipeline = kpipeline_class
         self.file_name = file_name
@@ -252,18 +254,12 @@ class ConversionThread(QThread):
                 and not self.chapter_options_set
             ):
 
-                self.waiting_for_user_input = True
-                # Emit signal to main thread to show dialog
+                # Emit signal to main thread and wait
                 self.chapters_detected.emit(total_chapters)
-
-                # Wait for chapter options to be set
-                while self.waiting_for_user_input and not self.cancel_requested:
-                    time.sleep(0.1)
-
+                self._chapter_options_event.wait()
                 if self.cancel_requested:
                     self.conversion_finished.emit("Cancelled", None)
                     return
-
                 self.chapter_options_set = True
 
             # Log all detected chapters at the beginning
@@ -339,6 +335,12 @@ class ConversionThread(QThread):
             # Initialize current segment counter
             current_segment = 0
 
+            # Initialize chapter times
+            chapters_time = [
+                {"chapter": chapter[0], "start": 0.0, "end": 0.0}
+                for chapter in chapters
+            ]
+
             # Instead of processing the whole text, process by chapter
             for chapter_idx, (chapter_name, chapter_text) in enumerate(chapters, 1):
                 if total_chapters > 1:
@@ -353,6 +355,10 @@ class ConversionThread(QThread):
                 chapter_audio_segments = []
                 chapter_subtitle_entries = []
                 chapter_current_time = 0.0
+
+                # chapter start time
+                chapter_time = chapters_time[chapter_idx - 1]
+                chapter_time["start"] = current_time
 
                 # Set split_pattern to \n+ which will split on one or more newlines
                 split_pattern = r"\n+"
@@ -467,6 +473,9 @@ class ConversionThread(QThread):
                     # Update progress more frequently (after each result)
                     self.progress_updated.emit(percent, etr_str)
 
+                # Update chapter end time
+                chapter_time["end"] = current_time
+
                 # Save the individual chapter output if save_chapters_separately is enabled
                 if (
                     save_chapters_separately
@@ -483,14 +492,20 @@ class ConversionThread(QThread):
 
                     # Concatenate chapter audio and save
                     chapter_audio = self.np.concatenate(chapter_audio_segments)
+                    # If output format is m4b, save chapter as wav
+                    chapter_ext = self.output_format
+                    chapter_format = self.output_format
+                    if self.output_format == "m4b":
+                        chapter_ext = "wav"
+                        chapter_format = "wav"
                     chapter_out_path = os.path.join(
-                        chapters_out_dir, f"{chapter_filename}.{self.output_format}"
+                        chapters_out_dir, f"{chapter_filename}.{chapter_ext}"
                     )
                     sf.write(
                         chapter_out_path,
                         chapter_audio,
                         24000,
-                        format=self.output_format,
+                        format=chapter_format,
                     )
 
                     # Generate .srt subtitle file for chapter if not Disabled
@@ -531,6 +546,7 @@ class ConversionThread(QThread):
                 or not self.save_chapters_separately
                 or getattr(self, "merge_chapters_at_end", True)
             )
+            m4b_picked = False  # Ensure m4b_picked is always defined
             if audio_segments and merge_chapters:
                 self.log_updated.emit("\nFinalizing audio file...\n")
                 audio = self.np.concatenate(audio_segments)
@@ -539,7 +555,16 @@ class ConversionThread(QThread):
                 out_filename = f"{base_name}{suffix}.{self.output_format}"
                 out_path = os.path.join(out_dir, out_filename)
                 srt_path = os.path.splitext(out_path)[0] + ".srt"
+
+                # in case the user picked m4b format, we need to change the output format to wav
+                if self.output_format == "m4b":
+                    out_path = os.path.splitext(out_path)[0] + ".wav"
+                    self.output_format = "wav"
+                    m4b_picked = True
                 sf.write(out_path, audio, 24000, format=self.output_format)
+                if m4b_picked:
+                    out_path = self._generate_m4b_with_chapters(out_path, chapters_time)
+
                 if self.subtitle_mode != "Disabled":
                     with open(
                         srt_path, "w", encoding="utf-8", errors="replace"
@@ -579,6 +604,57 @@ class ConversionThread(QThread):
         self.save_chapters_separately = options["save_chapters_separately"]
         self.merge_chapters_at_end = options["merge_chapters_at_end"]
         self.waiting_for_user_input = False
+        self._chapter_options_event.set()
+
+    def _generate_m4b_with_chapters(self, out_path, chapters_time):
+        # If there is only one chapter, skip adding chapters and just return the wav file path
+        if not chapters_time or len(chapters_time) <= 1:
+            self.log_updated.emit(
+                ("File contains only one chapter or no chapters were detected. The audio will be saved as a standard .wav file instead.\n", "red")
+            )
+            return out_path
+        # generate chapters.txt in the same folder as the output file
+        chapters_info_path = os.path.splitext(out_path)[0] + "_chapters.txt"
+        with open(chapters_info_path, "w", encoding="utf-8") as f:
+            f.write(';FFMETADATA1\n') # required header for ffmpeg
+            for chapter in chapters_time:
+                f.write(f"[CHAPTER]\n")
+                f.write(f"TIMEBASE=1/10\n")
+                # use 10th of second for start/end time
+                f.write(f"START={int(chapter["start"]*10)}\n")
+                f.write(f"END={int(chapter["end"]*10)}\n")
+                f.write(f"title={chapter["chapter"]}\n\n")
+        # call ffmpeg to merge the chapters into the output file
+        # ffmpeg installed on first call to add_paths()
+        static_ffmpeg.add_paths()
+        import subprocess
+        out_path_m4b = os.path.splitext(out_path)[0] + ".m4b"
+        # ffmpeg -i input.m4b -i ch.txt -map 0:a -map_chapters 1 output.m4b
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-i", out_path,
+            "-i", chapters_info_path,
+            "-map", "0:a",
+            "-map_chapters", "1",
+            out_path_m4b
+        ]
+        
+        self.log_updated.emit("Adding chapters to the audio file...\n")
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        # Check for errors in the ffmpeg command
+        if result.returncode != 0:
+            self.log_updated.emit((f"FFmpeg error: {result.stderr}", "red"))
+            # Log error but continue with original file
+            self.log_updated.emit(("Falling back to the original audio file without chapters\n", "orange"))
+            return out_path
+        else:
+            self.log_updated.emit(("Successfully added chapters to the audio file.\n", "green"))
+        
+        # delete the chapters path and original (wav) file
+        os.remove(chapters_info_path)
+        os.remove(out_path)
+        # the new file is in m4b format - use that for messages
+        return out_path_m4b
 
     def _srt_time(self, t):
         """Helper function to format time for SRT files"""

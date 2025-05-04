@@ -1,1 +1,3 @@
-- Better approach for detemining the correct configuration folder for Linux and MacOS, using platformdirs.
+- Added new output format: `m4b`, enabling chapter metadata in audiobooks. Special thanks to @jborza for implementing this feature in PR #10.
+- Better approach for determining the correct configuration folder for Linux and MacOS, using platformdirs. (Fixes Docker issue #12)
+- Improvements in documentation and code.

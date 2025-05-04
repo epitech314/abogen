@@ -221,7 +221,7 @@ if errorlevel 1 (
 
 :: Install setup requirements
 echo Installing setup requirements...
-%PYTHON_CONSOLE_PATH% -m pip install --upgrade setuptools wheel sphinx hatchling --no-warn-script-location
+%PYTHON_CONSOLE_PATH% -m pip install --upgrade setuptools wheel sphinx hatchling progress --no-warn-script-location
 if errorlevel 1 (
     echo Failed to install setup requirements.
     pause
