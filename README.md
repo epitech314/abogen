@@ -85,7 +85,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 - **Voices**: First letter of the language code (e.g., `a` for American English, `b` for British English, etc.), second letter is for `m` for male and `f` for female.
 - **Voice mixer**: Create custom voices by mixing different voice models with a profile system.
 - **Generate subtitles**: `Disabled`, `Sentence`, `Sentence + Comma`, `1 word`, `2 words`, `3 words`, etc. (Represents the number of words in each subtitle entry)
-- **Output formats**: `.WAV`, `.FLAC`, or `.MP3`
+- **Output formats**: `.WAV`, `.FLAC`, `.MP3`, and `M4B (with chapters)` (Special thanks to @jborza for chapter support in PR #10)
 - **Save location**: `Save next to input file`, `Save to desktop`, or `Choose output folder`
 - **Chapter Control**: Select specific `chapters` from ePUBs or `chapters + pages` from PDFs.
 - **Options**:
@@ -185,6 +185,10 @@ Abogen launches automatically inside the container.
 - You can use `/shared` directory to share files between your host and the container.
 - For later use, start it with `docker start abogen` and stop it with `docker stop abogen`.
 
+Known issues:
+- Audio preview is not working inside container (ALSA error).
+- `Open temp directory` and `Open configuration directory` options in settings not working. (Tried pcmanfm, did not work with abogen).
+
 (Special thanks to [@geo38](https://www.reddit.com/user/geo38/) from Reddit, who provided the Dockerfile and instructions in [this comment](https://www.reddit.com/r/selfhosted/comments/1k8x1yo/comment/mpe0bz8/).)
 
 ## `Similar Projects`
@@ -196,9 +200,9 @@ Abogen is a standalone project, but it is inspired by and shares some similariti
 
 ## `Roadmap`
 - [ ] Improve PDF support for better text extraction.
-- [ ] Add chapter metadata for .m4a files using ffmpeg-bin.
+- [x] Add chapter metadata for .m4a files. (Issue #9, PR #10)
 - [ ] Add support for different languages in GUI.
-- [x] Add voice formula feature that enables mixing different voice models. #1
+- [x] Add voice formula feature that enables mixing different voice models. (Issue #1, PR #5)
 - [ ] Add support for kokoro-onnx.
 - [ ] Add dark mode.
 
