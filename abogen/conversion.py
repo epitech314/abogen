@@ -13,6 +13,10 @@ from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
 from voice_formulas import get_new_voice
 import static_ffmpeg
 import threading  # for efficient waiting
+import subprocess
+import sys
+import platform
+
 
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
@@ -610,13 +614,16 @@ class ConversionThread(QThread):
         # If there is only one chapter, skip adding chapters and just return the wav file path
         if not chapters_time or len(chapters_time) <= 1:
             self.log_updated.emit(
-                ("File contains only one chapter or no chapters were detected. The audio will be saved as a standard .wav file instead.\n", "red")
+                (
+                    "File contains only one chapter or no chapters were detected. The audio will be saved as a standard .wav file instead.\n",
+                    "red",
+                )
             )
             return out_path
         # generate chapters.txt in the same folder as the output file
         chapters_info_path = os.path.splitext(out_path)[0] + "_chapters.txt"
         with open(chapters_info_path, "w", encoding="utf-8") as f:
-            f.write(';FFMETADATA1\n') # required header for ffmpeg
+            f.write(";FFMETADATA1\n")  # required header for ffmpeg
             for chapter in chapters_time:
                 f.write(f"[CHAPTER]\n")
                 f.write(f"TIMEBASE=1/10\n")
@@ -627,29 +634,67 @@ class ConversionThread(QThread):
         # call ffmpeg to merge the chapters into the output file
         # ffmpeg installed on first call to add_paths()
         static_ffmpeg.add_paths()
-        import subprocess
         out_path_m4b = os.path.splitext(out_path)[0] + ".m4b"
         # ffmpeg -i input.m4b -i ch.txt -map 0:a -map_chapters 1 output.m4b
         ffmpeg_cmd = [
             "ffmpeg",
-            "-i", out_path,
-            "-i", chapters_info_path,
-            "-map", "0:a",
-            "-map_chapters", "1",
-            out_path_m4b
+            "-i",
+            out_path,
+            "-i",
+            chapters_info_path,
+            "-map",
+            "0:a",
+            "-map_chapters",
+            "1",
+            out_path_m4b,
         ]
-        
+
         self.log_updated.emit("Adding chapters to the audio file...\n")
-        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+
+        # Define kwargs for Popen
+        default_encoding = sys.getdefaultencoding()  # Get default encoding
+        kwargs = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,  # Capture stderr separately
+            "universal_newlines": True,
+            "encoding": default_encoding,
+            "errors": "replace",
+        }
+
+        # Add Windows-specific settings
+        if platform.system() == "Windows":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            kwargs.update(
+                {
+                    "startupinfo": startupinfo,
+                    "creationflags": subprocess.CREATE_NO_WINDOW,
+                }
+            )
+
+        # Use Popen instead of run
+        process = subprocess.Popen(ffmpeg_cmd, **kwargs)
+        stdout, stderr = process.communicate()  # Get stdout and stderr
+
         # Check for errors in the ffmpeg command
-        if result.returncode != 0:
-            self.log_updated.emit((f"FFmpeg error: {result.stderr}", "red"))
+        if process.returncode != 0:
+            self.log_updated.emit((f"FFmpeg error (stderr):\n{stderr}", "red"))
+            if stdout:  # Log stdout as well if it exists
+                self.log_updated.emit((f"FFmpeg output (stdout):\n{stdout}", "orange"))
             # Log error but continue with original file
-            self.log_updated.emit(("Falling back to the original audio file without chapters\n", "orange"))
+            self.log_updated.emit(
+                ("Falling back to the original audio file without chapters\n", "orange")
+            )
+            # Clean up chapters file even on error
+            if os.path.exists(chapters_info_path):
+                os.remove(chapters_info_path)
             return out_path
         else:
-            self.log_updated.emit(("Successfully added chapters to the audio file.\n", "green"))
-        
+            self.log_updated.emit(
+                ("Successfully added chapters to the audio file.\n", "green")
+            )
+
         # delete the chapters path and original (wav) file
         os.remove(chapters_info_path)
         os.remove(out_path)

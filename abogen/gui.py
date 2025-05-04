@@ -670,9 +670,16 @@ class abogen(QWidget):
         format_layout = QVBoxLayout()
         format_layout.addWidget(QLabel("Output Format:", self))
         self.format_combo = QComboBox(self)
-        self.format_combo.setStyleSheet("QComboBox { min-height: 20px; padding: 6px 12px; }")
+        self.format_combo.setStyleSheet(
+            "QComboBox { min-height: 20px; padding: 6px 12px; }"
+        )
         # Add items with display labels and underlying keys
-        for key, label in [("wav","wav"),("flac","flac"),("mp3","mp3"),("m4b","m4b (with chapters)")]:
+        for key, label in [
+            ("wav", "wav"),
+            ("flac", "flac"),
+            ("mp3", "mp3"),
+            ("m4b", "m4b (with chapters)"),
+        ]:
             self.format_combo.addItem(label, key)
         # Initialize selection by matching saved key
         idx = self.format_combo.findData(self.selected_format)
@@ -1422,6 +1429,7 @@ class abogen(QWidget):
         if self.preview_playing:
             try:
                 import pygame
+
                 pygame.mixer.music.stop()
             except Exception:
                 pass
@@ -1436,18 +1444,20 @@ class abogen(QWidget):
         self.voice_combo.setEnabled(False)
         self.btn_voice_formula_mixer.setEnabled(False)  # Disable mixer button
         self.btn_start.setEnabled(False)  # Disable start button during preview
-        
+
         # Start loading animation - ensure signal connection is always active
-        if hasattr(self, 'loading_movie'):
+        if hasattr(self, "loading_movie"):
             # Disconnect previous connections to avoid multiple connections
             try:
                 self.loading_movie.frameChanged.disconnect()
             except TypeError:
                 pass  # Ignore error if not connected
-            
+
             # Reconnect the signal
             self.loading_movie.frameChanged.connect(
-                lambda: self.btn_preview.setIcon(QIcon(self.loading_movie.currentPixmap()))
+                lambda: self.btn_preview.setIcon(
+                    QIcon(self.loading_movie.currentPixmap())
+                )
             )
             self.loading_movie.start()
 
@@ -1500,7 +1510,7 @@ class abogen(QWidget):
         gpu_msg, gpu_ok = get_gpu_acceleration(self.use_gpu)
 
         self.preview_thread = VoicePreviewThread(
-            np_module, kpipeline_class, lang, voice, speed, gpu_ok 
+            np_module, kpipeline_class, lang, voice, speed, gpu_ok
         )
         self.preview_thread.finished.connect(self._play_preview_audio)
         self.preview_thread.error.connect(self._preview_error)
@@ -1569,7 +1579,7 @@ class abogen(QWidget):
             self.loading_movie.frameChanged.disconnect()
         except Exception:
             pass  # Ignore error if not connected
-        self.btn_preview.setIcon(self.play_icon) 
+        self.btn_preview.setIcon(self.play_icon)
         self.btn_preview.setToolTip("Preview selected voice")
         self.btn_preview.setEnabled(True)
         self.voice_combo.setEnabled(True)
@@ -1845,6 +1855,7 @@ class abogen(QWidget):
 
     def show_voice_formula_dialog(self):
         from voice_profiles import load_profiles
+
         profiles = load_profiles()
         initial_state = None
         selected_profile = self.selected_profile_name

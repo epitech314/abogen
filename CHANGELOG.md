@@ -1,3 +1,1 @@
-- Added new output format: `m4b`, enabling chapter metadata in audiobooks. Special thanks to @jborza for implementing this feature in PR #10.
-- Better approach for determining the correct configuration folder for Linux and MacOS, using platformdirs. (Fixes Docker issue #12)
-- Improvements in documentation and code.
+- Fixed m4b chapter generation opens CMD window in Windows.

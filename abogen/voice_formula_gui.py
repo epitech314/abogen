@@ -943,6 +943,7 @@ class VoiceFormulaDialog(QDialog):
 
     def new_profile(self):
         import re
+
         while True:
             name, ok = QInputDialog.getText(self, "New Profile", "Enter profile name:")
             if not ok or not name:
@@ -950,8 +951,12 @@ class VoiceFormulaDialog(QDialog):
             name = name.strip()  # Remove leading/trailing spaces
             if not name:
                 continue
-            if not re.match(r'^[\w\- ]+$', name):
-                QMessageBox.warning(self, "Invalid Name", "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.")
+            if not re.match(r"^[\w\- ]+$", name):
+                QMessageBox.warning(
+                    self,
+                    "Invalid Name",
+                    "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.",
+                )
                 continue
             profiles = load_profiles()
             # Remove 'New profile' placeholder if not persisted in JSON
@@ -1173,13 +1178,16 @@ class VoiceFormulaDialog(QDialog):
     def rename_profile(self, item):
         name = item.text().lstrip("*")
         # block if profile has unsaved changes and it's not a virtual New profile
-        if self._profile_dirty.get(name, False) and not (self._virtual_new_profile and name == "New profile"):
+        if self._profile_dirty.get(name, False) and not (
+            self._virtual_new_profile and name == "New profile"
+        ):
             QMessageBox.warning(
                 self, "Unsaved Changes", "Please save the profile before renaming."
             )
             return
         old = item.text().lstrip("*")
         import re
+
         while True:
             new, ok = QInputDialog.getText(
                 self, "Rename Profile", f"Profile name:", text=old
@@ -1189,15 +1197,19 @@ class VoiceFormulaDialog(QDialog):
             new = new.strip()  # Remove leading/trailing spaces
             if not new:
                 continue
-            if not re.match(r'^[\w\- ]+$', new):
-                QMessageBox.warning(self, "Invalid Name", "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.")
+            if not re.match(r"^[\w\- ]+$", new):
+                QMessageBox.warning(
+                    self,
+                    "Invalid Name",
+                    "Profile name can only contain letters, numbers, spaces, underscores, and hyphens.",
+                )
                 continue
-            
+
             profiles = load_profiles()
             if new in profiles:
                 QMessageBox.warning(self, "Duplicate Name", "Profile already exists.")
                 continue
-                
+
             # Special case for renaming the virtual "New profile"
             if self._virtual_new_profile and name == "New profile":
                 # Create the profile with the new name
@@ -1206,12 +1218,12 @@ class VoiceFormulaDialog(QDialog):
                     "language": self.language_combo.currentData(),
                 }
                 save_profiles(profiles)
-                
+
                 # Update tracking properties
                 self._virtual_new_profile = False
                 self._profile_dirty.pop("New profile", None)
                 self._profile_dirty[new] = False
-                
+
                 # Update the current profile name
                 self.current_profile = new
                 item.setText(new)
@@ -1220,11 +1232,11 @@ class VoiceFormulaDialog(QDialog):
                 profiles[new] = profiles.pop(old)
                 save_profiles(profiles)
                 item.setText(new)
-                
+
                 # Update the current profile name if it was renamed
                 if self.current_profile == old:
                     self.current_profile = new
-            
+
             parent = self.parent()
             if hasattr(parent, "populate_profiles_in_voice_combo"):
                 parent.populate_profiles_in_voice_combo()
