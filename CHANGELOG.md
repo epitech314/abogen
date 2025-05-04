@@ -1,1 +1,4 @@
+- Added `Insert chapter marker` button in text editor to insert chapter markers at the current cursor position.
+- Fixed `f-string: unmatched '['` error in Voice preview, mentioned in #14
+- Fixed the content before first chapter not being included in the output (added handling for initial content).
 - Fixed m4b chapter generation opens CMD window in Windows.

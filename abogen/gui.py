@@ -358,6 +358,11 @@ class TextboxDialog(QDialog):
         self.save_as_button.clicked.connect(self.save_as_text)
         self.save_as_button.setToolTip("Save the current text to a file")
 
+        self.insert_chapter_btn = QPushButton("Insert Chapter Marker", self)
+        self.insert_chapter_btn.setToolTip("Insert a chapter marker at the cursor")
+        self.insert_chapter_btn.clicked.connect(self.insert_chapter_marker)
+        button_layout.addWidget(self.insert_chapter_btn)
+
         self.cancel_button = QPushButton("Cancel", self)
         self.cancel_button.clicked.connect(self.reject)
 
@@ -443,6 +448,13 @@ class TextboxDialog(QDialog):
 
         except Exception as e:
             QMessageBox.critical(self, "Save Error", f"Could not save file:\n{e}")
+
+    def insert_chapter_marker(self):
+        # Insert a fixed chapter marker without prompting
+        cursor = self.text_edit.textCursor()
+        cursor.insertText("<<CHAPTER_MARKER:Chapter Title>>")
+        self.text_edit.setTextCursor(cursor)
+        self.update_char_count()
 
 
 class abogen(QWidget):
@@ -2126,3 +2138,4 @@ class abogen(QWidget):
                 "Setting Saved",
                 f"Maximum words per subtitle set to {value}.",
             )
+

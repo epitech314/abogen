@@ -228,6 +228,12 @@ class ConversionThread(QThread):
             chapter_splits = list(re.finditer(chapter_pattern, text))
             chapters = []
             if chapter_splits:
+                # prepend Introduction for content before first marker
+                first_start = chapter_splits[0].start()
+                if first_start > 0:
+                    intro_text = text[:first_start].strip()
+                    if intro_text:
+                        chapters.append(("Introduction", intro_text))
                 for idx, match in enumerate(chapter_splits):
                     start = match.end()
                     end = (
@@ -628,9 +634,9 @@ class ConversionThread(QThread):
                 f.write(f"[CHAPTER]\n")
                 f.write(f"TIMEBASE=1/10\n")
                 # use 10th of second for start/end time
-                f.write(f"START={int(chapter["start"]*10)}\n")
-                f.write(f"END={int(chapter["end"]*10)}\n")
-                f.write(f"title={chapter["chapter"]}\n\n")
+                f.write(f"START={int(chapter['start']*10)}\n")
+                f.write(f"END={int(chapter['end']*10)}\n")
+                f.write(f"title={chapter['chapter']}\n\n")
         # call ffmpeg to merge the chapters into the output file
         # ffmpeg installed on first call to add_paths()
         static_ffmpeg.add_paths()
