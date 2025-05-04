@@ -290,8 +290,8 @@ class InputBox(QLabel):
                 )
                 win.selected_book_path = file_path
                 win.open_book_file(
-                    file_path
-                )  # This will handle the dialog and setting file info
+                    file_path  # This will handle the dialog and setting file info
+                )
                 event.acceptProposedAction()
             else:
                 self.set_error("Please drop a .txt, .epub, or .pdf file.")
@@ -328,7 +328,7 @@ class TextboxDialog(QDialog):
         self.setWindowFlags(
             Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint
         )
-        self.resize(600, 400)
+        self.resize(700, 500)
 
         layout = QVBoxLayout(self)
 
@@ -452,7 +452,7 @@ class TextboxDialog(QDialog):
     def insert_chapter_marker(self):
         # Insert a fixed chapter marker without prompting
         cursor = self.text_edit.textCursor()
-        cursor.insertText("<<CHAPTER_MARKER:Chapter Title>>")
+        cursor.insertText("<<CHAPTER_MARKER:Title>>")
         self.text_edit.setTextCursor(cursor)
         self.update_char_count()
 
@@ -1500,14 +1500,14 @@ class abogen(QWidget):
             # Build voice formula string
             components = [f"{name}*{weight}" for name, weight in self.mixed_voice_state]
             voice = " + ".join(filter(None, components))
-            # determine language: use profile setting if available, else first voice code
+            # determine language: use profile setting, else explicit mixer selection, else fallback to first voice code
             if self.selected_profile_name:
                 from voice_profiles import load_profiles
 
                 entry = load_profiles().get(self.selected_profile_name, {})
                 lang = entry.get("language")
             else:
-                lang = None
+                lang = self.selected_lang
             if not lang and self.mixed_voice_state:
                 lang = (
                     self.mixed_voice_state[0][0][0]
@@ -2138,4 +2138,3 @@ class abogen(QWidget):
                 "Setting Saved",
                 f"Maximum words per subtitle set to {value}.",
             )
-

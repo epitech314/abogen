@@ -47,7 +47,7 @@ VOICE_MIXER_WIDTH = 100
 SLIDER_WIDTH = 32
 MIN_WINDOW_WIDTH = 600
 MIN_WINDOW_HEIGHT = 400
-INITIAL_WINDOW_WIDTH = 1000
+INITIAL_WINDOW_WIDTH = 1200
 INITIAL_WINDOW_HEIGHT = 500
 
 # Language options for the language selector loaded from constants
@@ -413,6 +413,11 @@ class VoiceFormulaDialog(QDialog):
             self.language_combo.setCurrentIndex(idx)
         self.language_combo.currentIndexChanged.connect(self.mark_profile_modified)
         header_row.addWidget(self.language_combo)
+        # Preview current voice mix using main window's preview
+        self.btn_preview_mix = QPushButton("Preview", self)
+        self.btn_preview_mix.setToolTip("Preview current voice mix")
+        self.btn_preview_mix.clicked.connect(self.preview_current_mix)
+        header_row.addWidget(self.btn_preview_mix)
         mixer_layout.addLayout(header_row)
 
         # Error message
@@ -708,6 +713,8 @@ class VoiceFormulaDialog(QDialog):
         ]
 
         total = sum(w for _, w in selected)
+        # disable Preview if no voices selected
+        self.btn_preview_mix.setEnabled(total > 0)
 
         if total > 0:
             self.error_label.hide()
@@ -1338,3 +1345,37 @@ class VoiceFormulaDialog(QDialog):
                 else:
                     item.setBackground(QColor("white"))
         self.update_profile_save_buttons()
+
+    def preview_current_mix(self):
+        # Disable preview until playback completes
+        self.btn_preview_mix.setEnabled(False)
+        self.btn_preview_mix.setText("Loading...")
+        parent = self.parent()
+        if parent and hasattr(parent, "preview_voice"):
+            # Apply mixed voices and selected language
+            parent.mixed_voice_state = self.get_selected_voices()
+            parent.selected_profile_name = None
+            lang = self.language_combo.currentData()
+            parent.selected_lang = lang
+            parent.subtitle_combo.setEnabled(
+                lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
+            )
+            # Reset start flag and trigger preview
+            self._started = False
+            parent.preview_voice()
+            # Poll preview_playing: wait for start then end
+            self._preview_poll_timer = QTimer(self)
+            self._preview_poll_timer.timeout.connect(self._check_preview_done)
+            self._preview_poll_timer.start(200)
+
+    def _check_preview_done(self):
+        parent = self.parent()
+        if parent and hasattr(parent, "preview_playing"):
+            # Mark when playback starts
+            if parent.preview_playing:
+                self._started = True
+            # Once started and then stopped, re-enable
+            elif getattr(self, "_started", False):
+                self.btn_preview_mix.setEnabled(True)
+                self.btn_preview_mix.setText("Preview")
+                self._preview_poll_timer.stop()
