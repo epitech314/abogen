@@ -119,8 +119,10 @@ def save_config(config):
 
 
 def calculate_text_length(text):
-    # Remove double newlines (replace them with single newlines)
-    cleaned_text = text.replace("\n\n", "")
+    # Ignore chapter markers
+    text_no_markers = re.sub(r"<<CHAPTER_MARKER:.*?>>", "", text)
+    # Ignore newlines
+    cleaned_text = text_no_markers.replace("\n", "")
     # Calculate character count
     char_count = len(cleaned_text)
     return char_count

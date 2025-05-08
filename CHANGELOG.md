@@ -1,3 +1,6 @@
+# v1.0.7 (pre-release)
+- Ignore chapter markers and single newlines when calculating text length.
+
 # v1.0.6
 - Added `Insert chapter marker` button in text editor to insert chapter markers at the current cursor position.
 - Added `Preview` button in voice mixer to preview the voice mix with the selected settings.

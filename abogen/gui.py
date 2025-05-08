@@ -386,8 +386,14 @@ class TextboxDialog(QDialog):
         return self.text_edit.toPlainText()
 
     def handle_ok(self):
+        text = self.text_edit.toPlainText()
+        # Check if text is empty based on character count
+        if calculate_text_length(text) == 0:
+            QMessageBox.warning(self, "Textbox Error", "Text cannot be empty.")
+            return
+
         # If the text hasn't changed, treat as cancel
-        if self.text_edit.toPlainText() == self.original_text:
+        if text == self.original_text:
             self.reject()
         else:
             # Check if we need to warn about overwriting a non-temporary file
