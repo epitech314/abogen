@@ -1376,6 +1376,8 @@ class VoiceFormulaDialog(QDialog):
             # Mark when playback starts
             if parent.preview_playing:
                 self._started = True
+                # Update button text to "Playing..." when playback starts
+                self.btn_preview_mix.setText("Playing...")
             # Once started and then stopped, re-enable
             elif getattr(self, "_started", False):
                 self.btn_preview_mix.setEnabled(True)
