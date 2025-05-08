@@ -1127,12 +1127,20 @@ class abogen(QWidget):
         QApplication.processEvents()
 
     def update_progress(self, value, etr_str):  # Add etr_str parameter
+        # Ensure progress doesn't exceed 99%
+        if value >= 100:
+            value = 99
         self.progress_bar.setValue(value)
         self.progress_bar.setFormat("%p%")  # Keep format as percentage only
         self.etr_label.setText(
             f"Estimated time remaining: {etr_str}"
         )  # Update ETR label
         self.etr_label.show()  # Show only when estimate is ready
+
+        # Disable cancel button if progress is >= 98%
+        if value >= 98:
+            self.btn_cancel.setEnabled(False)
+
         self.progress_bar.repaint()
         QApplication.processEvents()
 
