@@ -1,6 +1,7 @@
 # v1.0.7 (pre-release)
-- Ignore chapter markers and single newlines when calculating text length.
-- Added `.opus` support as output format for generated audio files.
+- Improve chaptered audio generation by outputting directly as `m4b` instead of converting from `wav`.
+- Ignore chapter markers and single newlines when calculating text length, improving the accuracy of the text length calculation.
+- Added `.opus` as output format for generated audio files.
 - Added "Playing..." indicator for "Preview" button in the voice mixer.
 
 # v1.0.6

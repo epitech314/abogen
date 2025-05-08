@@ -502,12 +502,8 @@ class ConversionThread(QThread):
 
                     # Concatenate chapter audio and save
                     chapter_audio = self.np.concatenate(chapter_audio_segments)
-                    # If output format is m4b, save chapter as wav
-                    chapter_ext = self.output_format
-                    chapter_format = self.output_format
-                    if self.output_format == "m4b":
-                        chapter_ext = "wav"
-                        chapter_format = "wav"
+                    # Determine chapter extension (.wav for m4b output)
+                    chapter_ext = 'wav' if self.output_format == 'm4b' else self.output_format
                     chapter_out_path = os.path.join(
                         chapters_out_dir, f"{chapter_filename}.{chapter_ext}"
                     )
@@ -517,6 +513,7 @@ class ConversionThread(QThread):
                             [
                                 "ffmpeg",
                                 "-y",
+                                "-thread_queue_size", "1024", # Increased thread_queue_size for chapter opus
                                 "-f",
                                 "f32le",
                                 "-ar",
@@ -541,7 +538,7 @@ class ConversionThread(QThread):
                             chapter_out_path,
                             chapter_audio,
                             24000,
-                            format=chapter_format,
+                            format='wav' if self.output_format == 'm4b' else self.output_format,
                         )
 
                     # Generate .srt subtitle file for chapter if not Disabled
@@ -582,70 +579,75 @@ class ConversionThread(QThread):
                 or not self.save_chapters_separately
                 or getattr(self, "merge_chapters_at_end", True)
             )
-            m4b_picked = False  # Ensure m4b_picked is always defined
+            
+            intended_output_format = self.output_format # Store the original choice
+
             if audio_segments and merge_chapters:
                 self.log_updated.emit("\nFinalizing audio file...\n")
-                audio = self.np.concatenate(audio_segments)
+                audio_data_np = self.np.concatenate(audio_segments)
+                
                 out_dir = parent_dir
-                # Use the same suffix as above
-                out_filename = f"{base_name}{suffix}.{self.output_format}"
-                out_path = os.path.join(out_dir, out_filename)
-                srt_path = os.path.splitext(out_path)[0] + ".srt"
+                base_filepath_no_ext = os.path.join(out_dir, f"{base_name}{suffix}")
 
-                # in case the user picked m4b format, we need to change the output format to wav
-                if self.output_format == "m4b":
-                    out_path = os.path.splitext(out_path)[0] + ".wav"
-                    self.output_format = "wav"
-                    m4b_picked = True
-                if self.output_format == "opus":
+                final_out_path = None
+
+                if intended_output_format == "m4b":
+                    final_out_path = self._generate_m4b_with_chapters(audio_data_np, chapters_time, base_filepath_no_ext)
+                elif intended_output_format == "opus":
                     static_ffmpeg.add_paths()
-                    proc = subprocess.Popen(
-                        [
-                            "ffmpeg",
-                            "-y",
-                            "-f",
-                            "f32le",
-                            "-ar",
-                            "24000",
-                            "-ac",
-                            "1",
-                            "-i",
-                            "pipe:",
-                            "-c:a",
-                            "libopus",
-                            "-b:a",
-                            "24000",
-                            out_path,
-                        ],
-                        stdin=subprocess.PIPE,
-                    )
-                    proc.stdin.write(audio.astype("float32").tobytes())
-                    proc.stdin.close()
-                    proc.wait()
-                else:
-                    sf.write(out_path, audio, 24000, format=self.output_format)
-                if m4b_picked:
-                    out_path = self._generate_m4b_with_chapters(out_path, chapters_time)
+                    opus_out_path = f"{base_filepath_no_ext}.opus"
+                    ffmpeg_cmd_opus = [
+                        "ffmpeg", "-y",
+                        "-thread_queue_size", "1024", # Increased thread_queue_size
+                        "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:",
+                        "-c:a", "libopus", "-b:a", "24000", # Original bitrate
+                        opus_out_path,
+                    ]
+                    try:
+                        print(f"Executing FFMPEG for Opus: {' '.join(ffmpeg_cmd_opus)}")
+                        process = subprocess.Popen(ffmpeg_cmd_opus, stdin=subprocess.PIPE)
+                        process.stdin.write(audio_data_np.astype("float32").tobytes())
+                        process.stdin.close()
+                        if process.wait() == 0:
+                            final_out_path = opus_out_path
+                        else:
+                            self.log_updated.emit(("Opus conversion failed.", "red"))
+                            final_out_path = None 
+                    except Exception as e_opus:
+                        self.log_updated.emit((f"Error during Opus conversion: {str(e_opus)}", "red"))
+                        final_out_path = None
+                else: # For other formats like wav
+                    standard_out_path = f"{base_filepath_no_ext}.{intended_output_format}"
+                    try:
+                        sf.write(standard_out_path, audio_data_np, 24000, format=intended_output_format)
+                        final_out_path = standard_out_path
+                    except Exception as e_sf:
+                        self.log_updated.emit((f"Failed to write audio file {standard_out_path}: {str(e_sf)}", "red"))
+                        final_out_path = None
 
-                if self.subtitle_mode != "Disabled":
-                    with open(
-                        srt_path, "w", encoding="utf-8", errors="replace"
-                    ) as srt_file:
-                        for i, (start, end, text) in enumerate(subtitle_entries, 1):
-                            srt_file.write(
-                                f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
-                            )
-                    self.conversion_finished.emit(
-                        (
-                            f"Audiobook saved to: {out_path}\n\nSubtitle saved to: {srt_path}",
-                            "green",
-                        ),
-                        out_path,
-                    )
+                # Subtitle and final message logic
+                if final_out_path:
+                    if self.subtitle_mode != "Disabled":
+                        srt_path = os.path.splitext(final_out_path)[0] + ".srt"
+                        with open(srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
+                            for i, (start, end, text) in enumerate(subtitle_entries, 1):
+                                srt_file.write(
+                                    f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
+                                )
+                        self.conversion_finished.emit(
+                            (
+                                f"Audiobook saved to: {final_out_path}\n\nSubtitle saved to: {srt_path}",
+                                "green",
+                            ),
+                            final_out_path,
+                        )
+                    else:
+                        self.conversion_finished.emit(
+                            (f"Audiobook saved to: {final_out_path}", "green"), final_out_path
+                        )
                 else:
-                    self.conversion_finished.emit(
-                        (f"Audiobook saved to: {out_path}", "green"), out_path
-                    )
+                    self.log_updated.emit(("Audio generation failed (final_out_path was not set).", "red"))
+                    self.conversion_finished.emit(("Audio generation failed.", "red"), None)
             elif audio_segments and not merge_chapters:
                 self.conversion_finished.emit(
                     (
@@ -668,96 +670,80 @@ class ConversionThread(QThread):
         self.waiting_for_user_input = False
         self._chapter_options_event.set()
 
-    def _generate_m4b_with_chapters(self, out_path, chapters_time):
-        # If there is only one chapter, skip adding chapters and just return the wav file path
+    def _generate_m4b_with_chapters(self, audio_data_np, chapters_time, base_filepath_no_ext):
+        final_wav_path = f"{base_filepath_no_ext}.wav"
+        
         if not chapters_time or len(chapters_time) <= 1:
             self.log_updated.emit(
                 (
-                    "File contains only one chapter or no chapters were detected. The audio will be saved as a standard .wav file instead.\n",
+                    "File contains only one chapter or no chapters were detected. Audio will be saved as a standard .wav file instead.\n",
                     "red",
                 )
             )
-            return out_path
-        # generate chapters.txt in the same folder as the output file
-        chapters_info_path = os.path.splitext(out_path)[0] + "_chapters.txt"
-        with open(chapters_info_path, "w", encoding="utf-8") as f:
-            f.write(";FFMETADATA1\n")  # required header for ffmpeg
-            for chapter in chapters_time:
-                f.write(f"[CHAPTER]\n")
-                f.write(f"TIMEBASE=1/10\n")
-                # use 10th of second for start/end time
-                f.write(f"START={int(chapter['start']*10)}\n")
-                f.write(f"END={int(chapter['end']*10)}\n")
-                f.write(f"title={chapter['chapter']}\n\n")
-        # call ffmpeg to merge the chapters into the output file
-        # ffmpeg installed on first call to add_paths()
-        static_ffmpeg.add_paths()
-        out_path_m4b = os.path.splitext(out_path)[0] + ".m4b"
-        # ffmpeg -i input.m4b -i ch.txt -map 0:a -map_chapters 1 output.m4b
-        ffmpeg_cmd = [
-            "ffmpeg",
-            "-i",
-            out_path,
-            "-i",
-            chapters_info_path,
-            "-map",
-            "0:a",
-            "-map_chapters",
-            "1",
-            out_path_m4b,
-        ]
+            try:
+                sf.write(final_wav_path, audio_data_np, 24000, format="wav")
+                return final_wav_path
+            except Exception as e_wav_single:
+                self.log_updated.emit((f"Failed to save single/no chapter audio as WAV: {str(e_wav_single)}", "red"))
+                return None
 
-        self.log_updated.emit("Adding chapters to the audio file...\n")
+        output_m4b_path = f"{base_filepath_no_ext}.m4b"
+        chapters_info_path = f"{base_filepath_no_ext}_chapters.txt"
 
-        # Define kwargs for Popen
-        default_encoding = sys.getdefaultencoding()  # Get default encoding
-        kwargs = {
-            "stdout": subprocess.PIPE,
-            "stderr": subprocess.PIPE,  # Capture stderr separately
-            "universal_newlines": True,
-            "encoding": default_encoding,
-            "errors": "replace",
-        }
+        try:
+            with open(chapters_info_path, "w", encoding="utf-8") as f:
+                f.write(";FFMETADATA1\n")
+                for chapter in chapters_time:
+                    f.write(f"[CHAPTER]\n")
+                    f.write(f"TIMEBASE=1/1000\n") # Using milliseconds for precision
+                    f.write(f"START={int(chapter['start']*1000)}\n")
+                    f.write(f"END={int(chapter['end']*1000)}\n")
+                    f.write(f"title={chapter['chapter']}\n\n")
 
-        # Add Windows-specific settings
-        if platform.system() == "Windows":
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            kwargs.update(
-                {
-                    "startupinfo": startupinfo,
-                    "creationflags": subprocess.CREATE_NO_WINDOW,
-                }
-            )
+            static_ffmpeg.add_paths()
+            ffmpeg_cmd = [
+                "ffmpeg", "-y",
+                "-thread_queue_size", "1024", # Increased thread_queue_size
+                "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:0",
+                "-i", chapters_info_path,
+                "-map", "0:a",
+                "-map_metadata", "1", 
+                "-map_chapters", "1",
+                "-c:a", "aac", "-b:a", "128k", # Explicitly AAC with a common bitrate
+                output_m4b_path,
+            ]
 
-        # Use Popen instead of run
-        process = subprocess.Popen(ffmpeg_cmd, **kwargs)
-        stdout, stderr = process.communicate()  # Get stdout and stderr
+            self.log_updated.emit(f"Generating audio with chapters...\n")
+            print(f"Executing FFMPEG for M4B: {' '.join(ffmpeg_cmd)}")
 
-        # Check for errors in the ffmpeg command
-        if process.returncode != 0:
-            self.log_updated.emit((f"FFmpeg error (stderr):\n{stderr}", "red"))
-            if stdout:  # Log stdout as well if it exists
-                self.log_updated.emit((f"FFmpeg output (stdout):\n{stdout}", "orange"))
-            # Log error but continue with original file
-            self.log_updated.emit(
-                ("Falling back to the original audio file without chapters\n", "orange")
-            )
-            # Clean up chapters file even on error
+            process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
+            process.stdin.write(audio_data_np.astype("float32").tobytes())
+            process.stdin.close()
+            return_code = process.wait()
+
+            if return_code == 0:
+                return output_m4b_path
+            else:
+                self.log_updated.emit(
+                    (f"FFmpeg failed to create M4B (return code {return_code}). Falling back to WAV.\n", "red")
+                )
+                sf.write(final_wav_path, audio_data_np, 24000, format="wav")
+                return final_wav_path
+
+        except Exception as e:
+            self.log_updated.emit((f"Error during M4B generation: {str(e)}. Falling back to WAV.\n", "red"))
+            try:
+                sf.write(final_wav_path, audio_data_np, 24000, format="wav")
+                return final_wav_path
+            except Exception as e_wav_fallback:
+                self.log_updated.emit((f"Critical error: Failed to save fallback WAV: {str(e_wav_fallback)}\n", "red"))
+                return None
+        finally:
             if os.path.exists(chapters_info_path):
-                os.remove(chapters_info_path)
-            return out_path
-        else:
-            self.log_updated.emit(
-                ("Successfully added chapters to the audio file.\n", "green")
-            )
-
-        # delete the chapters path and original (wav) file
-        os.remove(chapters_info_path)
-        os.remove(out_path)
-        # the new file is in m4b format - use that for messages
-        return out_path_m4b
+                try:
+                    os.remove(chapters_info_path)
+                except Exception as e_clean:
+                    self.log_updated.emit((f"Warning: Could not delete temporary chapter file {chapters_info_path}: {e_clean}", "orange"))
 
     def _srt_time(self, t):
         """Helper function to format time for SRT files"""
