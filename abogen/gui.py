@@ -695,6 +695,7 @@ class abogen(QWidget):
             ("wav", "wav"),
             ("flac", "flac"),
             ("mp3", "mp3"),
+            ("opus", "opus (best)"),
             ("m4b", "m4b (with chapters)"),
         ]:
             self.format_combo.addItem(label, key)

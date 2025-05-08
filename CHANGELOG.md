@@ -1,5 +1,6 @@
 # v1.0.7 (pre-release)
 - Ignore chapter markers and single newlines when calculating text length.
+- Added `.opus` support as output format for generated audio files.
 - Added "Playing..." indicator for "Preview" button in the voice mixer.
 
 # v1.0.6

@@ -511,12 +511,38 @@ class ConversionThread(QThread):
                     chapter_out_path = os.path.join(
                         chapters_out_dir, f"{chapter_filename}.{chapter_ext}"
                     )
-                    sf.write(
-                        chapter_out_path,
-                        chapter_audio,
-                        24000,
-                        format=chapter_format,
-                    )
+                    if self.output_format == "opus":
+                        static_ffmpeg.add_paths()
+                        proc = subprocess.Popen(
+                            [
+                                "ffmpeg",
+                                "-y",
+                                "-f",
+                                "f32le",
+                                "-ar",
+                                "24000",
+                                "-ac",
+                                "1",
+                                "-i",
+                                "pipe:",
+                                "-c:a",
+                                "libopus",
+                                "-b:a",
+                                "24000",
+                                chapter_out_path,
+                            ],
+                            stdin=subprocess.PIPE,
+                        )
+                        proc.stdin.write(chapter_audio.astype("float32").tobytes())
+                        proc.stdin.close()
+                        proc.wait()
+                    else:
+                        sf.write(
+                            chapter_out_path,
+                            chapter_audio,
+                            24000,
+                            format=chapter_format,
+                        )
 
                     # Generate .srt subtitle file for chapter if not Disabled
                     if self.subtitle_mode != "Disabled" and chapter_subtitle_entries:
@@ -571,7 +597,33 @@ class ConversionThread(QThread):
                     out_path = os.path.splitext(out_path)[0] + ".wav"
                     self.output_format = "wav"
                     m4b_picked = True
-                sf.write(out_path, audio, 24000, format=self.output_format)
+                if self.output_format == "opus":
+                    static_ffmpeg.add_paths()
+                    proc = subprocess.Popen(
+                        [
+                            "ffmpeg",
+                            "-y",
+                            "-f",
+                            "f32le",
+                            "-ar",
+                            "24000",
+                            "-ac",
+                            "1",
+                            "-i",
+                            "pipe:",
+                            "-c:a",
+                            "libopus",
+                            "-b:a",
+                            "24000",
+                            out_path,
+                        ],
+                        stdin=subprocess.PIPE,
+                    )
+                    proc.stdin.write(audio.astype("float32").tobytes())
+                    proc.stdin.close()
+                    proc.wait()
+                else:
+                    sf.write(out_path, audio, 24000, format=self.output_format)
                 if m4b_picked:
                     out_path = self._generate_m4b_with_chapters(out_path, chapters_time)
 
