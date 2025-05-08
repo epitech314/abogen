@@ -71,7 +71,6 @@ from constants import (
 )
 from threading import Thread
 from voice_formula_gui import VoiceFormulaDialog
-from platformdirs import user_desktop_dir
 from voice_profiles import load_profiles
 
 # Import ctypes for Windows-specific taskbar icon
@@ -1801,7 +1800,7 @@ class abogen(QWidget):
     def add_shortcut_to_desktop(self):
         """Create a desktop shortcut to this program using PowerShell."""
         import sys, subprocess
-        from PyQt5.QtWidgets import QMessageBox
+        from platformdirs import user_desktop_dir
 
         try:
             # where to put the .lnk
