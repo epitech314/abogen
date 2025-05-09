@@ -1807,7 +1807,9 @@ class abogen(QWidget):
 
         # Add shortcut to desktop (Windows or Linux)
         if platform.system() == "Windows" or platform.system() == "Linux":
-            add_shortcut_action = QAction("Create desktop shortcut", self)
+            # Use extended label on Linux
+            label = "Create desktop shortcut & install" if platform.system() == "Linux" else "Create desktop shortcut"
+            add_shortcut_action = QAction(label, self)
             add_shortcut_action.triggered.connect(self.add_shortcut_to_desktop)
             menu.addAction(add_shortcut_action)
 

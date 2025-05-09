@@ -7,7 +7,7 @@
 - Added `Save in a project folder with metadata` option in the book handler, allowing users to save the converted items in a project folder with available metadata files. Useful if you want to work with the converted files in the future, issue mentioned by @Darthagnon in #15
 - Added `Go to folder` button in input box, allowing users to open the folder containing the converted file.
 - Added `.opus` as output format for generated audio files, which is a more efficient format for audio files.
-- Added `Add desktop shortcut` option to Linux version, allowing users to create a shortcut on their desktop for easy access.
+- Added `Create desktop shortcut & install` option to Linux version, allowing users to create a shortcut and install 
 - Added "Playing..." indicator for "Preview" button in the voice mixer.
 
 # v1.0.6
