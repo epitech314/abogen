@@ -695,7 +695,7 @@ class abogen(QWidget):
             ("wav", "wav"),
             ("flac", "flac"),
             ("mp3", "mp3"),
-            ("opus", "opus (best)"),
+            ("opus", "opus (best compression)"),
             ("m4b", "m4b (with chapters)"),
         ]:
             self.format_combo.addItem(label, key)
@@ -1814,8 +1814,9 @@ class abogen(QWidget):
 
     def add_shortcut_to_desktop(self):
         """Create a desktop shortcut to this program using PowerShell."""
-        import sys, subprocess
+        import sys
         from platformdirs import user_desktop_dir
+        from utils import create_process
 
         try:
             # where to put the .lnk
@@ -1834,46 +1835,36 @@ class abogen(QWidget):
             # icon (fallback to exe if missing)
             icon = get_resource_path("abogen.assets", "icon.ico")
             if not icon or not os.path.exists(icon):
-                icon = target
+                icon = target            # Create a more direct PowerShell command
+            shortcut_ps = shortcut_path.replace("'", "''").replace("\\", "\\\\")
+            target_ps = target.replace("'", "''").replace("\\", "\\\\")
+            workdir_ps = os.path.dirname(target).replace("'", "''").replace("\\", "\\\\")
+            icon_ps = icon.replace("'", "''").replace("\\", "\\\\")
+              # Create PowerShell script as a single line with no line breaks (more reliable)
+            ps_cmd = f"$s=New-Object -ComObject WScript.Shell; $lnk=$s.CreateShortcut('{shortcut_ps}'); $lnk.TargetPath='{target_ps}'; $lnk.WorkingDirectory='{workdir_ps}'; $lnk.IconLocation='{icon_ps}'; $lnk.Save()"
+            
+            # Run PowerShell with the command directly
+            proc = create_process("powershell -NoProfile -ExecutionPolicy Bypass -Command \"" + ps_cmd + "\"")
+            proc.wait()
+            
+            if proc.returncode == 0:
+                QMessageBox.information(
+                    self,
+                    "Shortcut Created",
+                    f"Shortcut created on desktop:\n{shortcut_path}",
+                )
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Shortcut Error",
+                    f"PowerShell failed with exit code: {proc.returncode}"
+                )
 
-            # PowerShell command to make the shortcut
-            ps_cmd = r"""
-                    $s = New-Object -ComObject WScript.Shell
-                    $lnk = $s.CreateShortcut('{lnk}')
-                    $lnk.TargetPath = '{tgt}'
-                    $lnk.WorkingDirectory = '{cwd}'
-                    $lnk.IconLocation = '{ico}'
-                    $lnk.Save()
-                    """.format(
-                lnk=shortcut_path.replace("'", "''"),
-                tgt=target.replace("'", "''"),
-                cwd=os.path.dirname(target).replace("'", "''"),
-                ico=icon.replace("'", "''"),
-            ).strip()
-
-            subprocess.run(
-                ["powershell", "-NoProfile", "-Command", ps_cmd],
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-
-            QMessageBox.information(
-                self,
-                "Shortcut Created",
-                f"Shortcut created on desktop:\n{shortcut_path}",
-            )
-
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(
-                self,
-                "Shortcut Error",
-                f"PowerShell failed:\n{e.stderr.decode(errors='ignore')}",
-            )
         except Exception as e:
             QMessageBox.critical(
                 self, "Shortcut Error", f"Could not create shortcut:\n{e}"
             )
+
 
     def toggle_check_updates(self, checked):
         self.config["check_updates"] = checked

@@ -8,14 +8,12 @@ from platformdirs import user_desktop_dir
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
-from utils import clean_text
+from utils import clean_text, create_process
 from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
 from voice_formulas import get_new_voice
 import static_ffmpeg
 import threading  # for efficient waiting
 import subprocess
-import sys
-import platform
 
 
 def get_sample_voice_text(lang_code):
@@ -509,7 +507,7 @@ class ConversionThread(QThread):
                     )
                     if self.output_format == "opus":
                         static_ffmpeg.add_paths()
-                        proc = subprocess.Popen(
+                        proc = create_process(
                             [
                                 "ffmpeg",
                                 "-y",
@@ -529,6 +527,7 @@ class ConversionThread(QThread):
                                 chapter_out_path,
                             ],
                             stdin=subprocess.PIPE,
+                            text=False  # Ensure binary stdin for audio data
                         )
                         proc.stdin.write(chapter_audio.astype("float32").tobytes())
                         proc.stdin.close()
@@ -605,7 +604,7 @@ class ConversionThread(QThread):
                     ]
                     try:
                         print(f"Executing FFMPEG for Opus: {' '.join(ffmpeg_cmd_opus)}")
-                        process = subprocess.Popen(ffmpeg_cmd_opus, stdin=subprocess.PIPE)
+                        process = create_process(ffmpeg_cmd_opus, stdin=subprocess.PIPE, text=False)  # Ensure binary stdin
                         process.stdin.write(audio_data_np.astype("float32").tobytes())
                         process.stdin.close()
                         if process.wait() == 0:
@@ -716,7 +715,7 @@ class ConversionThread(QThread):
             self.log_updated.emit(f"Generating audio with chapters...\n")
             print(f"Executing FFMPEG for M4B: {' '.join(ffmpeg_cmd)}")
 
-            process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
+            process = create_process(ffmpeg_cmd, stdin=subprocess.PIPE, text=False)  # Ensure binary stdin
             process.stdin.write(audio_data_np.astype("float32").tobytes())
             process.stdin.close()
             return_code = process.wait()
@@ -725,13 +724,13 @@ class ConversionThread(QThread):
                 return output_m4b_path
             else:
                 self.log_updated.emit(
-                    (f"FFmpeg failed to create M4B (return code {return_code}). Falling back to WAV.\n", "red")
+                    (f"FFmpeg failed to create M4B (return code {return_code}).\n\nFalling back to WAV.\n", "red")
                 )
                 sf.write(final_wav_path, audio_data_np, 24000, format="wav")
                 return final_wav_path
 
         except Exception as e:
-            self.log_updated.emit((f"Error during M4B generation: {str(e)}. Falling back to WAV.\n", "red"))
+            self.log_updated.emit((f"Error during M4B generation: {str(e)}.\n\nFalling back to WAV.\n", "red"))
             try:
                 sf.write(final_wav_path, audio_data_np, 24000, format="wav")
                 return final_wav_path

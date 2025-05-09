@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import warnings
 import platform
@@ -102,6 +103,86 @@ def clean_text(text, *args, **kwargs):
     return text
 
 
+default_encoding = sys.getfilesystemencoding()
+
+def create_process(cmd, stdin=None, text=True):
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Configure root logger to output to console if not already configured
+    root = logging.getLogger()
+    if not root.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(message)s')
+        handler.setFormatter(formatter)
+        root.addHandler(handler)
+        root.setLevel(logging.INFO)
+    
+    kwargs = {
+        "shell": True,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.STDOUT,
+        "bufsize": 1,  # Line buffered
+    }
+
+    if text:
+        # Configure for text I/O
+        kwargs["text"] = True
+        kwargs["encoding"] = default_encoding
+        kwargs["errors"] = "replace"
+    else:
+        # Configure for binary I/O
+        kwargs["text"] = False
+        # For binary mode, 'encoding' and 'errors' arguments must not be passed to Popen
+
+    if stdin is not None:
+        kwargs["stdin"] = stdin
+
+    if platform.system() == "Windows":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        kwargs.update(
+            {"startupinfo": startupinfo, "creationflags": subprocess.CREATE_NO_WINDOW}
+        )
+
+    # Print the command being executed
+    print(f"Executing: {cmd if isinstance(cmd, str) else ' '.join(cmd)}")
+    
+    proc = subprocess.Popen(cmd, **kwargs)
+    
+    # Stream output to console in real-time
+    if proc.stdout:
+        def _stream_output(stream):
+            if text:
+                # For text mode, read character by character for real-time output
+                while True:
+                    char = stream.read(1)
+                    if not char:
+                        break
+                    # Direct write to stdout for immediate feedback
+                    sys.stdout.write(char)
+                    sys.stdout.flush()
+            else:
+                # For binary mode, read small chunks
+                while True:
+                    chunk = stream.read(1)  # Read byte by byte for real-time output
+                    if not chunk:
+                        break
+                    try:
+                        # Try to decode binary data for display
+                        sys.stdout.write(chunk.decode(default_encoding, errors='replace'))
+                        sys.stdout.flush()
+                    except Exception:
+                        pass
+            stream.close()
+        
+        # Start a daemon thread to handle output streaming
+        Thread(target=_stream_output, args=(proc.stdout,), daemon=True).start()
+
+    return proc
+
+
 def load_config():
     try:
         with open(get_user_config_path(), "r", encoding="utf-8") as f:
@@ -148,21 +229,15 @@ def prevent_sleep_start():
             0x80000000 | 0x00000001 | 0x00000040
         )  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED
     elif system == "Darwin":
-        _sleep_procs["Darwin"] = subprocess.Popen(["caffeinate"])
+        _sleep_procs["Darwin"] = create_process("caffeinate")
     elif system == "Linux":
         try:
-            _sleep_procs["Linux"] = subprocess.Popen(
-                [
-                    "systemd-inhibit",
-                    "--what=sleep",
-                    "--why=TextToAudiobook conversion",
-                    "sleep",
-                    "999999",
-                ]
+            _sleep_procs["Linux"] = create_process(
+                "systemd-inhibit --what=sleep --why=TextToAudiobook conversion sleep 999999"
             )
         except Exception:
             try:
-                subprocess.Popen(["xdg-screensaver", "reset"])
+                create_process("xdg-screensaver reset")
             except Exception:
                 pass
 
