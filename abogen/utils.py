@@ -134,6 +134,7 @@ def create_process(cmd, stdin=None, text=True):
         # Configure for binary I/O
         kwargs["text"] = False
         # For binary mode, 'encoding' and 'errors' arguments must not be passed to Popen
+        kwargs["bufsize"] = 0  # Use unbuffered mode for binary data
 
     if stdin is not None:
         kwargs["stdin"] = stdin

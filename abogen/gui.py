@@ -485,6 +485,7 @@ class TextboxDialog(QDialog):
         cursor.insertText("<<CHAPTER_MARKER:Title>>")
         self.text_edit.setTextCursor(cursor)
         self.update_char_count()
+        self.text_edit.setFocus()
 
 
 class abogen(QWidget):
@@ -1808,7 +1809,7 @@ class abogen(QWidget):
         # Add shortcut to desktop (Windows or Linux)
         if platform.system() == "Windows" or platform.system() == "Linux":
             # Use extended label on Linux
-            label = "Create desktop shortcut & install" if platform.system() == "Linux" else "Create desktop shortcut"
+            label = "Create desktop shortcut and install" if platform.system() == "Linux" else "Create desktop shortcut"
             add_shortcut_action = QAction(label, self)
             add_shortcut_action.triggered.connect(self.add_shortcut_to_desktop)
             menu.addAction(add_shortcut_action)
@@ -2291,3 +2292,4 @@ Categories=AudioVideo;Audio;Utility;
                 "Setting Saved",
                 f"Maximum words per subtitle set to {value}.",
             )
+

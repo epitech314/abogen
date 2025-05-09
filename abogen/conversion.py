@@ -603,7 +603,6 @@ class ConversionThread(QThread):
                         opus_out_path,
                     ]
                     try:
-                        print(f"Executing FFMPEG for Opus: {' '.join(ffmpeg_cmd_opus)}")
                         process = create_process(ffmpeg_cmd_opus, stdin=subprocess.PIPE, text=False)  # Ensure binary stdin
                         process.stdin.write(audio_data_np.astype("float32").tobytes())
                         process.stdin.close()
@@ -713,7 +712,6 @@ class ConversionThread(QThread):
             ]
 
             self.log_updated.emit(f"Generating audio with chapters...\n")
-            print(f"Executing FFMPEG for M4B: {' '.join(ffmpeg_cmd)}")
 
             process = create_process(ffmpeg_cmd, stdin=subprocess.PIPE, text=False)  # Ensure binary stdin
             process.stdin.write(audio_data_np.astype("float32").tobytes())
