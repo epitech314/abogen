@@ -1805,8 +1805,8 @@ class abogen(QWidget):
         # Add seperator
         menu.addSeparator()
 
-        # Add shortcut to desktop (Windows only)
-        if platform.system() == "Windows":
+        # Add shortcut to desktop (Windows or Linux)
+        if platform.system() == "Windows" or platform.system() == "Linux":
             add_shortcut_action = QAction("Create desktop shortcut", self)
             add_shortcut_action.triggered.connect(self.add_shortcut_to_desktop)
             menu.addAction(add_shortcut_action)
@@ -1885,52 +1885,105 @@ class abogen(QWidget):
         from utils import create_process
 
         try:
-            # where to put the .lnk
-            desktop = user_desktop_dir()
-            shortcut_path = os.path.join(desktop, "abogen.lnk")
+            if platform.system() == "Windows":
+                # where to put the .lnk
+                desktop = user_desktop_dir()
+                shortcut_path = os.path.join(desktop, "abogen.lnk")
 
-            # target exe
-            python_dir = os.path.dirname(sys.executable)
-            target = os.path.join(python_dir, "Scripts", "abogen.exe")
-            if not os.path.exists(target):
-                QMessageBox.critical(
-                    self, "Shortcut Error", f"Could not find abogen.exe at:\n{target}"
-                )
-                return
+                # target exe
+                python_dir = os.path.dirname(sys.executable)
+                target = os.path.join(python_dir, "Scripts", "abogen.exe")
+                if not os.path.exists(target):
+                    QMessageBox.critical(
+                        self, "Shortcut Error", f"Could not find abogen.exe at:\n{target}"
+                    )
+                    return
 
-            # icon (fallback to exe if missing)
-            icon = get_resource_path("abogen.assets", "icon.ico")
-            if not icon or not os.path.exists(icon):
-                icon = target            # Create a more direct PowerShell command
-            shortcut_ps = shortcut_path.replace("'", "''").replace("\\", "\\\\")
-            target_ps = target.replace("'", "''").replace("\\", "\\\\")
-            workdir_ps = os.path.dirname(target).replace("'", "''").replace("\\", "\\\\")
-            icon_ps = icon.replace("'", "''").replace("\\", "\\\\")
-              # Create PowerShell script as a single line with no line breaks (more reliable)
-            ps_cmd = f"$s=New-Object -ComObject WScript.Shell; $lnk=$s.CreateShortcut('{shortcut_ps}'); $lnk.TargetPath='{target_ps}'; $lnk.WorkingDirectory='{workdir_ps}'; $lnk.IconLocation='{icon_ps}'; $lnk.Save()"
+                # icon (fallback to exe if missing)
+                icon = get_resource_path("abogen.assets", "icon.ico")
+                if not icon or not os.path.exists(icon):
+                    icon = target            # Create a more direct PowerShell command
+                shortcut_ps = shortcut_path.replace("'", "''").replace("\\", "\\\\")
+                target_ps = target.replace("'", "''").replace("\\", "\\\\")
+                workdir_ps = os.path.dirname(target).replace("'", "''").replace("\\", "\\\\")
+                icon_ps = icon.replace("'", "''").replace("\\", "\\\\")
+                  # Create PowerShell script as a single line with no line breaks (more reliable)
+                ps_cmd = f"$s=New-Object -ComObject WScript.Shell; $lnk=$s.CreateShortcut('{shortcut_ps}'); $lnk.TargetPath='{target_ps}'; $lnk.WorkingDirectory='{workdir_ps}'; $lnk.IconLocation='{icon_ps}'; $lnk.Save()"
             
-            # Run PowerShell with the command directly
-            proc = create_process("powershell -NoProfile -ExecutionPolicy Bypass -Command \"" + ps_cmd + "\"")
-            proc.wait()
+                # Run PowerShell with the command directly
+                proc = create_process("powershell -NoProfile -ExecutionPolicy Bypass -Command \"" + ps_cmd + "\"")
+                proc.wait()
             
-            if proc.returncode == 0:
+                if proc.returncode == 0:
+                    QMessageBox.information(
+                        self,
+                        "Shortcut Created",
+                        f"Shortcut created on desktop:\n{shortcut_path}",
+                    )
+                else:
+                    QMessageBox.critical(
+                        self,
+                        "Shortcut Error",
+                        f"PowerShell failed with exit code: {proc.returncode}"
+                    )
+            elif platform.system() == "Linux":
+                desktop = user_desktop_dir()
+                if not desktop or not os.path.isdir(desktop): # Fallback if platformdirs fails or path is not a dir
+                    QMessageBox.critical(
+                    self, "Shortcut Error", "Could not determine desktop directory."
+                    )
+                    return
+
+                shortcut_path = os.path.join(desktop, "abogen.desktop")
+
+                python_dir = os.path.dirname(sys.executable)
+                # Common path for pip-installed executables on Linux
+                target = os.path.join(python_dir, "bin", "abogen") 
+                if not os.path.exists(target):
+                     # Fallback for some environments like venv where it might be directly in python_dir
+                    target_fallback = os.path.join(python_dir, "abogen")
+                    if os.path.exists(target_fallback):
+                        target = target_fallback
+                    else:
+                        QMessageBox.critical(
+                            self, "Shortcut Error", f"Could not find abogen executable in common paths:\n{target}\n{target_fallback}"
+                        )
+                        return
+                
+                icon_path = get_resource_path("abogen.assets", "icon.png")
+                if not os.path.exists(icon_path):
+                        icon_path = ""
+
+
+                desktop_entry_content = f"""[Desktop Entry]
+                                            Version={VERSION}
+                                            Name={PROGRAM_NAME}
+                                            Comment={PROGRAM_DESCRIPTION}
+                                            Exec={target}
+                                            Icon={icon_path}
+                                            Terminal=false
+                                            Type=Application
+                                            Categories=AudioVideo;Audio;Utility;
+                                            """
+                with open(shortcut_path, "w", encoding="utf-8") as f:
+                    f.write(desktop_entry_content)
+                
+                os.chmod(shortcut_path, 0o755) # Make it executable
+
                 QMessageBox.information(
                     self,
                     "Shortcut Created",
                     f"Shortcut created on desktop:\n{shortcut_path}",
                 )
             else:
-                QMessageBox.critical(
-                    self,
-                    "Shortcut Error",
-                    f"PowerShell failed with exit code: {proc.returncode}"
+                QMessageBox.information(
+                    self, "Unsupported OS", "Desktop shortcut creation is not supported on this operating system."
                 )
 
         except Exception as e:
             QMessageBox.critical(
                 self, "Shortcut Error", f"Could not create shortcut:\n{e}"
             )
-
 
     def toggle_check_updates(self, checked):
         self.config["check_updates"] = checked
