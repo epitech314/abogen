@@ -128,6 +128,13 @@ class InputBox(QLabel):
         self.edit_btn.clicked.connect(self.on_edit_clicked)
         self.edit_btn.hide()
 
+        # Add Go to folder button
+        self.go_to_folder_btn = QPushButton("Go to folder", self)
+        self.go_to_folder_btn.setStyleSheet("QPushButton { padding: 6px 10px; }")
+        self.go_to_folder_btn.setToolTip("Open the folder that contains the converted file")
+        self.go_to_folder_btn.clicked.connect(self.on_go_to_folder_clicked)
+        self.go_to_folder_btn.hide()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         margin = 12
@@ -138,6 +145,11 @@ class InputBox(QLabel):
         # Position textbox button at top left
         self.textbox_btn.move(margin, margin)
         self.edit_btn.move(margin, margin)
+        # Position go to folder button at bottom right
+        self.go_to_folder_btn.move(
+            self.width() - self.go_to_folder_btn.width(),
+            self.height() - self.go_to_folder_btn.height() - margin,
+        )
 
     def set_file_info(self, file_path):
         # get icon without resizing using custom provider
@@ -227,6 +239,7 @@ class InputBox(QLabel):
             should_show_edit = True
 
         self.edit_btn.setVisible(should_show_edit)
+        self.go_to_folder_btn.show()
 
     def set_error(self, message):
         self.setText(message)
@@ -249,6 +262,7 @@ class InputBox(QLabel):
         # Show textbox and hide edit when input is cleared
         self.textbox_btn.show()
         self.edit_btn.hide()
+        self.go_to_folder_btn.hide()
 
     def _human_readable_size(self, size, decimal_places=2):
         for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -318,6 +332,17 @@ class InputBox(QLabel):
         else:
             # For regular txt files
             win.open_textbox_dialog()
+
+    def on_go_to_folder_clicked(self):
+        win = self.window()
+        # win.selected_file holds the path to the text that is converted.
+        file_to_check = win.selected_file
+        
+        if file_to_check and os.path.exists(file_to_check) and os.path.isfile(file_to_check):
+            folder_path = os.path.dirname(file_to_check)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
+        else:
+            QMessageBox.warning(win, "Error", "Converted file not found.")
 
 
 class TextboxDialog(QDialog):
@@ -861,9 +886,7 @@ class abogen(QWidget):
         )
         dialog.setWindowModality(Qt.NonModal)
         dialog.setModal(False)
-        dialog.show()
-
-        # We'll handle the dialog result asynchronously
+        dialog.show()            # We'll handle the dialog result asynchronously
         def on_dialog_finished(result):
             if result != QDialog.Accepted:
                 return False
@@ -878,6 +901,7 @@ class abogen(QWidget):
             self.selected_chapters = all_checked_hrefs
             self.save_chapters_separately = dialog.get_save_chapters_separately()
             self.merge_chapters_at_end = dialog.get_merge_chapters_at_end()
+            self.save_as_project = dialog.get_save_as_project()
 
             # Store if the PDF has bookmarks for button text display
             if book_path.lower().endswith(".pdf"):
@@ -886,8 +910,50 @@ class abogen(QWidget):
             # Use "abogen" prefix for temporary files
             # Extract base name without extension
             base_name = os.path.splitext(os.path.basename(book_path))[0]
-            temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
-            os.makedirs(temp_dir, exist_ok=True)
+            
+            if self.save_as_project:
+                # Get project directory from user
+                project_dir = QFileDialog.getExistingDirectory(
+                    self, "Select Project Folder", "", QFileDialog.ShowDirsOnly
+                )
+                if not project_dir:
+                    # User cancelled, fallback to temp
+                    self.save_as_project = False
+                    temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
+                else:
+                    # Create project folder structure
+                    project_name = f"{base_name}_project"
+                    project_dir = os.path.join(project_dir, project_name)
+                    temp_dir = os.path.join(project_dir, "text")
+                    os.makedirs(temp_dir, exist_ok=True)
+                    
+                    # Save metadata if available
+                    meta_dir = os.path.join(project_dir, "metadata")
+                    os.makedirs(meta_dir, exist_ok=True) # Save book metadata if available
+                    if hasattr(dialog, "book_metadata"):
+                        meta_path = os.path.join(meta_dir, "book_info.txt")
+                        with open(meta_path, "w", encoding="utf-8") as f:
+                            # Clean HTML tags from metadata
+                            title = re.sub(r'<[^>]+>', '', str(dialog.book_metadata.get('title', 'Unknown')))
+                            publisher = re.sub(r'<[^>]+>', '', str(dialog.book_metadata.get('publisher', 'Unknown')))
+                            authors = [re.sub(r'<[^>]+>', '', str(author)) for author in dialog.book_metadata.get('authors', ['Unknown'])]
+                            
+                            f.write(f"Title: {title}\n")
+                            f.write(f"Authors: {', '.join(authors)}\n")
+                            f.write(f"Publisher: {publisher}\n")
+                            if dialog.book_metadata.get('description'):
+                                description = re.sub(r'<[^>]+>', '', str(dialog.book_metadata.get('description')))
+                                f.write(f"\nDescription:\n{description}\n")
+                        
+                        # Save cover image if available
+                    if dialog.book_metadata.get("cover_image"):
+                        cover_path = os.path.join(meta_dir, "cover.png")
+                        with open(cover_path, "wb") as f:
+                            f.write(dialog.book_metadata["cover_image"])
+            else:
+                temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
+                os.makedirs(temp_dir, exist_ok=True)
+                
             fd, tmp = tempfile.mkstemp(
                 prefix=f"abogen_{base_name}_", suffix=".txt", dir=temp_dir
             )

@@ -37,6 +37,7 @@ class HandlerDialog(QDialog):
     # Class variables to remember checkbox states between dialog instances
     _save_chapters_separately = False
     _merge_chapters_at_end = True
+    _save_as_project = False  # New class variable for save_as_project option
 
     def __init__(self, book_path, file_type=None, checked_chapters=None, parent=None):
         super().__init__(parent)
@@ -64,6 +65,7 @@ class HandlerDialog(QDialog):
         # Initialize save chapters flags from class variables
         self.save_chapters_separately = HandlerDialog._save_chapters_separately
         self.merge_chapters_at_end = HandlerDialog._merge_chapters_at_end
+        self.save_as_project = HandlerDialog._save_as_project
 
         # Load the book based on file type
         try:
@@ -1099,7 +1101,7 @@ class HandlerDialog(QDialog):
         self.previewEdit.setStyleSheet("QTextEdit { border: none; }")
 
         self.previewInfoLabel = QLabel(
-            '*Note: You can modify the content later using the "Edit" button in the input box or by accessing the temporary files directory through settings.',
+            '*Note: You can modify the content later using the "Edit" button in the input box or by accessing the temporary files directory through settings (if not saved in a project folder).',
             self,
         )
         self.previewInfoLabel.setWordWrap(True)
@@ -1173,8 +1175,7 @@ class HandlerDialog(QDialog):
         self.save_chapters_checkbox = QCheckBox(checkbox_text, self)
         self.save_chapters_checkbox.setChecked(self.save_chapters_separately)
         self.save_chapters_checkbox.stateChanged.connect(self.on_save_chapters_changed)
-        leftLayout.addWidget(self.save_chapters_checkbox)
-
+        leftLayout.addWidget(self.save_chapters_checkbox)        
         self.merge_chapters_checkbox = QCheckBox(
             "Create a merged version at the end", self
         )
@@ -1183,6 +1184,19 @@ class HandlerDialog(QDialog):
             self.on_merge_chapters_changed
         )
         leftLayout.addWidget(self.merge_chapters_checkbox)
+        
+        self.save_as_project_checkbox = QCheckBox(
+            "Save in a project folder with metadata", self
+        )
+        self.save_as_project_checkbox.setToolTip(
+            "Save the converted item in a project folder with metadata files. "
+            "(Useful if you want to work with converted items in the future.)"
+        )
+        self.save_as_project_checkbox.setChecked(self.save_as_project)
+        self.save_as_project_checkbox.stateChanged.connect(
+            self.on_save_as_project_changed
+        )
+        leftLayout.addWidget(self.save_as_project_checkbox)
 
         leftLayout.addWidget(buttons)
 
@@ -1696,6 +1710,10 @@ class HandlerDialog(QDialog):
         self.merge_chapters_at_end = bool(state)
         HandlerDialog._merge_chapters_at_end = self.merge_chapters_at_end
 
+    def on_save_as_project_changed(self, state):
+        self.save_as_project = bool(state)
+        HandlerDialog._save_as_project = self.save_as_project
+
     def get_save_chapters_separately(self):
         return (
             self.save_chapters_separately
@@ -1705,6 +1723,9 @@ class HandlerDialog(QDialog):
 
     def get_merge_chapters_at_end(self):
         return self.merge_chapters_at_end
+
+    def get_save_as_project(self):
+        return self.save_as_project
 
     def on_tree_context_menu(self, pos):
         item = self.treeWidget.itemAt(pos)
