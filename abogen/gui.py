@@ -1975,6 +1975,33 @@ Categories=AudioVideo;Audio;Utility;
                     "Shortcut Created",
                     f"Shortcut created on desktop:\n{shortcut_path}",
                 )
+
+                # Offer installation for current user under ~/.local/share/applications
+                reply = QMessageBox.question(
+                    self,
+                    "Install Application Entry",
+                    "Install application entry for current user?",
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    import shutil
+                    user_app_dir = os.path.expanduser("~/.local/share/applications")
+                    os.makedirs(user_app_dir, exist_ok=True)
+                    user_entry = os.path.join(user_app_dir, "abogen.desktop")
+                    try:
+                        shutil.copyfile(shortcut_path, user_entry)
+                        os.chmod(user_entry, 0o644)
+                        QMessageBox.information(
+                            self,
+                            "Installation Complete",
+                            f"Desktop entry installed to {user_entry}",
+                        )
+                    except Exception as e:
+                        QMessageBox.warning(
+                            self,
+                            "Install Error",
+                            f"Could not install entry:\n{e}",
+                        )
             else:
                 QMessageBox.information(
                     self, "Unsupported OS", "Desktop shortcut creation is not supported on this operating system."
