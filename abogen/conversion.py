@@ -519,7 +519,7 @@ class ConversionThread(QThread):
                                 "-ac",
                                 "1",
                                 "-i",
-                                "pipe:",
+                                "pipe:0",
                                 "-c:a",
                                 "libopus",
                                 "-b:a",
@@ -598,7 +598,7 @@ class ConversionThread(QThread):
                     ffmpeg_cmd_opus = [
                         "ffmpeg", "-y",
                         "-thread_queue_size", "1024", # Increased thread_queue_size
-                        "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:",
+                        "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:0",
                         "-c:a", "libopus", "-b:a", "24000", # Original bitrate
                         opus_out_path,
                     ]

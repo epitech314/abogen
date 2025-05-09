@@ -118,8 +118,10 @@ def create_process(cmd, stdin=None, text=True):
         root.addHandler(handler)
         root.setLevel(logging.INFO)
     
+    # Determine shell usage: use shell only for string commands
+    use_shell = isinstance(cmd, str)
     kwargs = {
-        "shell": True,
+        "shell": use_shell,
         "stdout": subprocess.PIPE,
         "stderr": subprocess.STDOUT,
         "bufsize": 1,  # Line buffered
