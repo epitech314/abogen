@@ -1928,47 +1928,47 @@ class abogen(QWidget):
                     )
             elif platform.system() == "Linux":
                 desktop = user_desktop_dir()
-                if not desktop or not os.path.isdir(desktop): # Fallback if platformdirs fails or path is not a dir
-                    QMessageBox.critical(
-                    self, "Shortcut Error", "Could not determine desktop directory."
-                    )
+                if not desktop or not os.path.isdir(desktop):
+                    QMessageBox.critical(self, "Shortcut Error", "Could not determine desktop directory.")
                     return
 
                 shortcut_path = os.path.join(desktop, "abogen.desktop")
 
-                python_dir = os.path.dirname(sys.executable)
-                # Common path for pip-installed executables on Linux
-                target = os.path.join(python_dir, "bin", "abogen") 
-                if not os.path.exists(target):
-                     # Fallback for some environments like venv where it might be directly in python_dir
-                    target_fallback = os.path.join(python_dir, "abogen")
-                    if os.path.exists(target_fallback):
-                        target = target_fallback
+                import shutil
+                found = shutil.which("abogen")
+                if found:
+                    target = found
+                else:
+                    local_bin = os.path.expanduser("~/.local/bin/abogen")
+                    if os.path.exists(local_bin):
+                        target = local_bin
                     else:
-                        QMessageBox.critical(
-                            self, "Shortcut Error", f"Could not find abogen executable in common paths:\n{target}\n{target_fallback}"
-                        )
-                        return
-                
-                icon_path = get_resource_path("abogen.assets", "icon.png")
-                if not os.path.exists(icon_path):
-                        icon_path = ""
+                        python_dir = os.path.dirname(sys.executable)
+                        target = os.path.join(python_dir, "bin", "abogen")
+                        if not os.path.exists(target):
+                            target_fallback = os.path.join(python_dir, "abogen")
+                            if os.path.exists(target_fallback):
+                                target = target_fallback
+                            else:
+                                QMessageBox.critical(self, "Shortcut Error", "Could not find abogen executable in PATH or common installation directories.")
+                                return
 
+                icon_path = get_resource_path("abogen.assets", "icon.png")
 
                 desktop_entry_content = f"""[Desktop Entry]
-                                            Version={VERSION}
-                                            Name={PROGRAM_NAME}
-                                            Comment={PROGRAM_DESCRIPTION}
-                                            Exec={target}
-                                            Icon={icon_path}
-                                            Terminal=false
-                                            Type=Application
-                                            Categories=AudioVideo;Audio;Utility;
-                                            """
+Version={VERSION}
+Name={PROGRAM_NAME}
+Comment={PROGRAM_DESCRIPTION}
+Exec={target}
+Icon={icon_path}
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Utility;
+"""
                 with open(shortcut_path, "w", encoding="utf-8") as f:
                     f.write(desktop_entry_content)
-                
-                os.chmod(shortcut_path, 0o755) # Make it executable
+
+                os.chmod(shortcut_path, 0o755)
 
                 QMessageBox.information(
                     self,

@@ -2,7 +2,7 @@
 
 [![Build Status](https://github.com/denizsafak/abogen/actions/workflows/test_pip.yml/badge.svg)](https://github.com/denizsafak/abogen/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/denizsafak/abogen)](https://github.com/denizsafak/abogen/releases/latest)
-![abogen PyPi Python Versions](https://img.shields.io/pypi/pyversions/abogen)
+[![Abogen PyPi Python Versions](https://img.shields.io/pypi/pyversions/abogen)](https://pypi.org/project/abogen/)
 [![Operating Systems](https://img.shields.io/badge/os-windows%20%7C%20linux%20%7C%20macos%20-blue)](https://github.com/denizsafak/abogen/releases/latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-maroon.svg)](https://opensource.org/licenses/MIT)
@@ -14,10 +14,9 @@ Abogen is a powerful text-to-speech conversion tool that makes it easy to turn e
 ## Demo
 https://github.com/user-attachments/assets/cb66512d-0a52-48c3-bda4-f1e6a03fb8d6
 
-
 > This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://github.com/denizsafak/abogen/tree/main/demo).
 
-## `How to install?`
+## `How to install?` <a href="https://pypi.org/project/abogen/" target="_blank"><img src="https://img.shields.io/pypi/pyversions/abogen" alt="Abogen Compatible PyPi Python Versions" align="right" style="margin-top:4px;"></a>
 ### Windows
 Go to [espeak-ng latest release](https://github.com/espeak-ng/espeak-ng/releases/latest) download and run the *.msi file.
 ```bash
@@ -56,13 +55,20 @@ sudo dnf install espeak-ng
 # Install abogen
 pip install abogen
 ```
+> If you get `WARNING: The script abogen-cli is installed in '/home/username/.local/bin' which is not on PATH.` error, run the following command to add it to your PATH:
+>```bash
+>echo "export PATH=\"/home/$USER/.local/bin:\$PATH\"" >> ~/.bashrc && source ~/.bashrc
+>```
+
 > If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
 
-Then simply run by typing:
+## `How to run?`
+If you installed using pip, you can simply run the following command to start Abogen:
 
 ```bash
 abogen
 ```
+> If you installed using the Windows installer `(WINDOWS_INSTALL.bat)`, It should have created a shortcut in the same folder, or your desktop. You can run it from there. If you lost the shortcut, Abogen is located in `python_embedded/Scripts/abogen.exe`. You can run it from there directly.
 
 ## `How to use?`
 1) Drag and drop any ePub, PDF, or text file (or use the built-in text editor)
@@ -85,9 +91,11 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 - **Voices**: First letter of the language code (e.g., `a` for American English, `b` for British English, etc.), second letter is for `m` for male and `f` for female.
 - **Voice mixer**: Create custom voices by mixing different voice models with a profile system.
 - **Generate subtitles**: `Disabled`, `Sentence`, `Sentence + Comma`, `1 word`, `2 words`, `3 words`, etc. (Represents the number of words in each subtitle entry)
-- **Output formats**: `.WAV`, `.FLAC`, `.MP3`, and `M4B (with chapters)` (Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10))
+- **Output formats**: `.WAV`, `.FLAC`, `.MP3`, `.OPUS` and `M4B (with chapters)` (Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10))
 - **Save location**: `Save next to input file`, `Save to desktop`, or `Choose output folder`
 - **Chapter Control**: Select specific `chapters` from ePUBs or `chapters + pages` from PDFs.
+- **Save each chapter separately**: Save each chapter in e-books as a separate audio file.
+- **Project folder**: Save the converted items in a project folder with available metadata files.
 - **Options**:
     - **Replace single newlines with spaces**: Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks.
     - **Configure max words per subtitle**: Configures the maximum number of words per subtitle entry.
@@ -104,7 +112,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 With voice mixer, you can create custom voices by mixing different voice models. You can adjust the weight of each voice and save your custom voice as a profile for future use. The voice mixer allows you to create unique and personalized voices. (Huge thanks to [@jborza](https://github.com/jborza) for making this possible through his contributions in [#5](https://github.com/denizsafak/abogen/pull/5))
 
 ## `About Chapter Markers`
-When you process ePUB or PDF files, abogen converts them into text files stored in your temporary directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
+When you process ePUB or PDF files, Abogen converts them into text files stored in your temporary directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
 
 ```
 <<CHAPTER_MARKER:Chapter Title>>
@@ -122,7 +130,7 @@ This is the beginning of my text...
 <<CHAPTER_MARKER:Main Content>> 
 Here's another part...  
 ```
-When you process the text file, abogen will detect these markers automatically and ask if you want to save each chapter separately and create a merged version.
+When you process the text file, Abogen will detect these markers automatically and ask if you want to save each chapter separately and create a merged version.
 
 ![Abogen Chapter Marker](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/chapter_marker.png)
 
@@ -187,7 +195,7 @@ Abogen launches automatically inside the container.
 
 Known issues:
 - Audio preview is not working inside container (ALSA error).
-- `Open temp directory` and `Open configuration directory` options in settings not working. (Tried pcmanfm, did not work with abogen).
+- `Open temp directory` and `Open configuration directory` options in settings not working. (Tried pcmanfm, did not work with Abogen).
 
 (Special thanks to [@geo38](https://www.reddit.com/user/geo38/) from Reddit, who provided the Dockerfile and instructions in [this comment](https://www.reddit.com/r/selfhosted/comments/1k8x1yo/comment/mpe0bz8/).)
 
@@ -199,11 +207,11 @@ Abogen is a standalone project, but it is inspired by and shares some similariti
 - [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook): EPUB to audiobook converter, optimized for Audiobookshelf
 
 ## `Roadmap`
-- [ ] Improve PDF support for better text extraction.
+- [ ] Add OCR scan feature for PDF files using docling.
 - [x] Add chapter metadata for .m4a files. (Issue [#9](https://github.com/denizsafak/abogen/issues/9), PR [#10](https://github.com/denizsafak/abogen/pull/10))
 - [ ] Add support for different languages in GUI.
 - [x] Add voice formula feature that enables mixing different voice models. (Issue [#1](https://github.com/denizsafak/abogen/issues/1), PR [#5](https://github.com/denizsafak/abogen/pull/5))
-- [ ] Add support for kokoro-onnx.
+- [ ] Add support for kokoro-onnx (If it's necessary).
 - [ ] Add dark mode.
 
 ## `Troubleshooting`
