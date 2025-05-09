@@ -934,6 +934,7 @@ class HandlerDialog(QDialog):
     def _build_pdf_tree(self):
         outline = self.pdf_doc.get_toc()
         self.has_pdf_bookmarks = bool(outline)
+        self.bookmark_items_map = {}
 
         if not outline:
             self._build_pdf_pages_tree()
@@ -976,20 +977,23 @@ class HandlerDialog(QDialog):
                         else self.pdf_doc.resolve_link(page)[0]
                     )
                     page_id = f"page_{page_num+1}"
-
+                    # attach chapters on same page under original
+                    if page_num in self.bookmark_items_map:
+                        orig = self.bookmark_items_map[page_num]
+                        child = QTreeWidgetItem(orig, [f"{title} (Same page)"])
+                        child.setData(0, Qt.UserRole, page_id)
+                        child.setFlags(child.flags() & ~Qt.ItemIsUserCheckable)
+                        continue
                     bookmark_item = QTreeWidgetItem(parent_item, [title])
                     bookmark_item.setData(0, Qt.UserRole, page_id)
-                    bookmark_item.setFlags(
-                        bookmark_item.flags() | Qt.ItemIsUserCheckable
-                    )
-                    bookmark_item.setCheckState(
-                        0,
-                        (
-                            Qt.Checked
-                            if page_id in self.checked_chapters
-                            else Qt.Unchecked
-                        ),
-                    )
+                    # only allow checking if this chapter has content
+                    if self.content_lengths.get(page_id, 0) > 0:
+                        bookmark_item.setFlags(bookmark_item.flags() | Qt.ItemIsUserCheckable)
+                        bookmark_item.setCheckState(0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked)
+                    else:
+                        bookmark_item.setFlags(bookmark_item.flags() & ~Qt.ItemIsUserCheckable)
+                    # map for uncategorized pages
+                    self.bookmark_items_map[page_num] = bookmark_item
 
                     added_pages.add(page_num)
 
@@ -1012,30 +1016,39 @@ class HandlerDialog(QDialog):
 
                         page_item = QTreeWidgetItem(bookmark_item, [page_title])
                         page_item.setData(0, Qt.UserRole, page_id)
-                        page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
-                        page_item.setCheckState(
-                            0,
-                            (
-                                Qt.Checked
-                                if page_id in self.checked_chapters
-                                else Qt.Unchecked
-                            ),
-                        )
+                        # only allow checking if this sub-page has content
+                        if self.content_lengths.get(page_id, 0) > 0:
+                            page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
+                            page_item.setCheckState(0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked)
+                        else:
+                            page_item.setFlags(page_item.flags() & ~Qt.ItemIsUserCheckable)
 
                         added_pages.add(sub_page_num)
-
-                    if len(entry) > 3 and isinstance(entry[3], list):
-                        build_outline_tree(entry[3], bookmark_item)
 
         build_outline_tree(outline, self.treeWidget)
 
         covered_pages = set(added_pages)
-
-        uncategorized_pages = [
-            i for i in range(len(self.pdf_doc)) if i not in covered_pages
-        ]
-        if uncategorized_pages:
-            self._add_other_pages(uncategorized_pages)
+        # attach any pages without direct bookmarks under nearest preceding chapter
+        uncategorized_pages = [i for i in range(len(self.pdf_doc)) if i not in covered_pages]
+        for page_num in uncategorized_pages:
+            # find nearest previous bookmark
+            prev_nums = [n for n in sorted(self.bookmark_items_map) if n < page_num]
+            parent_item = self.bookmark_items_map[prev_nums[-1]] if prev_nums else self.treeWidget
+            page_id = f"page_{page_num+1}"
+            title = f"Page {page_num+1}"
+            text = self.content_texts.get(page_id, "").strip()
+            if text:
+                first = text.split("\n", 1)[0].strip()
+                if first and len(first) < 100:
+                    title += f" - {first}"
+            page_item = QTreeWidgetItem(parent_item, [title])
+            page_item.setData(0, Qt.UserRole, page_id)
+            # only allow checking if uncategorized page has content
+            if self.content_lengths.get(page_id, 0) > 0:
+                page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
+                page_item.setCheckState(0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked)
+            else:
+                page_item.setFlags(page_item.flags() & ~Qt.ItemIsUserCheckable)
 
     def _build_pdf_pages_tree(self):
         pages_item = QTreeWidgetItem(self.treeWidget, ["Pages"])
@@ -1056,34 +1069,12 @@ class HandlerDialog(QDialog):
 
             page_item = QTreeWidgetItem(pages_item, [page_title])
             page_item.setData(0, Qt.UserRole, page_id)
-            page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
-            page_item.setCheckState(
-                0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked
-            )
-
-    def _add_other_pages(self, uncategorized_pages):
-        other_pages = QTreeWidgetItem(self.treeWidget, ["Other Pages"])
-        other_pages.setFlags(other_pages.flags() & ~Qt.ItemIsUserCheckable)
-        font = other_pages.font(0)
-        font.setBold(True)
-        other_pages.setFont(0, font)
-
-        for page_num in uncategorized_pages:
-            page_id = f"page_{page_num+1}"
-            page_title = f"Page {page_num+1}"
-
-            page_text = self.content_texts.get(page_id, "").strip()
-            if page_text:
-                first_line = page_text.split("\n", 1)[0].strip()
-                if first_line and len(first_line) < 100:
-                    page_title += f" - {first_line}"
-
-            page_item = QTreeWidgetItem(other_pages, [page_title])
-            page_item.setData(0, Qt.UserRole, page_id)
-            page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
-            page_item.setCheckState(
-                0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked
-            )
+            # only allow checking if standalone page has content
+            if self.content_lengths.get(page_id, 0) > 0:
+                page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
+                page_item.setCheckState(0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked)
+            else:
+                page_item.setFlags(page_item.flags() & ~Qt.ItemIsUserCheckable)
 
     def _are_provided_checks_relevant(self):
         if not self.checked_chapters:

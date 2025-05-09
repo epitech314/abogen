@@ -3,6 +3,7 @@
 - Ignore chapter markers and single newlines when calculating text length, improving the accuracy of the text length calculation.
 - Prevent cancellation if process is at 99%, ensuring the process is not interrupted at the last moment.
 - Improved process handling for subpprocess calls, ensuring better management of subprocesses.
+- Improved PDF handling, ignoring empty pages/chapters and better chapter handling.
 - Added `.opus` as output format for generated audio files.
 - Added "Playing..." indicator for "Preview" button in the voice mixer.
 
