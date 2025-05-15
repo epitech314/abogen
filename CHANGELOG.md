@@ -1,3 +1,7 @@
+# v1.0.8 (pre-release)
+- Improved input box background color handling, fixed display issues in Linux Wayland.
+- Better sleep state handling for Linux.
+
 # v1.0.7
 - Improve chaptered audio generation by outputting directly as `m4b` instead of converting from `wav`.
 - Ignore chapter markers and single newlines when calculating text length, improving the accuracy of the text length calculation.

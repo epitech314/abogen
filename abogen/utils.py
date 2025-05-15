@@ -227,29 +227,26 @@ def prevent_sleep_start():
     system = platform.system()
     if system == "Windows":
         import ctypes
-
         ctypes.windll.kernel32.SetThreadExecutionState(
             0x80000000 | 0x00000001 | 0x00000040
-        )  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED
+        )
     elif system == "Darwin":
-        _sleep_procs["Darwin"] = create_process("caffeinate")
+        _sleep_procs["Darwin"] = create_process(["caffeinate"])
     elif system == "Linux":
-        try:
-            _sleep_procs["Linux"] = create_process(
-                "systemd-inhibit --what=sleep --why=TextToAudiobook conversion sleep 999999"
-            )
-        except Exception:
-            try:
-                create_process("xdg-screensaver reset")
-            except Exception:
-                pass
+        # use a sleep that never exits so inhibition stays active
+        _sleep_procs["Linux"] = create_process([
+            "systemd-inhibit",
+            "--what=handle-lid-switch:sleep",
+            "--mode=block",
+            "sleep",
+            "infinity",
+        ])
 
 
 def prevent_sleep_end():
     system = platform.system()
     if system == "Windows":
         import ctypes
-
         ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)  # ES_CONTINUOUS
     elif system in ("Darwin", "Linux") and _sleep_procs[system]:
         try:
