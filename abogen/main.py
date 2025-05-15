@@ -48,6 +48,13 @@ def main():
     if icon_path:
         app.setWindowIcon(QIcon(icon_path))
 
+    # Set the .desktop name on Linux
+    if platform.system() == "Linux":
+        try:
+            app.setDesktopFileName("abogen.desktop")
+        except AttributeError:
+            pass
+
     ex = abogen()
     ex.show()
     sys.exit(app.exec_())
