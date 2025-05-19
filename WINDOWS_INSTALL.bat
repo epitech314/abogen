@@ -263,21 +263,31 @@ if "%MISAKI_LANG%" NEQ "en" (
     )
 )
 
+:: Check GPU vendor
+echo Checking GPU vendor...
+set GPU_VENDOR=unknown
+for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from abogen.utils import get_gpu_vendor; print(get_gpu_vendor())"') do set GPU_VENDOR=%%i
+echo GPU Vendor: %GPU_VENDOR%
+
 :: Check if torch is installed with CUDA support
 echo Checking CUDA availability...
-for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from torch.cuda import is_available; print(is_available())"') do set cuda_available=%%i
+if /I "%GPU_VENDOR%"=="nvidia" (
+    for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from torch.cuda import is_available; print(is_available())"') do set cuda_available=%%i
 
-if "%cuda_available%"=="False" (
-    echo Installing PyTorch with CUDA %CUDA_VERSION% support...
-    %PYTHON_CONSOLE_PATH% -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu%CUDA_VERSION% --no-warn-script-location
-    echo.
-    if errorlevel 1 (
-        echo Failed to install PyTorch.
-        pause
-        exit /b
+    if "%cuda_available%"=="False" (
+        echo Installing PyTorch with CUDA %CUDA_VERSION% support...
+        %PYTHON_CONSOLE_PATH% -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu%CUDA_VERSION% --no-warn-script-location
+        echo.
+        if errorlevel 1 (
+            echo Failed to install PyTorch.
+            pause
+            exit /b
+        )
+    ) else (
+        echo CUDA is available on NVIDIA GPU.
     )
 ) else (
-    echo CUDA is available.
+    echo Non-NVIDIA GPU detected (%GPU_VENDOR%). Skipping PyTorch CUDA installation.
 )
 
 :: Ask user if they want to create a desktop shortcut
