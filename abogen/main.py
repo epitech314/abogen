@@ -10,6 +10,10 @@ from gui import abogen
 from utils import get_resource_path
 from constants import PROGRAM_NAME, VERSION
 
+# Set environment variables for AMD ROCm
+os.environ["MIOPEN_FIND_MODE"] = "FAST"
+os.environ["MIOPEN_CONV_PRECISE_ROCM_TUNING"] = "0"
+
 # Ensure sys.stdout and sys.stderr are valid in GUI mode
 if sys.stdout is None:
     sys.stdout = open(os.devnull, "w")

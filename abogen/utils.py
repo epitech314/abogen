@@ -105,7 +105,7 @@ def clean_text(text, *args, **kwargs):
 
 default_encoding = sys.getfilesystemencoding()
 
-def create_process(cmd, stdin=None, text=True):
+def create_process(cmd, stdin=None, text=True, capture_output=False):
     import logging
     logger = logging.getLogger(__name__)
     
@@ -154,8 +154,8 @@ def create_process(cmd, stdin=None, text=True):
     
     proc = subprocess.Popen(cmd, **kwargs)
     
-    # Stream output to console in real-time
-    if proc.stdout:
+    # Stream output to console in real-time if not capturing
+    if proc.stdout and not capture_output:
         def _stream_output(stream):
             if text:
                 # For text mode, read character by character for real-time output
@@ -210,6 +210,33 @@ def calculate_text_length(text):
     # Calculate character count
     char_count = len(cleaned_text)
     return char_count
+
+
+def get_gpu_vendor():
+    os_name = platform.system()
+    cmd = None
+    if os_name == "Windows":
+        cmd = "wmic path win32_VideoController get name"
+    elif os_name == "Linux":
+        cmd = "lspci | grep -i 'vga\\|3d\\|display'"
+    
+    if cmd:
+        try:
+            # Call create_process with capture_output=True
+            proc = create_process(cmd, text=True, capture_output=True)
+            output, _ = proc.communicate(timeout=5) # Add a timeout
+            if proc.returncode == 0 and output:
+                output_lower = output.lower()
+                if "nvidia" in output_lower:
+                    print("GPU Vendor: NVIDIA")
+                    return "nvidia"
+                elif "amd" in output_lower or "radeon" in output_lower:
+                    print("GPU Vendor: AMD")
+                    return "amd"
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception): # Catch more specific exceptions
+            # Log error or handle as appropriate
+            return "unknown" # Fallback in case of any error
+    return "unknown"
 
 
 def get_gpu_acceleration(enabled):
