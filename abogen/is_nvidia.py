@@ -1,7 +1,11 @@
 import gpustat
 
 def check():
-    stats = gpustat.new_query()
+    try:
+        stats = gpustat.new_query()
+    except Exception:
+        return False
+
     for gpu in stats.gpus:
         print(gpu.name)
         if 'nvidia' in gpu.name.lower():
