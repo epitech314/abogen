@@ -230,9 +230,18 @@ if errorlevel 1 (
 
 :: Install setup requirements
 echo Installing setup requirements...
-%PYTHON_CONSOLE_PATH% -m pip install --upgrade setuptools wheel sphinx hatchling --no-warn-script-location
+%PYTHON_CONSOLE_PATH% -m pip install --upgrade setuptools setuptools-scm wheel sphinx hatchling --no-warn-script-location
 if errorlevel 1 (
     echo Failed to install setup requirements.
+    pause
+    exit /b
+)
+
+:: Install gpustat
+echo Installing gpustat...
+%PYTHON_CONSOLE_PATH% -m pip install gpustat --no-warn-script-location
+if errorlevel 1 (
+    echo Failed to install gpustat.
     pause
     exit /b
 )
@@ -264,8 +273,7 @@ if "%MISAKI_LANG%" NEQ "en" (
 )
 
 :: Check for NVIDIA GPU via is_nvidia()
-for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from abogen.utils import is_nvidia; print(is_nvidia())"') do set IS_NVIDIA=%%i
-echo NVIDIA GPU detected: %IS_NVIDIA%
+for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from abogen.is_nvidia import check; print(check())"') do set IS_NVIDIA=%%i
 
 :: Check if torch is installed with CUDA support
 echo Checking CUDA availability...

@@ -212,28 +212,6 @@ def calculate_text_length(text):
     return char_count
 
 
-def is_nvidia():
-    try:
-        from torch import cuda # Attempt to import cuda from torch
-        # Check if there are any CUDA-capable devices
-        device_count = cuda.device_count()
-        if device_count == 0:
-            return False
-
-        # Iterate through available devices to find an NVIDIA GPU
-        for i in range(device_count):
-            device_name = cuda.get_device_name(i).lower()
-            print(f"Device {i}: {device_name}")  # Debugging output
-            if 'nvidia' in device_name:
-                return True
-
-        # If loop completes, CUDA devices are present, but none are identified as NVIDIA
-        return False
-    except Exception:
-        # Catch any other exceptions (e.g., CUDA driver issues, unexpected errors)
-        return False
-
-
 def get_gpu_acceleration(enabled):
     from torch.cuda import is_available
 
