@@ -212,31 +212,26 @@ def calculate_text_length(text):
     return char_count
 
 
-def get_gpu_vendor():
-    os_name = platform.system()
-    cmd = None
-    if os_name == "Windows":
-        cmd = "wmic path win32_VideoController get name"
-    elif os_name == "Linux":
-        cmd = "lspci | grep -i 'vga\\|3d\\|display'"
-    
-    if cmd:
-        try:
-            # Call create_process with capture_output=True
-            proc = create_process(cmd, text=True, capture_output=True)
-            output, _ = proc.communicate(timeout=5) # Add a timeout
-            if proc.returncode == 0 and output:
-                output_lower = output.lower()
-                if "nvidia" in output_lower:
-                    print("GPU Vendor: NVIDIA")
-                    return "nvidia"
-                elif "amd" in output_lower or "radeon" in output_lower:
-                    print("GPU Vendor: AMD")
-                    return "amd"
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception): # Catch more specific exceptions
-            # Log error or handle as appropriate
-            return "unknown" # Fallback in case of any error
-    return "unknown"
+def is_nvidia():
+    try:
+        from torch import cuda # Attempt to import cuda from torch
+        # Check if there are any CUDA-capable devices
+        device_count = cuda.device_count()
+        if device_count == 0:
+            return False
+
+        # Iterate through available devices to find an NVIDIA GPU
+        for i in range(device_count):
+            device_name = cuda.get_device_name(i).lower()
+            print(f"Device {i}: {device_name}")  # Debugging output
+            if 'nvidia' in device_name:
+                return True
+
+        # If loop completes, CUDA devices are present, but none are identified as NVIDIA
+        return False
+    except Exception:
+        # Catch any other exceptions (e.g., CUDA driver issues, unexpected errors)
+        return False
 
 
 def get_gpu_acceleration(enabled):
