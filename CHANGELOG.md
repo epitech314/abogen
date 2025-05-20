@@ -1,4 +1,6 @@
 # v1.0.8 (pre-release)
+- Added support for AMD GPUs in Linux (Special thanks to @hg000125 for his contribution in #23)
+- Skipping PyTorch CUDA installation if GPU is not NVIDIA in WINDOWS_INSTALL.bat script, preventing unnecessary installation of PyTorch.
 - Improved input box background color handling, fixed display issues in Linux Wayland.
 - Better sleep state handling for Linux.
 
