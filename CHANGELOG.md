@@ -3,6 +3,7 @@
 - Added extra metadata support for chaptered M4B files, ensuring better compatibility with audiobook players.
 - Added new option: `Separate chapters audio format`, allowing to choose between `wav`, `mp4`, `flac` and `opus` formats for chaptered audio files.
 - Skipping PyTorch CUDA installation if GPU is not NVIDIA in WINDOWS_INSTALL.bat script, preventing unnecessary installation of PyTorch.
+- Removed `abogen_` prefix that was adding to converted books in temp directory.
 - Fixed voice preview player keeps playing silently at the background after preview ends.
 - Fixed not writing separate chapters audio when output is OPUS.
 - Improved input box background color handling, fixed display issues in Linux.

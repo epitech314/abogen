@@ -960,7 +960,7 @@ class abogen(QWidget):
                 os.makedirs(temp_dir, exist_ok=True)
                 
             fd, tmp = tempfile.mkstemp(
-                prefix=f"abogen_{base_name}_", suffix=".txt", dir=temp_dir
+                prefix=f"{base_name}_", suffix=".txt", dir=temp_dir
             )
             os.close(fd)
             with open(tmp, "w", encoding="utf-8") as f:
