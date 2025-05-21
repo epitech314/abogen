@@ -23,6 +23,7 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QMenu,
     QAction,
+    QActionGroup,
 )
 from PyQt5.QtCore import (
     Qt,
@@ -519,6 +520,7 @@ class abogen(QWidget):
             "max_subtitle_words", 50
         )  # Default max words per subtitle
         self.selected_format = self.config.get("selected_format", "wav")
+        self.separate_chapters_format = self.config.get("separate_chapters_format", "wav")  # Format for individual chapter files
         self.use_gpu = self.config.get(
             "use_gpu", True  # Load GPU setting with default True
         )
@@ -1307,6 +1309,8 @@ class abogen(QWidget):
             self.conversion_thread.replace_single_newlines = (
                 self.replace_single_newlines
             )
+            # Pass separate_chapters_format setting
+            self.conversion_thread.separate_chapters_format = self.separate_chapters_format
             # Pass chapter count for EPUB or PDF files
             if self.selected_file_type in ["epub", "pdf"] and hasattr(
                 self, "selected_chapters"
@@ -1620,8 +1624,8 @@ class abogen(QWidget):
                 "Preview Error", "Preview error: No audio generated."
             )
             self.btn_preview.setIcon(self.play_icon)
-            self.btn_preview.setToolTip("Preview selected voice")
             self.btn_preview.setEnabled(True)
+            self.btn_preview.setToolTip("Preview selected voice")
             self.voice_combo.setEnabled(True)
             self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
             self.btn_start.setEnabled(True)
@@ -1804,8 +1808,25 @@ class abogen(QWidget):
         max_words_action = QAction("Configure max words per subtitle", self)
         max_words_action.triggered.connect(self.set_max_subtitle_words)
         menu.addAction(max_words_action)
+        
+        # Add separate chapters format option
+        separate_chapters_format_menu = QMenu("Separate chapters audio format", self)
+        separate_chapters_format_menu.setToolTip("Choose the format for individual chapter files")
+        
+        format_group = QActionGroup(self)
+        format_group.setExclusive(True)
+        
+        for format_option in ["wav", "mp3", "flac", "opus"]:
+            format_action = QAction(format_option, self)
+            format_action.setCheckable(True)
+            format_action.setChecked(self.separate_chapters_format == format_option)
+            format_action.triggered.connect(lambda checked, fmt=format_option: self.set_separate_chapters_format(fmt))
+            format_group.addAction(format_action)
+            separate_chapters_format_menu.addAction(format_action)
+            
+        menu.addMenu(separate_chapters_format_menu)
 
-        # Add seperator
+        # Add separator
         menu.addSeparator()
 
         # Add shortcut to desktop (Windows or Linux)
@@ -2294,4 +2315,10 @@ Categories=AudioVideo;Audio;Utility;
                 "Setting Saved",
                 f"Maximum words per subtitle set to {value}.",
             )
+
+    def set_separate_chapters_format(self, fmt):
+        """Set the format for separate chapters audio files."""
+        self.separate_chapters_format = fmt
+        self.config["separate_chapters_format"] = fmt
+        save_config(self.config)
 

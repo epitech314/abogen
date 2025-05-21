@@ -1,8 +1,10 @@
 # v1.0.8 (pre-release)
 - Added support for AMD GPUs in Linux (Special thanks to @hg000125 for his contribution in #23)
 - Added extra metadata support for chaptered M4B files, ensuring better compatibility with audiobook players.
+- Added new option: `Separate chapters audio format`, allowing to choose between `wav`, `mp4`, `flac` and `opus` formats for chaptered audio files.
 - Skipping PyTorch CUDA installation if GPU is not NVIDIA in WINDOWS_INSTALL.bat script, preventing unnecessary installation of PyTorch.
 - Fixed voice preview player keeps playing silently at the background after preview ends.
+- Fixed not writing separate chapters audio when output is OPUS.
 - Improved input box background color handling, fixed display issues in Linux.
 - Better sleep state handling for Linux.
 - Improvements in documentation and code.

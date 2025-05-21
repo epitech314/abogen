@@ -196,6 +196,9 @@ class ConversionThread(QThread):
                     self.log_updated.emit(
                         f"- Merge chapters at the end: {'Yes' if merge_at_end else 'No'}"
                     )
+                    # Display the separate chapters format if it's set
+                    separate_format = getattr(self, 'separate_chapters_format', 'wav')
+                    self.log_updated.emit(f"- Separate chapters format: {separate_format}")
 
             if self.save_option == "Choose output folder":
                 self.log_updated.emit(
@@ -504,12 +507,14 @@ class ConversionThread(QThread):
 
                     # Concatenate chapter audio and save
                     chapter_audio = self.np.concatenate(chapter_audio_segments)
-                    # Determine chapter extension (.wav for m4b output)
-                    chapter_ext = 'wav' if self.output_format == 'm4b' else self.output_format
+                    
+                    # Use separate_chapters_format
+                    separate_format = getattr(self, 'separate_chapters_format', 'wav')
+                    
                     chapter_out_path = os.path.join(
-                        chapters_out_dir, f"{chapter_filename}.{chapter_ext}"
+                        chapters_out_dir, f"{chapter_filename}.{separate_format}"
                     )
-                    if self.output_format == "opus":
+                    if separate_format == "opus":
                         static_ffmpeg.add_paths()
                         proc = create_process(
                             [
@@ -541,7 +546,7 @@ class ConversionThread(QThread):
                             chapter_out_path,
                             chapter_audio,
                             24000,
-                            format='wav' if self.output_format == 'm4b' else self.output_format,
+                            format=separate_format,
                         )
 
                     # Generate .srt subtitle file for chapter if not Disabled
