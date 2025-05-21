@@ -220,6 +220,10 @@ class ConversionThread(QThread):
 
             # Clean up text using utility function
             text = clean_text(text)
+            
+            # Remove metadata markers from the text to be processed
+            metadata_pattern = r"<<METADATA_[^:]+:[^>]*>>"
+            text = re.sub(metadata_pattern, "", text)
 
             # --- Chapter splitting logic ---
             chapter_pattern = r"<<CHAPTER_MARKER:(.*?)>>"
@@ -511,7 +515,7 @@ class ConversionThread(QThread):
                             [
                                 "ffmpeg",
                                 "-y",
-                                "-thread_queue_size", "1024", # Increased thread_queue_size for chapter opus
+                                "-thread_queue_size", "32768", # Increased thread_queue_size for chapter opus
                                 "-f",
                                 "f32le",
                                 "-ar",
@@ -597,7 +601,7 @@ class ConversionThread(QThread):
                     opus_out_path = f"{base_filepath_no_ext}.opus"
                     ffmpeg_cmd_opus = [
                         "ffmpeg", "-y",
-                        "-thread_queue_size", "1024", # Increased thread_queue_size
+                        "-thread_queue_size", "32768", # Increased thread_queue_size
                         "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:0",
                         "-c:a", "libopus", "-b:a", "24000", # Original bitrate
                         opus_out_path,
@@ -701,13 +705,20 @@ class ConversionThread(QThread):
             static_ffmpeg.add_paths()
             ffmpeg_cmd = [
                 "ffmpeg", "-y",
-                "-thread_queue_size", "1024", # Increased thread_queue_size
+                "-thread_queue_size", "32768", # Increased thread_queue_size
                 "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:0",
                 "-i", chapters_info_path,
                 "-map", "0:a",
                 "-map_metadata", "1", 
                 "-map_chapters", "1",
-                "-c:a", "aac", "-b:a", "128k", # Explicitly AAC with a common bitrate
+                # Add metadata tags
+                "-metadata", "composer=Narrator",
+                "-metadata", "genre=Audiobook",
+                # Extract metadata from text markers if available
+                *self._extract_and_add_metadata_tags_to_ffmpeg_cmd(),
+                "-c:a", "aac",
+                "-q:a", "2", # Quality-based VBR for better quality control (lower = better, range 0.1-2)
+                "-movflags", "+faststart+use_metadata_tags",  # Added for better compatibility
                 output_m4b_path,
             ]
 
@@ -741,6 +752,69 @@ class ConversionThread(QThread):
                     os.remove(chapters_info_path)
                 except Exception as e_clean:
                     self.log_updated.emit((f"Warning: Could not delete temporary chapter file {chapters_info_path}: {e_clean}", "orange"))
+
+    def _extract_and_add_metadata_tags_to_ffmpeg_cmd(self):
+        """Extract metadata tags from text content and add them to ffmpeg command"""
+        metadata_options = []
+        
+        # Get the input text (either direct or from file)
+        text = ""
+        if self.is_direct_text:
+            text = self.file_name
+        else:
+            try:
+                encoding = detect_encoding(self.file_name)
+                with open(self.file_name, "r", encoding=encoding, errors="replace") as file:
+                    text = file.read()
+            except Exception as e:
+                self.log_updated.emit(f"Warning: Could not read file for metadata extraction: {e}")
+                return []
+                
+        # Extract metadata tags using regex
+        title_match = re.search(r"<<METADATA_TITLE:([^>]*)>>", text)
+        artist_match = re.search(r"<<METADATA_ARTIST:([^>]*)>>", text) 
+        album_match = re.search(r"<<METADATA_ALBUM:([^>]*)>>", text)
+        year_match = re.search(r"<<METADATA_YEAR:([^>]*)>>", text)
+        album_artist_match = re.search(r"<<METADATA_ALBUM_ARTIST:([^>]*)>>", text)
+        
+        # Use display path or filename as fallback for title
+        filename = os.path.splitext(os.path.basename(self.display_path if self.display_path else self.file_name))[0]
+        
+        # Add title metadata
+        if title_match:
+            metadata_options.extend(["-metadata", f"title=Dinginliğin Gücü"])
+        else:
+            metadata_options.extend(["-metadata", f"title={filename}"])
+            
+        # Add artist metadata
+        if artist_match:
+            metadata_options.extend(["-metadata", f"artist={artist_match.group(1)}"])
+        else:
+            metadata_options.extend(["-metadata", f"artist=Unknown"])
+            
+        # Add album metadata
+        if album_match:
+            metadata_options.extend(["-metadata", f"album={album_match.group(1)}"])
+        else:
+            metadata_options.extend(["-metadata", f"album={filename}"])
+            
+        # Add year metadata
+        if year_match:
+            metadata_options.extend(["-metadata", f"date={year_match.group(1)}"])
+        else:
+            # Use current year if year is not specified
+            import datetime
+            current_year = datetime.datetime.now().year
+            metadata_options.extend(["-metadata", f"date={current_year}"])
+
+        # Add album artist metadata
+        if album_artist_match:
+            metadata_options.extend(["-metadata", f"album_artist={album_artist_match.group(1)}"])
+        else:
+            metadata_options.extend(["-metadata", f"album_artist=Unknown"])
+            
+        # Add these to ffmpeg command
+        return metadata_options
 
     def _srt_time(self, t):
         """Helper function to format time for SRT files"""

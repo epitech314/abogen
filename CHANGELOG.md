@@ -1,9 +1,11 @@
 # v1.0.8 (pre-release)
 - Added support for AMD GPUs in Linux (Special thanks to @hg000125 for his contribution in #23)
+- Added extra metadata support for chaptered M4B files, ensuring better compatibility with audiobook players.
 - Skipping PyTorch CUDA installation if GPU is not NVIDIA in WINDOWS_INSTALL.bat script, preventing unnecessary installation of PyTorch.
-- Fixed voice preview player keeps open at the background after stopping the preview.
-- Improved input box background color handling, fixed display issues in Linux Wayland.
+- Fixed voice preview player keeps playing silently at the background after preview ends.
+- Improved input box background color handling, fixed display issues in Linux.
 - Better sleep state handling for Linux.
+- Improvements in documentation and code.
 
 # v1.0.7
 - Improve chaptered audio generation by outputting directly as `m4b` instead of converting from `wav`.

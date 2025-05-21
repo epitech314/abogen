@@ -938,10 +938,12 @@ class abogen(QWidget):
                             title = re.sub(r'<[^>]+>', '', str(dialog.book_metadata.get('title', 'Unknown')))
                             publisher = re.sub(r'<[^>]+>', '', str(dialog.book_metadata.get('publisher', 'Unknown')))
                             authors = [re.sub(r'<[^>]+>', '', str(author)) for author in dialog.book_metadata.get('authors', ['Unknown'])]
+                            publication_year = re.sub(r'<[^>]+>', '', str(dialog.book_metadata.get('publication_year', 'Unknown')))
                             
                             f.write(f"Title: {title}\n")
                             f.write(f"Authors: {', '.join(authors)}\n")
                             f.write(f"Publisher: {publisher}\n")
+                            f.write(f"Publication Year: {publication_year}\n")
                             if dialog.book_metadata.get('description'):
                                 description = re.sub(r'<[^>]+>', '', str(dialog.book_metadata.get('description')))
                                 f.write(f"\nDescription:\n{description}\n")

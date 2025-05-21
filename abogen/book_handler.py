@@ -1494,8 +1494,13 @@ class HandlerDialog(QDialog):
             authors_text = ", ".join(self.book_metadata["authors"])
             html_content += f"<p style='text-align: center; font-style: italic;'>By {authors_text}</p>"
 
-        if self.book_metadata["publisher"]:
-            html_content += f"<p style='text-align: center;'>Published by {self.book_metadata['publisher']}</p>"
+        if self.book_metadata["publisher"] or self.book_metadata.get("publication_year"):
+            pub_info = []
+            if self.book_metadata["publisher"]:
+                pub_info.append(f"Published by {self.book_metadata['publisher']}")
+            if self.book_metadata.get("publication_year"):
+                pub_info.append(f"Year: {self.book_metadata['publication_year']}")
+            html_content += f"<p style='text-align: center;'>{' | '.join(pub_info)}</p>"
 
         html_content += "<hr/>"
 
@@ -1517,24 +1522,51 @@ class HandlerDialog(QDialog):
             "description": None,
             "cover_image": None,
             "publisher": None,
+            "publication_year": None,
         }
 
         if self.file_type == "epub":
-            title_items = self.book.get_metadata("DC", "title")
-            if title_items:
-                metadata["title"] = title_items[0][0]
+            try:
+                title_items = self.book.get_metadata("DC", "title")
+                if title_items and len(title_items) > 0:
+                    metadata["title"] = title_items[0][0]
+            except Exception as e:
+                logging.warning(f"Error extracting title metadata: {e}")
 
-            author_items = self.book.get_metadata("DC", "creator")
-            if author_items:
-                metadata["authors"] = [author[0] for author in author_items]
+            try:
+                author_items = self.book.get_metadata("DC", "creator")
+                if author_items:
+                    metadata["authors"] = [author[0] for author in author_items if len(author) > 0]
+            except Exception as e:
+                logging.warning(f"Error extracting author metadata: {e}")
 
-            desc_items = self.book.get_metadata("DC", "description")
-            if desc_items:
-                metadata["description"] = desc_items[0][0]
+            try:
+                desc_items = self.book.get_metadata("DC", "description")
+                if desc_items and len(desc_items) > 0:
+                    metadata["description"] = desc_items[0][0]
+            except Exception as e:
+                logging.warning(f"Error extracting description metadata: {e}")
 
-            publisher_items = self.book.get_metadata("DC", "publisher")
-            if publisher_items:
-                metadata["publisher"] = publisher_items[0][0]
+            try:
+                publisher_items = self.book.get_metadata("DC", "publisher")
+                if publisher_items and len(publisher_items) > 0:
+                    metadata["publisher"] = publisher_items[0][0]
+            except Exception as e:
+                logging.warning(f"Error extracting publisher metadata: {e}")
+                
+            # Try to extract publication year
+            try:
+                date_items = self.book.get_metadata("DC", "date")
+                if date_items and len(date_items) > 0:
+                    date_str = date_items[0][0]
+                    # Try to extract just the year from the date string
+                    year_match = re.search(r'\b(19|20)\d{2}\b', date_str)
+                    if year_match:
+                        metadata["publication_year"] = year_match.group(0)
+                    else:
+                        metadata["publication_year"] = date_str
+            except Exception as e:
+                logging.warning(f"Error extracting publication date metadata: {e}")
 
             for item in self.book.get_items_of_type(ebooklib.ITEM_COVER):
                 metadata["cover_image"] = item.get_content()
@@ -1564,6 +1596,18 @@ class HandlerDialog(QDialog):
                         metadata["description"] = f"Keywords: {keywords}"
 
                 metadata["publisher"] = pdf_info.get("creator", None)
+                
+                # Try to extract publication date from PDF metadata
+                if "creationDate" in pdf_info:
+                    date_str = pdf_info["creationDate"]
+                    year_match = re.search(r'D:(\d{4})', date_str)
+                    if year_match:
+                        metadata["publication_year"] = year_match.group(1)
+                elif "modDate" in pdf_info:
+                    date_str = pdf_info["modDate"]
+                    year_match = re.search(r'D:(\d{4})', date_str)
+                    if year_match:
+                        metadata["publication_year"] = year_match.group(1)
 
             if len(self.pdf_doc) > 0:
                 try:
@@ -1580,10 +1624,43 @@ class HandlerDialog(QDialog):
         else:
             return self._get_pdf_selected_text()
 
+    def _format_metadata_tags(self):
+        """Format metadata tags for insertion at the beginning of the text"""
+        import datetime
+        
+        metadata = self.book_metadata
+        filename = os.path.splitext(os.path.basename(self.book_path))[0]
+        current_year = str(datetime.datetime.now().year)
+        
+        # Get values with fallbacks
+        title = metadata.get("title") or filename
+        authors = metadata.get("authors") or ["Unknown"]
+        authors_text = ", ".join(authors)
+        album_artist = authors_text or "Unknown"
+        year = metadata.get("publication_year") or current_year  # Use publication year if available
+        
+        # Count chapters/pages
+        total_chapters = len(self.checked_chapters)
+        chapter_text = f"{total_chapters} {'Chapters' if self.file_type == 'epub' else 'Pages'}"
+        
+        # Format metadata tags
+        metadata_tags = [
+            f"<<METADATA_TITLE:{title}>>",
+            f"<<METADATA_ARTIST:{authors_text}>>",
+            f"<<METADATA_ALBUM:{title} ({chapter_text})>>",
+            f"<<METADATA_YEAR:{year}>>",
+            f"<<METADATA_ALBUM_ARTIST:{album_artist}>>"
+        ]
+        
+        return "\n".join(metadata_tags)
+
     def _get_epub_selected_text(self):
         all_checked_identifiers = set()
         chapter_texts = []
 
+        # Add metadata tags at the beginning
+        metadata_tags = self._format_metadata_tags()
+        
         item_order_counter = 0
         ordered_checked_items = []
 
@@ -1608,7 +1685,7 @@ class HandlerDialog(QDialog):
                 marker = f"<<CHAPTER_MARKER:{title}>>"
                 chapter_texts.append(marker + "\n" + text)
 
-        full_text = "\n\n".join(chapter_texts)
+        full_text = metadata_tags + "\n\n" + "\n\n".join(chapter_texts)
         return full_text, all_checked_identifiers
 
     def _get_pdf_selected_text(self):
@@ -1616,6 +1693,9 @@ class HandlerDialog(QDialog):
         included_text_ids = set()
         section_titles = []
         all_content = []
+
+        # Add metadata tags at the beginning
+        metadata_tags = self._format_metadata_tags()
 
         pdf_has_no_bookmarks = (
             hasattr(self, "has_pdf_bookmarks") and not self.has_pdf_bookmarks
@@ -1641,7 +1721,7 @@ class HandlerDialog(QDialog):
                     if text:
                         all_content.append(text)
                         included_text_ids.add(page_id)
-            return "\n\n".join(all_content), all_checked_identifiers
+            return metadata_tags + "\n\n" + "\n\n".join(all_content), all_checked_identifiers
 
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
@@ -1699,7 +1779,7 @@ class HandlerDialog(QDialog):
                         included_text_ids.add(identifier)
             iterator += 1
 
-        return "\n\n".join([t[1] for t in section_titles]), all_checked_identifiers
+        return metadata_tags + "\n\n" + "\n\n".join([t[1] for t in section_titles]), all_checked_identifiers
 
     def on_save_chapters_changed(self, state):
         self.save_chapters_separately = bool(state)
