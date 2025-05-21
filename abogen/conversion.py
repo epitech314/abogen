@@ -4,6 +4,7 @@ import tempfile
 import time
 import chardet
 import charset_normalizer
+import hashlib  # For generating unique cache filenames
 from platformdirs import user_desktop_dir
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
@@ -943,11 +944,32 @@ class VoicePreviewThread(QThread):
         self.voice = voice
         self.speed = speed
         self.use_gpu = use_gpu
+        
+        # Cache location for preview audio
+        self.cache_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME, "preview_cache")
+        os.makedirs(self.cache_dir, exist_ok=True)
+        
+        # Calculate cache path
+        self.cache_path = self._get_cache_path()
+
+    def _get_cache_path(self):
+        """Generate a unique filename for the voice with its parameters"""
+        # For a voice formula, use a hash of the formula
+        if "*" in self.voice:
+            voice_id = f"voice_formula_{hashlib.md5(self.voice.encode()).hexdigest()[:8]}"
+        else:
+            voice_id = self.voice
+            
+        # Create a unique filename based on voice_id, language, and speed
+        filename = f"{voice_id}_{self.lang_code}_{self.speed:.2f}.wav"
+        return os.path.join(self.cache_dir, filename)
 
     def run(self):
         print(
             f"\nVoice: {self.voice}\nLanguage: {self.lang_code}\nSpeed: {self.speed}\nGPU: {self.use_gpu}\n"
         )
+        
+        # Generate the preview and save to cache
         try:
             device = "cuda" if self.use_gpu else "cpu"
             tts = self.kpipeline_class(
@@ -966,15 +988,9 @@ class VoicePreviewThread(QThread):
                 audio_segments.append(result.audio)
             if audio_segments:
                 audio = self.np_module.concatenate(audio_segments)
-                # Create temp wav file in a folder in the system temp directory
-                temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
-                os.makedirs(temp_dir, exist_ok=True)
-                fd, temp_path = tempfile.mkstemp(
-                    prefix="abogen_", suffix=".wav", dir=temp_dir
-                )
-                os.close(fd)
-                sf.write(temp_path, audio, 24000)
-                self.temp_wav = temp_path
+                # Save directly to the cache path
+                sf.write(self.cache_path, audio, 24000)
+                self.temp_wav = self.cache_path
             self.finished.emit()
         except Exception as e:
             self.error.emit(f"Voice preview error: {str(e)}")

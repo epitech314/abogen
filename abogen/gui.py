@@ -4,6 +4,7 @@ import tempfile
 import platform
 import base64
 import re
+import hashlib  # Added for cache path generation
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -679,6 +680,7 @@ class abogen(QWidget):
         self.btn_preview.clicked.connect(self.preview_voice)
         voice_row.addWidget(self.btn_preview)
         self.preview_playing = False
+        self.play_audio_thread = None  # Keep track of audio playing thread
         voice_layout.addLayout(voice_row)
         controls_layout.addLayout(voice_layout)
         # Subtitle mode
@@ -1524,20 +1526,106 @@ class abogen(QWidget):
                 "Open File Error", f"Could not open file:\n{e}"
             )
 
+    def _get_preview_cache_path(self):
+        """Generate the expected cache path for the current voice settings."""
+        speed = self.speed_slider.value() / 100.0
+        voice_to_cache = ""
+        lang_to_cache = ""
+
+        if self.mixed_voice_state:
+            components = [f"{name}*{weight}" for name, weight in self.mixed_voice_state]
+            voice_formula = " + ".join(filter(None, components))
+            voice_to_cache = voice_formula
+            if self.selected_profile_name:
+                from voice_profiles import load_profiles
+                entry = load_profiles().get(self.selected_profile_name, {})
+                lang_to_cache = entry.get("language")
+            else:
+                lang_to_cache = self.selected_lang
+            if not lang_to_cache and self.mixed_voice_state:
+                lang_to_cache = (
+                    self.mixed_voice_state[0][0][0]
+                    if self.mixed_voice_state and self.mixed_voice_state[0][0]
+                    else None
+                )
+        elif self.selected_voice:
+            lang_to_cache = self.selected_voice[0]
+            voice_to_cache = self.selected_voice
+        else:  # No voice or profile selected
+            return None
+
+        if not lang_to_cache or not voice_to_cache:  # Not enough info
+            return None
+
+        cache_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME, "preview_cache")
+        
+        if "*" in voice_to_cache:  # Voice formula
+            voice_id = f"voice_formula_{hashlib.md5(voice_to_cache.encode()).hexdigest()[:8]}"
+        else:  # Single voice
+            voice_id = voice_to_cache
+            
+        filename = f"{voice_id}_{lang_to_cache}_{speed:.2f}.wav"
+        return os.path.join(cache_dir, filename)
+
     def preview_voice(self):
         if self.preview_playing:
             try:
-                import pygame
-
-                pygame.mixer.music.stop()
-            except Exception:
-                pass
+                if self.play_audio_thread and self.play_audio_thread.isRunning():
+                    # Attempt to stop pygame mixer if it's in use by PlayAudioThread
+                    # This is a bit indirect, ideally PlayAudioThread would have a stop method
+                    import pygame
+                    if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
+                        pygame.mixer.music.stop()
+                        pygame.mixer.music.unload()  # Ensure it's unloaded
+                        pygame.mixer.quit()  # Quit the mixer
+                    self.play_audio_thread.quit()  # Ask thread to finish
+                    self.play_audio_thread.wait(500)  # Wait a bit
+            except Exception as e:
+                print(f"Error stopping preview audio: {e}")
             self._preview_cleanup()
             return
 
         if hasattr(self, "preview_thread") and self.preview_thread.isRunning():
             return
 
+        # Check for cache first
+        cached_path = self._get_preview_cache_path()
+        if cached_path and os.path.exists(cached_path):
+            print(f"Cache hit for {cached_path}")
+            self.btn_preview.setEnabled(False)  # Disable button briefly
+            self.voice_combo.setEnabled(False)
+            self.btn_voice_formula_mixer.setEnabled(False)
+            self.btn_start.setEnabled(False)
+            
+            # Directly play from cache
+            self.preview_playing = True
+            self.btn_preview.setIcon(self.stop_icon)
+            self.btn_preview.setToolTip("Stop preview")
+            self.btn_preview.setEnabled(True)
+
+            def cleanup_cached_play():
+                self._preview_cleanup()
+
+            try:
+                # Ensure pygame mixer is initialized for the audio thread
+                import pygame
+                if not pygame.mixer.get_init():
+                    pygame.mixer.init()
+
+                self.play_audio_thread = PlayAudioThread(cached_path)
+                self.play_audio_thread.finished.connect(cleanup_cached_play)
+                self.play_audio_thread.error.connect(
+                    lambda msg: (self._show_preview_error_box(msg), cleanup_cached_play())
+                )
+                self.play_audio_thread.start()
+            except Exception as e:
+                self._show_error_message_box(
+                    "Preview Error", f"Could not play cached preview audio:\n{e}"
+                )
+                cleanup_cached_play()
+            return
+
+        # If no cache hit, proceed to load pipeline and generate
         self.btn_preview.setEnabled(False)
         self.btn_preview.setToolTip("Loading...")
         self.voice_combo.setEnabled(False)
@@ -1615,42 +1703,60 @@ class abogen(QWidget):
         self.preview_thread.error.connect(self._preview_error)
         self.preview_thread.start()
 
-    def _play_preview_audio(self):
-        temp_wav = self.preview_thread.temp_wav
-        if not temp_wav:
-            self.loading_movie.stop()
+    def _play_preview_audio(self, from_cache=True):  # from_cache default is now False
+        # If preview_thread is the source, get temp_wav from it
+        if hasattr(self, 'preview_thread') and not from_cache:
+            temp_wav = self.preview_thread.temp_wav
+        elif from_cache:  # This case is now handled before calling _play_preview_audio
+            cached_path = self._get_preview_cache_path()
+            if cached_path and os.path.exists(cached_path):
+                temp_wav = cached_path
+            else:  # Should not happen if cache check was done
+                self._show_error_message_box("Preview Error", "Cache file expected but not found.")
+                self._preview_cleanup()
+                return
+        else:  # Should have temp_wav from preview_thread or handled by cache check
+            self._show_error_message_box("Preview Error", "Preview audio path not found.")
+            self._preview_cleanup()
+            return
 
+        if not temp_wav:
+            if hasattr(self, 'loading_movie'): self.loading_movie.stop()
             self._show_error_message_box(
                 "Preview Error", "Preview error: No audio generated."
             )
-            self.btn_preview.setIcon(self.play_icon)
-            self.btn_preview.setEnabled(True)
-            self.btn_preview.setToolTip("Preview selected voice")
-            self.voice_combo.setEnabled(True)
-            self.btn_voice_formula_mixer.setEnabled(True)  # Re-enable mixer button
-            self.btn_start.setEnabled(True)
+            self._preview_cleanup()
             return
+            
         # stop loading animation, switch to stop icon
-        self.loading_movie.stop()
+        if hasattr(self, 'loading_movie'): self.loading_movie.stop()
         self.preview_playing = True
         self.btn_preview.setIcon(self.stop_icon)
         self.btn_preview.setToolTip("Stop preview")
         self.btn_preview.setEnabled(True)
 
         def cleanup():
-            try:
-                os.remove(temp_wav)
-            except Exception:
-                pass
+            # Only remove if not from cache AND it's a temp file from VoicePreviewThread
+            if not from_cache and hasattr(self, 'preview_thread') and hasattr(self.preview_thread, 'temp_wav') and self.preview_thread.temp_wav == temp_wav:
+                try:
+                    if os.path.exists(temp_wav):  # Ensure it exists before trying to remove
+                        os.remove(temp_wav)
+                except Exception:
+                    pass
             self._preview_cleanup()
 
         try:
-            self.audio_thread = PlayAudioThread(temp_wav)
-            self.audio_thread.finished.connect(cleanup)
-            self.audio_thread.error.connect(
+            # Ensure pygame mixer is initialized for the audio thread
+            import pygame
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+
+            self.play_audio_thread = PlayAudioThread(temp_wav)
+            self.play_audio_thread.finished.connect(cleanup)
+            self.play_audio_thread.error.connect(
                 lambda msg: (self._show_preview_error_box(msg), cleanup())
             )
-            self.audio_thread.start()
+            self.play_audio_thread.start()
         except Exception as e:
             self._show_error_message_box(
                 "Preview Error", f"Could not play preview audio:\n{e}"
@@ -1673,9 +1779,9 @@ class abogen(QWidget):
 
     def _preview_cleanup(self):
         self.preview_playing = False
-        self.loading_movie.stop()
+        if hasattr(self, 'loading_movie'): self.loading_movie.stop()
         try:
-            self.loading_movie.frameChanged.disconnect()
+            if hasattr(self, 'loading_movie'): self.loading_movie.frameChanged.disconnect()
         except Exception:
             pass  # Ignore error if not connected
         self.btn_preview.setIcon(self.play_icon)
