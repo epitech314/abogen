@@ -919,8 +919,9 @@ class PlayAudioThread(QThread):
             pygame.mixer.music.play()
             # Wait until playback is finished
             while pygame.mixer.music.get_busy():
-                _time.sleep(0.1)
+                _time.sleep(0.2)
             pygame.mixer.music.unload()
+            pygame.mixer.quit()  # Quit the mixer
             self.finished.emit()
         except Exception as e:
             self.error.emit(f"Audio playback error: {str(e)}")
