@@ -8,6 +8,7 @@
 - Fixed voice preview player keeps playing silently at the background after preview ends.
 - Fixed not writing separate chapters audio when output is OPUS.
 - Improved input box background color handling, fixed display issues in Linux.
+- Updated profile and voice mixer icons, better visibility and aesthetics in voice mixer.
 - Better sleep state handling for Linux.
 - Improvements in documentation and code.
 

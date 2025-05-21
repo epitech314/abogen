@@ -264,12 +264,10 @@ class HoverLabel(QLabel):
         self.voice_name = voice_name
         self.setMouseTracking(True)
         self.setStyleSheet(
-            "background-color: #e0e0e0; border-radius: 4px; padding: 3px 6px 3px 6px; margin: 2px;"
+            "background-color: rgba(140, 140, 140, 0.15); border-radius: 4px; padding: 3px 6px 3px 6px; margin: 2px;"
         )
 
         # Create delete button
-        self.delete_button = QPushButton("×", self)
-        self.delete_button.setFixedSize(16, 16)
         self.delete_button = QPushButton("×", self)
         self.delete_button.setFixedSize(16, 16)
         self.delete_button.setStyleSheet(
@@ -734,7 +732,7 @@ class VoiceFormulaDialog(QDialog):
                 percentage = weight / total * 100
                 # Make the voice name bold and include percentage
                 voice_label = HoverLabel(
-                    f'<b><span style="color:#1976d2">{name}: {percentage:.1f}%</span></b>',
+                    f'<b><span style="color:#007dff">{name}: {percentage:.1f}%</span></b>',
                     name,
                 )
                 voice_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -1326,10 +1324,16 @@ class VoiceFormulaDialog(QDialog):
             item = self.profile_list.item(i)
             name = item.text().lstrip("*")
             if self._virtual_new_profile and name == "New profile":
-                item.setBackground(QColor("#fff59d"))  # yellow
+                color = QColor("#ffff00")  # yellow
+                color.setAlpha(64)  # Set transparency
+                item.setBackground(color)
             elif item.text().startswith("*"):
-                item.setBackground(QColor("#fff59d"))  # yellow
+                color = QColor("#ffff00")  # yellow
+                color.setAlpha(64)  # Set transparency
+                item.setBackground(color)
             else:
+                item.setBackground(self.profile_list.palette().base().color()) # Use default list item background
+
                 weights = profiles.get(name, {}).get("voices", [])
                 # Defensive: only sum if weights is a list of (voice, weight) pairs
                 total = 0
@@ -1342,9 +1346,9 @@ class VoiceFormulaDialog(QDialog):
                         ):
                             total += entry[1]
                 if total == 0:
-                    item.setBackground(QColor("#ffcdd2"))  # light red
-                else:
-                    item.setBackground(QColor("white"))
+                    color = QColor("#ff0000")  # red
+                    color.setAlpha(64)  # Set transparency
+                    item.setBackground(color)
         self.update_profile_save_buttons()
 
     def preview_current_mix(self):
