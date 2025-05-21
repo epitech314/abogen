@@ -308,6 +308,12 @@ class HoverLabel(QLabel):
 class VoiceFormulaDialog(QDialog):
     def __init__(self, parent=None, initial_state=None, selected_profile=None):
         super().__init__(parent)
+        # Store original profile/mix state for restoration on cancel
+        self._original_profile_name = None
+        self._original_mixed_voice_state = None
+        if parent is not None:
+            self._original_profile_name = getattr(parent, "selected_profile_name", None)
+            self._original_mixed_voice_state = getattr(parent, "mixed_voice_state", None)
         profiles = load_profiles()
         self._virtual_new_profile = False
         if not profiles:
@@ -914,6 +920,13 @@ class VoiceFormulaDialog(QDialog):
         super().accept()
 
     def reject(self):
+        # Restore parent's profile/mix state on cancel
+        parent = self.parent()
+        if parent is not None:
+            if hasattr(self, "_original_profile_name"):
+                parent.selected_profile_name = self._original_profile_name
+            if hasattr(self, "_original_mixed_voice_state"):
+                parent.mixed_voice_state = self._original_mixed_voice_state
         # Prompt to save if unsaved changes, then check for zero-weight error after save
         if self._has_unsaved_changes():
             if not self._prompt_save_changes():
@@ -923,6 +936,13 @@ class VoiceFormulaDialog(QDialog):
         super().reject()
 
     def closeEvent(self, event):
+        # Restore parent's profile/mix state on close
+        parent = self.parent()
+        if parent is not None:
+            if hasattr(self, "_original_profile_name"):
+                parent.selected_profile_name = self._original_profile_name
+            if hasattr(self, "_original_mixed_voice_state"):
+                parent.mixed_voice_state = self._original_mixed_voice_state
         # Prompt to save if unsaved changes, then check for zero-weight error after save
         if self._has_unsaved_changes():
             if not self._prompt_save_changes():
