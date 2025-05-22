@@ -23,6 +23,9 @@ Go to [espeak-ng latest release](https://github.com/espeak-ng/espeak-ng/releases
 # For NVIDIA GPUs:
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
+# For AMD GPUs:
+# Not supported yet, because ROCm is not available on Windows. Use Linux if you have AMD GPU.
+
 # Install abogen
 pip install abogen
 ```
@@ -54,6 +57,13 @@ sudo dnf install espeak-ng
 
 # Install abogen
 pip install abogen
+
+# For NVIDIA GPUs:
+# Already supported, no need to install CUDA separately.
+
+# For AMD GPUs:
+pip uninstall torch # After installing abogen, we need to uninstall the existing torch package
+pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.4
 ```
 > If you get `WARNING: The script abogen-cli is installed in '/home/username/.local/bin' which is not on PATH.` error, run the following command to add it to your PATH:
 >```bash
@@ -61,6 +71,8 @@ pip install abogen
 >```
 
 > If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
+
+> Special thanks to [@hg000125](https://github.com/hg000125) for his contribution in [#23](https://github.com/denizsafak/abogen/issues/23). AMD GPU support is possible thanks to his work.
 
 ## `How to run?`
 If you installed using pip, you can simply run the following command to start Abogen:
@@ -99,10 +111,11 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 - **Options**:
     - **Replace single newlines with spaces**: Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks.
     - **Configure max words per subtitle**: Configures the maximum number of words per subtitle entry.
+    - **Separate chapters audio format**: Configures the audio format for separate chapters (e.g., `WAV`, `FLAC`, `MP3`, `OPUS`).
     - **Create desktop shortcut**: Creates a shortcut on your desktop for easy access.
     - **Open config.json directory**: Opens the directory where the configuration file is stored.
     - **Open temp directory**: Opens the temporary directory where converted text files are stored.
-    - **Clear all temporary files**: Deletes all temporary files created during the conversion process.
+    - **Clear temporary files**: Deletes temporary files created during the conversion or preview.
     - **Check for updates at startup**: Automatically checks for updates when the program starts.
 - **After conversion**: `Open file`, `Go to folder`, `New conversion`, or `Go back`.
 
@@ -205,6 +218,7 @@ Abogen is a standalone project, but it is inspired by and shares some similariti
 - [autiobooks](https://github.com/plusuncold/autiobooks): Automatically convert epubs to audiobooks
 - [pdf-narrator](https://github.com/mateogon/pdf-narrator): Convert your PDFs and EPUBs into audiobooks effortlessly.
 - [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook): EPUB to audiobook converter, optimized for Audiobookshelf
+- [ebook2audiobook](https://github.com/DrewThomasson/ebook2audiobook): Convert ebooks to audiobooks with chapters and metadata using dynamic AI models and voice cloning
 
 ## `Roadmap`
 - [ ] Add OCR scan feature for PDF files using docling.
@@ -239,7 +253,7 @@ Feel free to explore the code and make any changes you like.
 - Thanks to [@wojiushixiaobai](https://github.com/wojiushixiaobai) for [Embedded Python](https://github.com/wojiushixiaobai/Python-Embed-Win64) packages. These modified packages include pip pre-installed, enabling Abogen to function as a standalone application without requiring users to separately install Python in Windows.
 - Thanks to creators of [EbookLib](https://github.com/aerkalov/ebooklib), a Python library for reading and writing ePub files, which is used for extracting text from ePub files.
 - Special thanks to the [PyQt](https://www.riverbankcomputing.com/software/pyqt/) team for providing the cross-platform GUI toolkit that powers Abogen's interface.
-- Icons: [US](https://icons8.com/icon/aRiu1GGi6Aoe/usa), [Great Britain](https://icons8.com/icon/t3NE3BsOAQwq/great-britain), [Spain](https://icons8.com/icon/ly7tzANRt33n/spain), [France](https://icons8.com/icon/3muzEmi4dpD5/france), [India](https://icons8.com/icon/esGVrxg9VCJ1/india), [Italy](https://icons8.com/icon/PW8KZnP7qXzO/italy), [Japan](https://icons8.com/icon/McQbrq9qaQye/japan), [Brazil](https://icons8.com/icon/zHmH8HpOmM90/brazil), [China](https://icons8.com/icon/Ej50Oe3crXwF/china), [Female](https://icons8.com/icon/uI49hxbpxTkp/female), [Male](https://icons8.com/icon/12351/male) and [Voice Id](https://icons8.com/icon/GskSeVoroQ7u/voice-id) icons by [Icons8](https://icons8.com/).
+- Icons: [US](https://icons8.com/icon/aRiu1GGi6Aoe/usa), [Great Britain](https://icons8.com/icon/t3NE3BsOAQwq/great-britain), [Spain](https://icons8.com/icon/ly7tzANRt33n/spain), [France](https://icons8.com/icon/3muzEmi4dpD5/france), [India](https://icons8.com/icon/esGVrxg9VCJ1/india), [Italy](https://icons8.com/icon/PW8KZnP7qXzO/italy), [Japan](https://icons8.com/icon/McQbrq9qaQye/japan), [Brazil](https://icons8.com/icon/zHmH8HpOmM90/brazil), [China](https://icons8.com/icon/Ej50Oe3crXwF/china), [Female](https://icons8.com/icon/uI49hxbpxTkp/female), [Male](https://icons8.com/icon/12351/male), [Adjust](https://icons8.com/icon/21698/adjust) and [Voice Id](https://icons8.com/icon/GskSeVoroQ7u/voice-id) icons by [Icons8](https://icons8.com/).
 
 ## `License`
 This project is available under the MIT License - see the [LICENSE](https://github.com/denizsafak/abogen/blob/main/LICENSE) file for details.

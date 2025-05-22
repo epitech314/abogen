@@ -1,4 +1,4 @@
-# v1.0.8 (pre-release)
+# v1.0.8
 - Added support for AMD GPUs in Linux (Special thanks to @hg000125 for his contribution in #23)
 - Added voice preview caching system that stores generated previews in the cache folder, mentioned by @jborza in #22
 - Added extra metadata support for chaptered M4B files, ensuring better compatibility with audiobook players.
