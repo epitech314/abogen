@@ -3,6 +3,7 @@
 - Added voice preview caching system that stores generated previews in the cache folder, mentioned by @jborza in #22
 - Added extra metadata support for chaptered M4B files, ensuring better compatibility with audiobook players.
 - Added new option: `Separate chapters audio format`, allowing to choose between `wav`, `mp4`, `flac` and `opus` formats for chaptered audio files.
+- Added a download tracker that displays informative messages while downloading Kokoro models or voices from HuggingFace.
 - Skipping PyTorch CUDA installation if GPU is not NVIDIA in WINDOWS_INSTALL.bat script, preventing unnecessary installation of PyTorch.
 - Removed `abogen_` prefix that was adding to converted books in temp directory.
 - Fixed voice preview player keeps playing silently at the background after preview ends.

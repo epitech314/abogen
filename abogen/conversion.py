@@ -12,6 +12,7 @@ import soundfile as sf
 from utils import clean_text, create_process
 from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
 from voice_formulas import get_new_voice
+import hf_tracker
 import static_ffmpeg
 import threading  # for efficient waiting
 import subprocess
@@ -161,6 +162,7 @@ class ConversionThread(QThread):
             f"\nVoice: {self.voice}\nLanguage: {self.lang_code}\nSpeed: {self.speed}\nGPU: {self.use_gpu}\nFile: {self.file_name}\nSubtitle mode: {self.subtitle_mode}\nOutput format: {self.output_format}\nSave option: {self.save_option}\n"
         )
         try:
+            hf_tracker.set_log_callback(lambda msg: self.log_updated.emit(msg))
             # Show configuration
             self.log_updated.emit("Configuration:")
             # Use display_path for logs if available, otherwise use the actual file name
@@ -1003,6 +1005,7 @@ class PlayAudioThread(QThread):
     def __init__(self, wav_path, parent=None):
         super().__init__(parent)
         self.wav_path = wav_path
+        self.is_canceled = False
 
     def run(self):
         try:
@@ -1012,11 +1015,37 @@ class PlayAudioThread(QThread):
             pygame.mixer.init()
             pygame.mixer.music.load(self.wav_path)
             pygame.mixer.music.play()
-            # Wait until playback is finished
-            while pygame.mixer.music.get_busy():
+            # Wait until playback is finished or canceled
+            while pygame.mixer.music.get_busy() and not self.is_canceled:
                 _time.sleep(0.2)
-            pygame.mixer.music.unload()
-            pygame.mixer.quit()  # Quit the mixer
+                
+            # Make sure to clean up regardless of how we exited the loop
+            try:
+                pygame.mixer.music.stop()
+                pygame.mixer.music.unload()
+                pygame.mixer.quit()  # Quit the mixer
+            except Exception:
+                # Ignore any errors during cleanup
+                pass
+                
             self.finished.emit()
         except Exception as e:
-            self.error.emit(f"Audio playback error: {str(e)}")
+            # Handle initialization errors separately to give better error messages
+            if "mixer not initialized" in str(e):
+                self.error.emit("Audio playback error: The audio system was not properly initialized")
+            else:
+                self.error.emit(f"Audio playback error: {str(e)}")
+            
+    def stop(self):
+        """Safely stop playback"""
+        self.is_canceled = True
+        # Try to stop pygame if it's running, but catch all exceptions
+        try:
+            import pygame
+            if pygame.mixer.get_init():
+                if pygame.mixer.music.get_busy():
+                    pygame.mixer.music.stop()
+                pygame.mixer.music.unload()
+        except Exception:
+            # Ignore all errors when stopping since mixer might not be initialized
+            pass

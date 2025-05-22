@@ -4,6 +4,7 @@ import tempfile
 import platform
 import base64
 import re
+import hf_tracker
 import hashlib  # Added for cache path generation
 from PyQt5.QtWidgets import (
     QApplication,
@@ -78,6 +79,13 @@ from voice_profiles import load_profiles
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
     import ctypes
+
+
+class ShowWarningSignalEmitter(QObject):  # New class to handle signal emission
+    show_warning_signal = pyqtSignal(str, str)
+
+    def emit(self, title, message):
+        self.show_warning_signal.emit(title, message)
 
 
 class ThreadSafeLogSignal(QObject):
@@ -533,6 +541,11 @@ class abogen(QWidget):
         self.log_signal = ThreadSafeLogSignal()
         self.log_signal.log_signal.connect(self._update_log_main_thread)
 
+        # Create warning signal emitter
+        self.warning_signal_emitter = ShowWarningSignalEmitter()
+        self.warning_signal_emitter.show_warning_signal.connect(self.show_model_download_warning)
+        hf_tracker.set_show_warning_signal_emitter(self.warning_signal_emitter)
+
         # Set application icon
         icon_path = get_resource_path("abogen.assets", "icon.ico")
         if icon_path:
@@ -583,6 +596,9 @@ class abogen(QWidget):
         # Check for updates at startup if enabled
         if self.check_updates:
             QTimer.singleShot(1000, self.check_for_updates_startup)
+
+        # Set hf_tracker callbacks
+        hf_tracker.set_log_callback(self.update_log)
 
     def initUI(self):
         self.setWindowTitle(f"{PROGRAM_NAME} v{VERSION}")
@@ -1571,14 +1587,8 @@ class abogen(QWidget):
         if self.preview_playing:
             try:
                 if self.play_audio_thread and self.play_audio_thread.isRunning():
-                    # Attempt to stop pygame mixer if it's in use by PlayAudioThread
-                    # This is a bit indirect, ideally PlayAudioThread would have a stop method
-                    import pygame
-                    if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
-                        pygame.mixer.music.stop()
-                        pygame.mixer.music.unload()  # Ensure it's unloaded
-                        pygame.mixer.quit()  # Quit the mixer
-                    self.play_audio_thread.quit()  # Ask thread to finish
+                    # Call the stop method on PlayAudioThread to safely handle stopping
+                    self.play_audio_thread.stop()
                     self.play_audio_thread.wait(500)  # Wait a bit
             except Exception as e:
                 print(f"Error stopping preview audio: {e}")
@@ -2427,4 +2437,7 @@ Categories=AudioVideo;Audio;Utility;
         self.separate_chapters_format = fmt
         self.config["separate_chapters_format"] = fmt
         save_config(self.config)
+
+    def show_model_download_warning(self, title, message):
+        QMessageBox.information(self, title, message)
 
