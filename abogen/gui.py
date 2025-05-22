@@ -1964,7 +1964,7 @@ class abogen(QWidget):
         menu.addAction(open_temp_action)
 
         # Add clear temporary files option
-        clear_temp_action = QAction("Clear all temporary files", self)
+        clear_temp_action = QAction("Clear temporary files", self)
         clear_temp_action.triggered.connect(self.clear_temp_files)
         menu.addAction(clear_temp_action)
 
@@ -2342,7 +2342,7 @@ Categories=AudioVideo;Audio;Utility;
             pass
 
     def clear_temp_files(self):
-        """Clear all temporary files created by the program."""
+        """Clear temporary files created by the program."""
         import glob
 
         try:
@@ -2356,25 +2356,49 @@ Categories=AudioVideo;Audio;Utility;
             # Count the files
             file_count = len(temp_files)
 
-            if file_count == 0:
+            # Check for preview cache files
+            preview_cache_dir = os.path.join(temp_dir, "preview_cache")
+            preview_files = []
+            if os.path.exists(preview_cache_dir):
+                preview_pattern = os.path.join(preview_cache_dir, "*.wav")
+                preview_files = glob.glob(preview_pattern)
+            
+            preview_count = len(preview_files)
+            
+            if file_count == 0 and preview_count == 0:
                 QMessageBox.information(
                     self, "No Temporary Files", "No temporary files were found."
                 )
                 return
 
-            # Confirm with the user
-            confirm = QMessageBox.question(
-                self,
-                "Clear Temporary Files",
-                f"Found {file_count} temporary file{'s' if file_count != 1 else ''} in the {PROGRAM_NAME} temp folder.\n"
-                "Do you want to delete them?",
-                QMessageBox.Yes | QMessageBox.No,
-            )
-
-            if confirm != QMessageBox.Yes:
+            # Create a custom message box with checkbox
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Question)
+            msg_box.setWindowTitle("Clear Temporary Files")
+            
+            msg_text = f"Found {file_count} temporary file{'s' if file_count != 1 else ''} in the {PROGRAM_NAME} temp folder."
+            if preview_count > 0:
+                msg_text += f"\nAlso found {preview_count} preview cache file{'s' if preview_count != 1 else ''}."
+                
+            msg_box.setText(msg_text + "\nDo you want to delete them?")
+            
+            # Add checkbox for preview cache
+            preview_cache_checkbox = QCheckBox("Clean preview cache", msg_box)
+            preview_cache_checkbox.setChecked(False)
+            # Only enable checkbox if preview files exist
+            preview_cache_checkbox.setEnabled(preview_count > 0)
+            
+            # Add the checkbox to the layout
+            msg_box.setCheckBox(preview_cache_checkbox)
+            
+            # Add buttons
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            
+            if msg_box.exec_() != QMessageBox.Yes:
                 return
 
-            # Delete the files
+            # Delete the text files
             deleted_count = 0
             for file_path in temp_files:
                 try:
@@ -2382,12 +2406,25 @@ Categories=AudioVideo;Audio;Utility;
                     deleted_count += 1
                 except Exception as e:
                     print(f"Error deleting {file_path}: {e}")
+            
+            # Delete preview cache files if checkbox is checked
+            deleted_preview_count = 0
+            if preview_cache_checkbox.isChecked() and preview_count > 0:
+                for file_path in preview_files:
+                    try:
+                        os.remove(file_path)
+                        deleted_preview_count += 1
+                    except Exception as e:
+                        print(f"Error deleting preview cache {file_path}: {e}")
 
+            # Build result message
+            result_msg = f"Successfully deleted {deleted_count} temporary file{'s' if deleted_count != 1 else ''}."
+            if preview_cache_checkbox.isChecked() and deleted_preview_count > 0:
+                result_msg += f"\nAlso deleted {deleted_preview_count} preview cache file{'s' if deleted_preview_count != 1 else ''}."
+                
             # Show results
             QMessageBox.information(
-                self,
-                "Temporary Files Cleared",
-                f"Successfully deleted {deleted_count} temporary file{'s' if deleted_count != 1 else ''}.",
+                self, "Temporary Files Cleared", result_msg
             )
 
             # If currently selected file is in the temp directory, clear the UI
