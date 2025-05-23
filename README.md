@@ -17,9 +17,26 @@ https://github.com/user-attachments/assets/cb66512d-0a52-48c3-bda4-f1e6a03fb8d6
 > This demo was generated in just 5 seconds, producing ∼1 minute of audio with perfectly synced subtitles. To create a similar video, see [the demo guide](https://github.com/denizsafak/abogen/tree/main/demo).
 
 ## `How to install?` <a href="https://pypi.org/project/abogen/" target="_blank"><img src="https://img.shields.io/pypi/pyversions/abogen" alt="Abogen Compatible PyPi Python Versions" align="right" style="margin-top:6px;"></a>
+
 ### Windows
 Go to [espeak-ng latest release](https://github.com/espeak-ng/espeak-ng/releases/latest) download and run the *.msi file.
+
+#### OPTION 1: Install using script
+1. [Download](https://github.com/denizsafak/abogen/archive/refs/heads/main.zip) the repository
+2. Extract the ZIP file
+3. Run `WINDOWS_INSTALL.bat` by double-clicking it
+
+This method handles everything automatically - installing all dependencies including CUDA in a self-contained environment without requiring a separate Python installation. (You still need to install [espeak-ng](https://github.com/espeak-ng/espeak-ng/releases/latest).)
+
+> [!NOTE]
+> You don't need to install Python separately. The script will install Python automatically.
+
+#### OPTION 2: Install using pip
 ```bash
+# Create a virtual environment (optional)
+python -m venv venv
+venv\Scripts\activate
+
 # For NVIDIA GPUs:
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
@@ -29,47 +46,48 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # Install abogen
 pip install abogen
 ```
-Alternatively, for an easier setup on Windows:
-1. [Download](https://github.com/denizsafak/abogen/archive/refs/heads/main.zip) the repository
-2. Extract the ZIP file
-3. Run `WINDOWS_INSTALL.bat` by double-clicking it
-
-This method handles everything automatically - installing all dependencies including CUDA in a self-contained environment without requiring a separate Python installation. (You still need to install [espeak-ng](https://github.com/espeak-ng/espeak-ng/releases/latest).)
 
 ### Mac
 ```bash
 # Install espeak-ng
 brew install espeak-ng
 
+# Create a virtual environment (recommended)
+python3 -m venv venv
+source venv/bin/activate
+
 # Install abogen
-pip install abogen # (I have not tested it)
+pip3 install abogen
 ```
 ### Linux
 ```bash
 # Install espeak-ng
+sudo apt install espeak-ng # Ubuntu/Debian
+sudo pacman -S espeak-ng # Arch Linux
+sudo dnf install espeak-ng # Fedora
 
-# Ubuntu/Debian
-sudo apt install espeak-ng
-# Arch Linux
-sudo pacman -S espeak-ng
-# Fedora
-sudo dnf install espeak-ng
+# Create a virtual environment (recommended)
+python3 -m venv venv
+source venv/bin/activate
 
 # Install abogen
-pip install abogen
+pip3 install abogen
 
 # For NVIDIA GPUs:
 # Already supported, no need to install CUDA separately.
 
 # For AMD GPUs:
-pip uninstall torch # After installing abogen, we need to uninstall the existing torch package
-pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.4
+# After installing abogen, we need to uninstall the existing torch package
+pip3 uninstall torch 
+pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.4
 ```
+> [!TIP]
 > If you get `WARNING: The script abogen-cli is installed in '/home/username/.local/bin' which is not on PATH.` error, run the following command to add it to your PATH:
 >```bash
 >echo "export PATH=\"/home/$USER/.local/bin:\$PATH\"" >> ~/.bashrc && source ~/.bashrc
 >```
 
+> [!TIP]
 > If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
 
 > Special thanks to [@hg000125](https://github.com/hg000125) for his contribution in [#23](https://github.com/denizsafak/abogen/issues/23). AMD GPU support is possible thanks to his work.
@@ -80,6 +98,7 @@ If you installed using pip, you can simply run the following command to start Ab
 ```bash
 abogen
 ```
+> [!TIP]
 > If you installed using the Windows installer `(WINDOWS_INSTALL.bat)`, It should have created a shortcut in the same folder, or your desktop. You can run it from there. If you lost the shortcut, Abogen is located in `python_embedded/Scripts/abogen.exe`. You can run it from there directly.
 
 ## `How to use?`
