@@ -652,12 +652,19 @@ class ConversionThread(QThread):
                     and chapters_out_dir
                     and chapter_audio_segments
                 ):
-                    # Sanitize chapter name for use in filenames
-                    sanitized_chapter_name = re.sub(r"[^\w\-\. ]", "_", chapter_name)
-                    sanitized_chapter_name = re.sub(
-                        r"_+", "_", sanitized_chapter_name
-                    )  # Replace multiple underscores with one
-                    chapter_filename = f"{chapter_idx:02d}_{sanitized_chapter_name}"
+
+                    # strip any non‐alphanumeric or space/dash
+                    sanitized = re.sub(r"[^\w\s\-]", "", chapter_name)
+                    # collapse spaces or dashes to single underscore
+                    sanitized = re.sub(r"[\s\-]+", "_", sanitized).strip("_")
+                    # enforce max length
+                    MAX_LEN = 80
+                    if len(sanitized) > MAX_LEN:
+                        # Find last word boundary before limit
+                        pos = sanitized[:MAX_LEN].rfind("_")
+                        # Use word boundary if found, otherwise use hard limit
+                        sanitized = sanitized[:pos if pos > 0 else MAX_LEN].rstrip("_")
+                    chapter_filename = f"{chapter_idx:02d}_{sanitized}"
 
                     # Use separate_chapters_format
                     separate_format = getattr(self, 'separate_chapters_format', 'wav')

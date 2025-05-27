@@ -1,5 +1,6 @@
 # v1.0.9 (pre-release)
 - Added chunking/segmenting system that fixes memory outage issues when processing large audio files.
+- Improved chapter filename generation with smart word-boundary truncation at 80 characters, preventing mid-word cuts in filenames.
 - `Composer` and `Genre` metadata fields for M4B files are now editable from the text editor.
 
 # v1.0.8
