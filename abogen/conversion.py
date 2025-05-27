@@ -157,6 +157,157 @@ class ConversionThread(QThread):
         self.use_gpu = use_gpu  # Store the GPU setting
         self.max_subtitle_words = 50  # Default value, will be overridden from GUI
 
+    def _stream_audio_in_chunks(self, segments, process_func, progress_prefix="Processing"):
+        """
+        Process audio segments in memory-efficient chunks
+        
+        Args:
+            segments: List of audio segments to process
+            process_func: Function that takes (segment_bytes, is_last) and processes a chunk
+            progress_prefix: Prefix for progress messages
+            
+        Returns:
+            Total samples processed
+        """
+        # Calculate total size for progress reporting
+        total_samples = sum(len(segment) for segment in segments)
+        samples_processed = 0
+
+        self.log_updated.emit(f"\n{progress_prefix} segments...")
+        
+        # Stream each segment individually
+        for i, segment in enumerate(segments):
+            try:
+                # Handle both NumPy arrays and PyTorch tensors
+                if hasattr(segment, 'astype'):
+                    segment_bytes = segment.astype("float32").tobytes()
+                else:
+                    segment_bytes = segment.cpu().numpy().astype("float32").tobytes()
+                is_last = (i == len(segments) - 1)
+                
+                # Update progress periodically - skip if there's only one segment
+                if (i % 20 == 0 or is_last) and len(segments) > 1:
+                    progress_percent = int((samples_processed / total_samples) * 100)
+                    self.log_updated.emit(f"{progress_prefix} segment {i+1}/{len(segments)} ({progress_percent}% complete)")
+                
+                # Process this segment
+                process_func(segment_bytes, is_last)
+                
+                # Update samples processed
+                samples_processed += len(segment)
+                
+                # Clear segment bytes from memory
+                del segment_bytes
+            except Exception as e:
+                self.log_updated.emit(f"Error processing segment {i}: {str(e)}")
+                raise
+                
+        return samples_processed
+
+    def _process_audio_segments(self, audio_segments, output_path, output_format, use_ffmpeg=False, ffmpeg_args=None):
+        """
+        Process audio segments to a target format with memory-efficient handling
+        
+        Args:
+            audio_segments: List of audio segments to process
+            output_path: Path for output file
+            output_format: Format of output (wav, mp3, flac, opus, m4b)
+            use_ffmpeg: Whether to use FFmpeg instead of soundfile
+            ffmpeg_args: Optional additional FFmpeg arguments when use_ffmpeg=True
+            
+        Returns:
+            Tuple of (success, output_path)
+        """
+        self.log_updated.emit(f"\nProcessing audio data to {output_format.upper()}...")
+        segments_count = len(audio_segments)
+        
+        # Handle direct streaming for WAV (the only format supporting append mode)
+        if output_format == "wav" and not use_ffmpeg:
+            try:
+                # Write first segment
+                sf.write(output_path, audio_segments[0], 24000, format="wav")
+                
+                # Append remaining segments
+                for i, segment in enumerate(audio_segments[1:], 1):
+                    with sf.SoundFile(output_path, mode='r+') as f:
+                        f.seek(0, sf.SEEK_END)
+                        f.write(segment)
+                return True, output_path
+            except Exception as e:
+                self.log_updated.emit((f"Error writing WAV file: {str(e)}", "red"))
+                return False, None
+        
+        # For formats requiring FFmpeg (opus, m4b) or when explicitly requested
+        if use_ffmpeg or output_format in ["opus", "m4b"]:
+            static_ffmpeg.add_paths()
+            
+            # Basic FFmpeg command
+            cmd = [
+                "ffmpeg", "-y",
+                "-thread_queue_size", "32768",
+                "-f", "f32le",
+                "-ar", "24000",
+                "-ac", "1",
+                "-i", "pipe:0"
+            ]
+            
+            # Add custom FFmpeg arguments if provided
+            if ffmpeg_args:
+                cmd.extend(ffmpeg_args)
+            else:
+                # Default codec settings based on format
+                if output_format == "opus":
+                    cmd.extend(["-c:a", "libopus", "-b:a", "24000"])
+                elif output_format == "mp3":
+                    cmd.extend(["-c:a", "libmp3lame", "-q:a", "2"])
+                elif output_format == "flac":
+                    cmd.extend(["-c:a", "flac", "-compression_level", "8"])
+                else:
+                    cmd.extend(["-c:a", "aac", "-q:a", "2"])
+            
+            # Add output path
+            cmd.append(output_path)
+            
+            # Create process
+            proc = create_process(cmd, stdin=subprocess.PIPE, text=False)
+            
+            # Process segments
+            try:
+                # Use the unified streaming function
+                def process_chunk(chunk_bytes, is_last):
+                    proc.stdin.write(chunk_bytes)
+                
+                self._stream_audio_in_chunks(audio_segments, process_chunk, 
+                                          progress_prefix=f"Processing {output_format.upper()}")
+                
+                # Close stdin and wait for process to complete
+                proc.stdin.close()
+                if proc.wait() != 0:
+                    self.log_updated.emit((f"{output_format.upper()} conversion failed.", "red"))
+                    return False, None
+                
+                return True, output_path
+                
+            except Exception as e:
+                self.log_updated.emit((f"Error during {output_format.upper()} conversion: {str(e)}", "red"))
+                proc.stdin.close()
+                try:
+                    proc.terminate()
+                except:
+                    pass
+                return False, None
+        
+        # For formats supported by soundfile (mp3, flac)
+        else:
+            try:
+                with sf.SoundFile(output_path, 'w', samplerate=24000, channels=1, format=output_format) as f:
+                    for i, segment in enumerate(audio_segments):
+                        f.write(segment)
+                return True, output_path
+            except Exception as e:
+                self.log_updated.emit((f"Error processing {output_format.upper()} file: {str(e)}", "red"))
+                return False, None
+
     def run(self):
         print(
             f"\nVoice: {self.voice}\nLanguage: {self.lang_code}\nSpeed: {self.speed}\nGPU: {self.use_gpu}\nFile: {self.file_name}\nSubtitle mode: {self.subtitle_mode}\nOutput format: {self.output_format}\nSave option: {self.save_option}\n"
@@ -508,56 +659,21 @@ class ConversionThread(QThread):
                     )  # Replace multiple underscores with one
                     chapter_filename = f"{chapter_idx:02d}_{sanitized_chapter_name}"
 
-                    # Concatenate chapter audio and save
-                    chapter_audio = self.np.concatenate(chapter_audio_segments)
-                    
                     # Use separate_chapters_format
                     separate_format = getattr(self, 'separate_chapters_format', 'wav')
                     
                     chapter_out_path = os.path.join(
                         chapters_out_dir, f"{chapter_filename}.{separate_format}"
                     )
-                    if separate_format == "opus":
-                        static_ffmpeg.add_paths()
-                        # Write to temporary WAV file first instead of using pipe
-                        temp_chapter_wav = f"{chapter_out_path}_temp.wav"
-                        try:
-                            # Write chapter audio to temp file
-                            sf.write(temp_chapter_wav, chapter_audio, 24000, format="wav")
 
-                            self.log_updated.emit(
-                                f"\nGenerating chapter in OPUS format..."
-                            )
-                            
-                            # Use file input instead of pipe
-                            proc = create_process(
-                                [
-                                    "ffmpeg",
-                                    "-y",
-                                    "-i", temp_chapter_wav,
-                                    "-c:a",
-                                    "libopus",
-                                    "-b:a",
-                                    "24000",
-                                    chapter_out_path,
-                                ]
-                            )
-                            proc.wait()
-                            
-                        finally:
-                            # Clean up temp file
-                            if os.path.exists(temp_chapter_wav):
-                                try:
-                                    os.remove(temp_chapter_wav)
-                                except Exception as e:
-                                    self.log_updated.emit((f"Warning: Could not delete temporary chapter file {temp_chapter_wav}: {e}", "orange"))
-                    else:
-                        sf.write(
-                            chapter_out_path,
-                            chapter_audio,
-                            24000,
-                            format=separate_format,
-                        )
+                    # Process audio segments using the unified function
+                    success, chapter_out_path = self._process_audio_segments(
+                        chapter_audio_segments, chapter_out_path, separate_format, use_ffmpeg=(separate_format in ["opus", "m4b"])
+                    )
+                    
+                    if not success:
+                        self.log_updated.emit((f"Failed to write {separate_format.upper()} file.", "red"))
+                        continue
 
                     # Generate .srt subtitle file for chapter if not Disabled
                     if self.subtitle_mode != "Disabled" and chapter_subtitle_entries:
@@ -601,59 +717,34 @@ class ConversionThread(QThread):
             intended_output_format = self.output_format # Store the original choice
 
             if audio_segments and merge_chapters:
-                self.log_updated.emit("\nFinalizing audio file...\n")
-                audio_data_np = self.np.concatenate(audio_segments)
-                
+                self.log_updated.emit("\nFinalizing audio file...")
+
                 out_dir = parent_dir
                 base_filepath_no_ext = os.path.join(out_dir, f"{base_name}{suffix}")
 
                 final_out_path = None
-
+                
+                # Use dedicated chapter processing for M4B when we have chapters
                 if intended_output_format == "m4b":
-                    final_out_path = self._generate_m4b_with_chapters(audio_data_np, chapters_time, base_filepath_no_ext)
-                elif intended_output_format == "opus":
-                    static_ffmpeg.add_paths()
-                    opus_out_path = f"{base_filepath_no_ext}.opus"
-                    temp_wav_path = f"{base_filepath_no_ext}_temp.wav"
+                    self.log_updated.emit("\nGenerating audio with chapters...")
+                    final_out_path = self._generate_m4b_with_chapters(
+                        audio_segments, chapters_time, base_filepath_no_ext
+                    )
+                else:
+                    # Process audio segments using the unified function
+                    success, final_out_path = self._process_audio_segments(
+                        audio_segments, f"{base_filepath_no_ext}.{intended_output_format}", 
+                        intended_output_format, 
+                        use_ffmpeg=(intended_output_format in ["opus", "m4b"])
+                    )
                     
-                    try:
-                        # First, write audio data to a temporary WAV file
-                        self.log_updated.emit("Writing temporary audio file...\n")
-                        sf.write(temp_wav_path, audio_data_np, 24000, format="wav")
-                        
-                        # Use the temp WAV file as input instead of pipe
-                        ffmpeg_cmd_opus = [
-                            "ffmpeg", "-y",
-                            "-i", temp_wav_path,
-                            "-c:a", "libopus", 
-                            "-b:a", "24000", # Original bitrate
-                            opus_out_path,
-                        ]
-                        
-                        process = create_process(ffmpeg_cmd_opus)
-                        if process.wait() == 0:
-                            final_out_path = opus_out_path
-                        else:
-                            self.log_updated.emit(("Opus conversion failed.", "red"))
-                            final_out_path = None 
-                    except Exception as e_opus:
-                        self.log_updated.emit((f"Error during Opus conversion: {str(e_opus)}", "red"))
+                    if not success:
                         final_out_path = None
-                    finally:
-                        # Clean up the temporary file
-                        if os.path.exists(temp_wav_path):
-                            try:
-                                os.remove(temp_wav_path)
-                            except Exception as e_clean:
-                                self.log_updated.emit((f"Warning: Could not delete temporary file {temp_wav_path}: {e_clean}", "orange"))
-                else: # For other formats like wav
-                    standard_out_path = f"{base_filepath_no_ext}.{intended_output_format}"
-                    try:
-                        sf.write(standard_out_path, audio_data_np, 24000, format=intended_output_format)
-                        final_out_path = standard_out_path
-                    except Exception as e_sf:
-                        self.log_updated.emit((f"Failed to write audio file {standard_out_path}: {str(e_sf)}", "red"))
-                        final_out_path = None
+                
+                if not final_out_path:
+                    self.log_updated.emit(("Audio generation failed.", "red"))
+                    self.conversion_finished.emit(("Audio generation failed.", "red"), None)
+                    return
 
                 # Subtitle and final message logic
                 if final_out_path:
@@ -666,14 +757,14 @@ class ConversionThread(QThread):
                                 )
                         self.conversion_finished.emit(
                             (
-                                f"Audiobook saved to: {final_out_path}\n\nSubtitle saved to: {srt_path}",
+                                f"\nAudiobook saved to: {final_out_path}\n\nSubtitle saved to: {srt_path}",
                                 "green",
                             ),
                             final_out_path,
                         )
                     else:
                         self.conversion_finished.emit(
-                            (f"Audiobook saved to: {final_out_path}", "green"), final_out_path
+                            (f"\nAudiobook saved to: {final_out_path}", "green"), final_out_path
                         )
                 else:
                     self.log_updated.emit(("Audio generation failed (final_out_path was not set).", "red"))
@@ -700,122 +791,105 @@ class ConversionThread(QThread):
         self.waiting_for_user_input = False
         self._chapter_options_event.set()
 
-    def _generate_m4b_with_chapters(self, audio_data_np, chapters_time, base_filepath_no_ext):
+    def _generate_m4b_with_chapters(self, audio_segments, chapters_time, base_filepath_no_ext):
+        """Generate M4B file with chapters from audio segments"""
         final_wav_path = f"{base_filepath_no_ext}.wav"
         output_m4b_path = f"{base_filepath_no_ext}.m4b"
         chapters_info_path = f"{base_filepath_no_ext}_chapters.txt"
-        temp_wav_path = f"{base_filepath_no_ext}_temp.wav"
         
         # Early check for single/no chapter case
         if not chapters_time or len(chapters_time) <= 1:
             self.log_updated.emit(
                 (
-                    "File contains only one chapter or no chapters were detected. Audio will be saved as a standard .wav file instead.\n",
+                    "\nFile contains only one chapter or no chapters were detected. Audio will be saved as a standard .wav file instead.",
                     "red",
                 )
             )
-            try:
-                sf.write(final_wav_path, audio_data_np, 24000, format="wav")
-                return final_wav_path
-            except Exception as e_wav_single:
-                self.log_updated.emit((f"Failed to save single/no chapter audio as WAV: {str(e_wav_single)}", "red"))
+            # Use the established unified method to create a WAV file
+            success, wav_path = self._process_audio_segments(
+                audio_segments, final_wav_path, "wav", use_ffmpeg=False
+            )
+            if success:
+                return wav_path
+            else:
+                self.log_updated.emit((f"\nFailed to save single/no chapter audio as WAV", "red"))
                 return None
 
         try:
-            # First, write audio data to a temporary WAV file
-            self.log_updated.emit("Writing temporary audio file...\n")
-            sf.write(temp_wav_path, audio_data_np, 24000, format="wav")
-            
-            # Write chapter metadata
+            # Write chapter metadata file
             with open(chapters_info_path, "w", encoding="utf-8") as f:
                 f.write(";FFMETADATA1\n")
                 for chapter in chapters_time:
-                    # Handle potential special characters in chapter titles
                     chapter_title = chapter['chapter'].replace('=', '\\=')
                     f.write(f"[CHAPTER]\n")
-                    f.write(f"TIMEBASE=1/1000\n") # Using milliseconds for precision
+                    f.write(f"TIMEBASE=1/1000\n")
                     f.write(f"START={int(chapter['start']*1000)}\n")
                     f.write(f"END={int(chapter['end']*1000)}\n")
                     f.write(f"title={chapter_title}\n\n")
-
-            static_ffmpeg.add_paths()
             
-            # Extract metadata tags first to handle any errors separately
+            # For M4B with chapters, we need to use input file for chapter information
+            static_ffmpeg.add_paths()
             metadata_options = self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
-
-            # Build the FFmpeg command
-            ffmpeg_cmd = [
-                "ffmpeg", "-y",
-                "-i", temp_wav_path,  # Use file input
+            
+            # Use pipe-based approach for audio input with special args for M4B chapters
+            ffmpeg_args = [
                 "-i", chapters_info_path,
                 "-map", "0:a",
                 "-map_metadata", "1", 
                 "-map_chapters", "1",
-                # Add extracted metadata tags
                 *metadata_options,
                 "-c:a", "aac",
-                "-movflags", "+faststart+use_metadata_tags",
-                "-f", "mp4",  # Explicitly specify format
-                output_m4b_path,
+                "-q:a", "2", # Quality-based VBR for better quality control
+                "-movflags", "+faststart+use_metadata_tags",  # Added for better compatibility
             ]
 
-            self.log_updated.emit(f"Generating M4B with chapters...\n")
-
-            process = create_process(ffmpeg_cmd)
-            return_code = process.wait()
-
-            if return_code == 0:
-                return output_m4b_path
-            else:
-                error_message = f"FFmpeg failed to create M4B (return code {return_code}).\n"
-                # Try to get more detailed error info if available
-                if hasattr(process, 'stderr') and process.stderr:
-                    stderr_output = process.stderr.read()
-                    if stderr_output:
-                        error_message += f"Error details: {stderr_output.decode('utf-8', errors='replace')}\n"
-                
-                self.log_updated.emit((f"{error_message}\nFalling back to WAV.\n", "red"))
-                # Simply rename the temp WAV file instead of creating a new one
+            # Use the established unified method with M4B-specific args
+            success, out_path = self._process_audio_segments(
+                audio_segments, output_m4b_path, "m4b", use_ffmpeg=True, ffmpeg_args=ffmpeg_args
+            )
+            
+            # Clean up the temporary chapter metadata file
+            if os.path.exists(chapters_info_path):
                 try:
-                    # os is already imported at the top of the function
-                    os.rename(temp_wav_path, final_wav_path)
-                    self.log_updated.emit("Using temporary WAV file as final output.\n")
-                    # Set temp_wav_path to None so it's not deleted in the finally block
-                    temp_wav_path = None
-                    return final_wav_path
-                except Exception as e_rename:
-                    self.log_updated.emit((f"Failed to rename temporary WAV file: {str(e_rename)}", "red"))
-                    return None
+                    os.remove(chapters_info_path)
+                except Exception as e:
+                    self.log_updated.emit((f"Warning: Could not delete chapters file: {e}", "orange"))
+
+            if success:
+                return out_path
+            
+            # If M4B generation failed, fallback to WAV
+            self.log_updated.emit((f"M4B conversion failed. Falling back to WAV.\n", "red"))
+            success, wav_path = self._process_audio_segments(
+                audio_segments, final_wav_path, "wav", use_ffmpeg=False
+            )
+            if success:
+                return wav_path
+            else:
+                self.log_updated.emit((f"Failed to write WAV file as fallback.", "red"))
+                return None
 
         except Exception as e:
+            # General error during M4B generation - create WAV file directly as final output
             self.log_updated.emit((f"Error during M4B generation: {str(e)}.\n\nFalling back to WAV.\n", "red"))
-            # Check if the temp file exists and can be used
-            if os.path.exists(temp_wav_path):
+            
+            # Use the established unified method to create a WAV file as fallback
+            success, wav_path = self._process_audio_segments(
+                audio_segments, final_wav_path, "wav", use_ffmpeg=False
+            )
+            
+            # Clean up temp files
+            if os.path.exists(chapters_info_path):
                 try:
-                    os.rename(temp_wav_path, final_wav_path)
-                    self.log_updated.emit("Using temporary WAV file as final output.\n")
-                    # Set temp_wav_path to None so it's not deleted in the finally block
-                    temp_wav_path = None
-                    return final_wav_path
-                except Exception as e_rename:
-                    self.log_updated.emit((f"Failed to rename temporary WAV file: {str(e_rename)}", "red"))
-            
-            # If the temp file doesn't exist or renaming failed, create a new WAV file
-            try:
-                sf.write(final_wav_path, audio_data_np, 24000, format="wav")
-                return final_wav_path
-            except Exception as e_wav_fallback:
-                self.log_updated.emit((f"Critical error: Failed to save fallback WAV: {str(e_wav_fallback)}\n", "red"))
+                    os.remove(chapters_info_path)
+                except Exception:
+                    pass
+                
+            if success:
+                return wav_path
+            else:
+                self.log_updated.emit((f"Critical error: Failed to save WAV fallback", "red"))
                 return None
-            
-        finally:
-            # Clean up temporary files, but only delete temp_wav_path if it wasn't renamed
-            for temp_file in [chapters_info_path] + ([temp_wav_path] if temp_wav_path else []):
-                if os.path.exists(temp_file):
-                    try:
-                        os.remove(temp_file)
-                    except Exception as e_clean:
-                        self.log_updated.emit((f"Warning: Could not delete temporary file {temp_file}: {e_clean}", "orange"))
 
     def _extract_and_add_metadata_tags_to_ffmpeg_cmd(self):
         """Extract metadata tags from text content and add them to ffmpeg command"""
