@@ -166,6 +166,17 @@ When you process the text file, Abogen will detect these markers automatically a
 
 ![Abogen Chapter Marker](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/chapter_marker.png)
 
+## `About Metadata Tags`
+Similar to chapter markers, it is possible to add metadata tags to `M4B` files. This is useful for audiobook players that support metadata, allowing you to add information like title, author, year, etc. Abogen automatically adds these tags when you process ePUB or PDF files, but you can also add them manually to your text files. Add metadata tags **at the beginning of your text file** like this:
+```
+<<METADATA_TITLE:Title>>
+<<METADATA_ARTIST:Author>>
+<<METADATA_ALBUM:Album Title>>
+<<METADATA_YEAR:Year>>
+<<METADATA_ALBUM_ARTIST:Album Artist>>
+<<METADATA_COMPOSER:Narrator>>
+<<METADATA_GENRE:Audiobook>>
+```
 
 ## `Supported Languages`
 ```

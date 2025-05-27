@@ -1649,7 +1649,9 @@ class HandlerDialog(QDialog):
             f"<<METADATA_ARTIST:{authors_text}>>",
             f"<<METADATA_ALBUM:{title} ({chapter_text})>>",
             f"<<METADATA_YEAR:{year}>>",
-            f"<<METADATA_ALBUM_ARTIST:{album_artist}>>"
+            f"<<METADATA_ALBUM_ARTIST:{album_artist}>>",
+            f"<<METADATA_COMPOSER:Narrator>>",
+            f"<<METADATA_GENRE:Audiobook>>"
         ]
         
         return "\n".join(metadata_tags)

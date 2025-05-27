@@ -751,10 +751,7 @@ class ConversionThread(QThread):
                 "-map", "0:a",
                 "-map_metadata", "1", 
                 "-map_chapters", "1",
-                # Add metadata tags
-                "-metadata", "composer=Narrator",
-                "-metadata", "genre=Audiobook",
-                # Add additional extracted metadata tags
+                # Add extracted metadata tags
                 *metadata_options,
                 "-c:a", "aac",
                 "-movflags", "+faststart+use_metadata_tags",
@@ -843,6 +840,8 @@ class ConversionThread(QThread):
         album_match = re.search(r"<<METADATA_ALBUM:([^>]*)>>", text)
         year_match = re.search(r"<<METADATA_YEAR:([^>]*)>>", text)
         album_artist_match = re.search(r"<<METADATA_ALBUM_ARTIST:([^>]*)>>", text)
+        composer_match = re.search(r"<<METADATA_COMPOSER:([^>]*)>>", text)
+        genre_match = re.search(r"<<METADATA_GENRE:([^>]*)>>", text)
         
         # Use display path or filename as fallback for title
         filename = os.path.splitext(os.path.basename(self.display_path if self.display_path else self.file_name))[0]
@@ -878,6 +877,18 @@ class ConversionThread(QThread):
             metadata_options.extend(["-metadata", f"album_artist={album_artist_match.group(1)}"])
         else:
             metadata_options.extend(["-metadata", f"album_artist=Unknown"])
+
+        # Add composer metadata
+        if composer_match:
+            metadata_options.extend(["-metadata", f"composer={composer_match.group(1)}"])
+        else:
+            metadata_options.extend(["-metadata", f"composer=Narrator"])
+
+        # Add genre metadata
+        if genre_match:
+            metadata_options.extend(["-metadata", f"genre={genre_match.group(1)}"])
+        else:
+            metadata_options.extend(["-metadata", f"genre=Audiobook"])
             
         # Add these to ffmpeg command
         return metadata_options

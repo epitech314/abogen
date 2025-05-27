@@ -1,5 +1,6 @@
 # v1.0.9 (pre-release)
 - Changed audio processing pipeline back to converting temporary WAV files instead of directly creating OPUS and M4B files. This resolves memory outage issues with long books that caused crashes, unresponsive behavior, or corrupted audio output. **This approach will be slower, but it is more stable and reliable.**
+- "Composer" and "Genre" metadata fields for M4B files are now editable from the text editor.
 
 # v1.0.8
 - Added support for AMD GPUs in Linux (Special thanks to @hg000125 for his contribution in #23)
