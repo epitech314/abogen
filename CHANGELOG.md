@@ -1,4 +1,4 @@
-# v1.0.9 (pre-release)
+# v1.0.9
 - Added chunking/segmenting system that fixes memory outage issues when processing large audio files.
 - Added new option: `Subtitle format`, allowing users to choose between `srt` , `ass (wide)`, `ass (narrow)`, and `ass (centered wide)` and `ass (centered narrow)`
 - Improved chapter filename generation with smart word-boundary truncation at 80 characters, preventing mid-word cuts in filenames.
