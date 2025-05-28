@@ -104,9 +104,15 @@ class IconProvider(QFileIconProvider):
 
 
 class InputBox(QLabel):
-    LABEL_CSS = """QLabel { border:2px dashed #aaa; border-radius:5px; padding:20px; background:rgba(0, 102, 255, 0.05); min-height:100px; } QLabel:hover { background:rgba(0, 102, 255, 0.1); border-color:#6ab0de; }"""
-    LABEL_CSS_ACTIVE = """QLabel { border:2px dashed #42ad4a; border-radius:5px; padding:20px; background:rgba(66, 173, 73, 0.1);min-height:100px; } QLabel:hover { background:rgba(66, 173, 73, 0.15); border-color:#42ad4a; }"""
-    LABEL_CSS_ERROR = """QLabel { border:2px dashed #e74c3c; border-radius:5px; padding:20px; background:rgba(232, 78, 60, 0.10); min-height:100px; color:#c0392b; } QLabel:hover { background:rgba(232, 78, 60, 0.15); border-color:#e74c3c; }"""
+    # Define CSS styles as class constants
+    STYLE_DEFAULT = "border:2px dashed #aaa; border-radius:5px; padding:20px; background:rgba(0, 102, 255, 0.05); min-height:100px;"
+    STYLE_DEFAULT_HOVER = "background:rgba(0, 102, 255, 0.1); border-color:#6ab0de;"
+    
+    STYLE_ACTIVE = "border:2px dashed #42ad4a; border-radius:5px; padding:20px; background:rgba(66, 173, 73, 0.1); min-height:100px;"
+    STYLE_ACTIVE_HOVER = "background:rgba(66, 173, 73, 0.15); border-color:#42ad4a;"
+    
+    STYLE_ERROR = "border:2px dashed #e74c3c; border-radius:5px; padding:20px; background:rgba(232, 78, 60, 0.10); min-height:100px; color:#c0392b;" 
+    STYLE_ERROR_HOVER = "background:rgba(232, 78, 60, 0.15); border-color:#e74c3c;"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -115,7 +121,7 @@ class InputBox(QLabel):
         self.setText(
             "Drag and drop your file here or click to browse.\n(.txt, .epub, .pdf)"
         )
-        self.setStyleSheet(self.LABEL_CSS)
+        self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }}")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setCursor(Qt.PointingHandCursor)
         self.clear_btn = QPushButton("✕", self)
@@ -222,7 +228,7 @@ class InputBox(QLabel):
         )
         # Set fixed width to force wrapping
         self.setWordWrap(True)
-        self.setStyleSheet(self.LABEL_CSS_ACTIVE)
+        self.setStyleSheet(f"QLabel {{ {self.STYLE_ACTIVE} }} QLabel:hover {{ {self.STYLE_ACTIVE_HOVER} }}")
         self.clear_btn.show()
         is_document = self.window().selected_file_type in ["epub", "pdf"]
         self.chapters_btn.setVisible(is_document)
@@ -253,7 +259,7 @@ class InputBox(QLabel):
 
     def set_error(self, message):
         self.setText(message)
-        self.setStyleSheet(self.LABEL_CSS_ERROR)
+        self.setStyleSheet(f"QLabel {{ {self.STYLE_ERROR} }} QLabel:hover {{ {self.STYLE_ERROR_HOVER} }}")
         # Show textbox button in error state as well
         self.textbox_btn.show()
 
@@ -265,7 +271,7 @@ class InputBox(QLabel):
         self.setText(
             "Drag and drop your file here or click to browse.\n(.txt, .epub, .pdf)"
         )
-        self.setStyleSheet(self.LABEL_CSS)
+        self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }}")
         self.clear_btn.hide()
         self.chapters_btn.hide()
         self.chapters_btn.setText("Chapters")  # Reset text

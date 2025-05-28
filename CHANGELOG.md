@@ -3,6 +3,7 @@
 - Added new option: `Subtitle format`, allowing users to choose between `srt` , `ass (wide)`, `ass (narrow)`, and `ass (centered wide)` and `ass (centered narrow)`
 - Improved chapter filename generation with smart word-boundary truncation at 80 characters, preventing mid-word cuts in filenames.
 - `Composer` and `Genre` metadata fields for M4B files are now editable from the text editor.
+- Improvements in documentation and code.
 
 # v1.0.8
 - Added support for AMD GPUs in Linux (Special thanks to @hg000125 for his contribution in #23)
