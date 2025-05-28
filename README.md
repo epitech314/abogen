@@ -130,7 +130,8 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 - **Options**:
     - **Replace single newlines with spaces**: Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks.
     - **Configure max words per subtitle**: Configures the maximum number of words per subtitle entry.
-    - **Separate chapters audio format**: Configures the audio format for separate chapters (e.g., `WAV`, `FLAC`, `MP3`, `OPUS`).
+    - **Subtitle format**: Configures the subtitle format as `srt`, `ass (wide)`, `ass (narrow)`, `ass (centered wide)`, or `ass (centered narrow)`.
+    - **Separate chapters audio format**: Configures the audio format for separate chapters as `wav`, `flac`, `mp3`, or `opus`.
     - **Create desktop shortcut**: Creates a shortcut on your desktop for easy access.
     - **Open config.json directory**: Opens the directory where the configuration file is stored.
     - **Open temp directory**: Opens the temporary directory where converted text files are stored.
@@ -194,11 +195,13 @@ For a complete list of supported languages and voices, refer to Kokoro's [VOICES
 ## `MPV Config`
 I highly recommend using [MPV](https://mpv.io/installation/) to play your audio files, as it supports displaying subtitles even without a video track. Here's my `mpv.conf`:
 ```
+# --- MPV Settings ---
 save-position-on-quit
 keep-open=yes
---audio-device=openal
---sub-margin-x=235
---sub-pos=60
+# --- Subtitle ---
+sub-ass-override=no
+sub-margin-y=50
+sub-margin-x=50
 # --- Audio Quality ---
 audio-spdif=ac3,dts,eac3,truehd,dts-hd
 audio-channels=auto

@@ -1329,6 +1329,8 @@ class abogen(QWidget):
             )
             # Pass separate_chapters_format setting
             self.conversion_thread.separate_chapters_format = self.separate_chapters_format
+            # Pass subtitle format setting
+            self.conversion_thread.subtitle_format = self.config.get("subtitle_format", "srt")
             # Pass chapter count for EPUB or PDF files
             if self.selected_file_type in ["epub", "pdf"] and hasattr(
                 self, "selected_chapters"
@@ -1925,6 +1927,24 @@ class abogen(QWidget):
         max_words_action.triggered.connect(self.set_max_subtitle_words)
         menu.addAction(max_words_action)
         
+        # Add subtitle format option
+        subtitle_format_menu = QMenu("Subtitle format", self)
+        subtitle_format_menu.setToolTip("Choose the format for generated subtitles")
+        
+        subtitle_format_group = QActionGroup(self)
+        subtitle_format_group.setExclusive(True)
+        
+        subtitle_format = self.config.get("subtitle_format", "srt")
+        for format_option in ["srt", "ass (wide)", "ass (narrow)", "ass (centered wide)", "ass (centered narrow)"]:
+            format_action = QAction(f"{format_option}", self)
+            format_action.setCheckable(True)
+            format_action.setChecked(subtitle_format == format_option)
+            format_action.triggered.connect(lambda checked, fmt=format_option: self.set_subtitle_format(fmt))
+            subtitle_format_group.addAction(format_action)
+            subtitle_format_menu.addAction(format_action)
+            
+        menu.addMenu(subtitle_format_menu)
+        
         # Add separate chapters format option
         separate_chapters_format_menu = QMenu("Separate chapters audio format", self)
         separate_chapters_format_menu.setToolTip("Choose the format for individual chapter files")
@@ -1932,7 +1952,7 @@ class abogen(QWidget):
         format_group = QActionGroup(self)
         format_group.setExclusive(True)
         
-        for format_option in ["wav", "mp3", "flac", "opus"]:
+        for format_option in ["wav", "flac", "mp3", "opus"]:
             format_action = QAction(format_option, self)
             format_action.setCheckable(True)
             format_action.setChecked(self.separate_chapters_format == format_option)
@@ -2473,6 +2493,11 @@ Categories=AudioVideo;Audio;Utility;
         """Set the format for separate chapters audio files."""
         self.separate_chapters_format = fmt
         self.config["separate_chapters_format"] = fmt
+        save_config(self.config)
+
+    def set_subtitle_format(self, fmt):
+        """Set the subtitle format."""
+        self.config["subtitle_format"] = fmt
         save_config(self.config)
 
     def show_model_download_warning(self, title, message):

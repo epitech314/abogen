@@ -333,6 +333,7 @@ class ConversionThread(QThread):
             self.log_updated.emit(f"- Speed: {self.speed}")
             self.log_updated.emit(f"- Subtitle mode: {self.subtitle_mode}")
             self.log_updated.emit(f"- Output format: {self.output_format}")
+            self.log_updated.emit(f"- Subtitle format: {getattr(self, 'subtitle_format', 'srt')}")
             self.log_updated.emit(f"- Save option: {self.save_option}")
             if self.replace_single_newlines:
                 self.log_updated.emit(f"- Replace single newlines: Yes")
@@ -682,24 +683,34 @@ class ConversionThread(QThread):
                         self.log_updated.emit((f"Failed to write {separate_format.upper()} file.", "red"))
                         continue
 
-                    # Generate .srt subtitle file for chapter if not Disabled
+                    # Generate subtitle file for chapter if not Disabled
                     if self.subtitle_mode != "Disabled" and chapter_subtitle_entries:
-                        chapter_srt_path = os.path.join(
-                            chapters_out_dir, f"{chapter_filename}.srt"
+                        subtitle_format = getattr(self, 'subtitle_format', 'srt')
+                        file_extension = 'ass' if 'ass' in subtitle_format else 'srt'
+                        chapter_subtitle_path = os.path.join(
+                            chapters_out_dir, f"{chapter_filename}.{file_extension}"
                         )
-                        with open(
-                            chapter_srt_path, "w", encoding="utf-8", errors="replace"
-                        ) as srt_file:
-                            for i, (start, end, text) in enumerate(
-                                chapter_subtitle_entries, 1
-                            ):
-                                srt_file.write(
-                                    f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
-                                )
+                        
+                        if 'ass' in subtitle_format:
+                            # Generate ASS subtitle
+                            is_centered = 'centered' in subtitle_format
+                            is_narrow = 'narrow' in subtitle_format
+                            self._write_ass_subtitle(chapter_subtitle_path, chapter_subtitle_entries, is_centered, is_narrow)
+                        else:
+                            # Generate SRT subtitle (default)
+                            with open(
+                                chapter_subtitle_path, "w", encoding="utf-8", errors="replace"
+                            ) as srt_file:
+                                for i, (start, end, text) in enumerate(
+                                    chapter_subtitle_entries, 1
+                                ):
+                                    srt_file.write(
+                                        f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
+                                    )
 
                         self.log_updated.emit(
                             (
-                                f"\nChapter {chapter_idx} saved to: {chapter_out_path}\n\nSubtitle saved to: {chapter_srt_path}",
+                                f"\nChapter {chapter_idx} saved to: {chapter_out_path}\n\nSubtitle saved to: {chapter_subtitle_path}",
                                 "green",
                             )
                         )
@@ -756,15 +767,25 @@ class ConversionThread(QThread):
                 # Subtitle and final message logic
                 if final_out_path:
                     if self.subtitle_mode != "Disabled":
-                        srt_path = os.path.splitext(final_out_path)[0] + ".srt"
-                        with open(srt_path, "w", encoding="utf-8", errors="replace") as srt_file:
-                            for i, (start, end, text) in enumerate(subtitle_entries, 1):
-                                srt_file.write(
-                                    f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
-                                )
+                        subtitle_format = getattr(self, 'subtitle_format', 'srt')
+                        file_extension = 'ass' if 'ass' in subtitle_format else 'srt'
+                        subtitle_path = os.path.splitext(final_out_path)[0] + f".{file_extension}"
+                        
+                        if 'ass' in subtitle_format:
+                            # Generate ASS subtitle with optional centering and margin
+                            is_centered = 'centered' in subtitle_format
+                            is_narrow = 'narrow' in subtitle_format
+                            self._write_ass_subtitle(subtitle_path, subtitle_entries, is_centered, is_narrow)
+                        else:
+                            # Generate SRT subtitle (default)
+                            with open(subtitle_path, "w", encoding="utf-8", errors="replace") as srt_file:
+                                for i, (start, end, text) in enumerate(subtitle_entries, 1):
+                                    srt_file.write(
+                                        f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
+                                    )
                         self.conversion_finished.emit(
                             (
-                                f"\nAudiobook saved to: {final_out_path}\n\nSubtitle saved to: {srt_path}",
+                                f"\nAudiobook saved to: {final_out_path}\n\nSubtitle saved to: {subtitle_path}",
                                 "green",
                             ),
                             final_out_path,
@@ -981,6 +1002,14 @@ class ConversionThread(QThread):
         s = int(t % 60)
         ms = int((t - int(t)) * 1000)
         return f"{h:02}:{m:02}:{s:02},{ms:03}"
+        
+    def _ass_time(self, t):
+        """Helper function to format time for ASS files"""
+        h = int(t // 3600)
+        m = int((t % 3600) // 60)
+        s = int(t % 60)
+        cs = int((t - int(t)) * 100)  # Centiseconds for ASS format
+        return f"{h}:{m:02}:{s:02}.{cs:02}"
 
     def _process_subtitle_tokens(
         self, tokens_with_timestamps, subtitle_entries, max_subtitle_words
@@ -1067,6 +1096,30 @@ class ConversionThread(QThread):
                     subtitle_entries.append(
                         (group[0]["start"], group[-1]["end"], text.strip())
                     )
+
+    def _write_ass_subtitle(self, file_path, subtitle_entries, is_centered=False, is_narrow=False):
+        with open(file_path, "w", encoding="utf-8", errors="replace") as f:
+            # Minimal ASS header
+            f.write("[Script Info]\n")
+            f.write("Title: Generated by Abogen\n")
+            f.write("ScriptType: v4.00+\n\n")
+            
+            # Only events section, use override tags for positioning
+            f.write("[Events]\n")
+            f.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
+            
+            # Set margin based on is_narrow parameter
+            margin = "90" if is_narrow else ""
+            alignment_tag = ""
+            if is_centered:
+                alignment = 5
+                alignment_tag = f"{{\\an{alignment}}}"
+
+            # Write each subtitle with override tag for alignment and margins
+            for i, (start, end, text) in enumerate(subtitle_entries, 1):
+                start_time = self._ass_time(start)
+                end_time = self._ass_time(end)
+                f.write(f"Dialogue: 0,{start_time},{end_time},Default,,{margin},{margin},0,,{alignment_tag}{text}\n")
 
     def cancel(self):
         self.cancel_requested = True
