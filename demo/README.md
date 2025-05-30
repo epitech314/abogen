@@ -23,7 +23,7 @@ brew install ffmpeg
 sudo apt install ffmpeg
 ```
 
-### Create the Video (.webm)
+## Create the Video (.webm)
 
 Run this FFmpeg command to create the tiny video:
 

@@ -34,6 +34,7 @@ This method handles everything automatically - installing all dependencies inclu
 #### OPTION 2: Install using pip
 ```bash
 # Create a virtual environment (optional)
+mkdir abogen && cd abogen
 python -m venv venv
 venv\Scripts\activate
 
@@ -53,6 +54,7 @@ pip install abogen
 brew install espeak-ng
 
 # Create a virtual environment (recommended)
+mkdir abogen && cd abogen
 python3 -m venv venv
 source venv/bin/activate
 
@@ -67,6 +69,7 @@ sudo pacman -S espeak-ng # Arch Linux
 sudo dnf install espeak-ng # Fedora
 
 # Create a virtual environment (recommended)
+mkdir abogen && cd abogen
 python3 -m venv venv
 source venv/bin/activate
 
@@ -168,7 +171,7 @@ When you process the text file, Abogen will detect these markers automatically a
 ![Abogen Chapter Marker](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/chapter_marker.png)
 
 ## `About Metadata Tags`
-Similar to chapter markers, it is possible to add metadata tags to `M4B` files. This is useful for audiobook players that support metadata, allowing you to add information like title, author, year, etc. Abogen automatically adds these tags when you process ePUB or PDF files, but you can also add them manually to your text files. Add metadata tags **at the beginning of your text file** like this:
+Similar to chapter markers, it is possible to add metadata tags for `M4B` files. This is useful for audiobook players that support metadata, allowing you to add information like title, author, year, etc. Abogen automatically adds these tags when you process ePUB or PDF files, but you can also add them manually to your text files. Add metadata tags **at the beginning of your text file** like this:
 ```
 <<METADATA_TITLE:Title>>
 <<METADATA_ARTIST:Author>>
