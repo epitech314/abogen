@@ -9,6 +9,7 @@ on:
     branches: [main]
   # TODO - enable build on pull requests if build times can be reduced
   # pull_request:
+  workflow_dispatch:
 
 env:
   IMAGE_REPOSITORY: ghcr.io/denizsafak/abogen
@@ -48,7 +49,7 @@ jobs:
       uses: docker/build-push-action@v6
       with:
         context: ./abogen
-        file: Dockerfile
+        file: ./abogen/Dockerfile
         platforms: linux/amd64,linux/arm/v7,linux/arm64,linux/ppc64le,linux/s390x
         # Only push if we are publishing a release
         push: ${{ github.event_name == 'release' && github.event.action == 'published' }}
