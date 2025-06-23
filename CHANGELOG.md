@@ -1,3 +1,6 @@
+# v1.1.0
+- Added a feature that allows selecting multiple items in book handler (in right click menu) by @jborza in #31, that fixes #28
+
 # v1.0.9
 - Added chunking/segmenting system that fixes memory outage issues when processing large audio files.
 - Added new option: `Subtitle format`, allowing users to choose between `srt` , `ass (wide)`, `ass (narrow)`, and `ass (centered wide)` and `ass (centered narrow)`
