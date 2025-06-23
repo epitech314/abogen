@@ -1,4 +1,4 @@
-# v1.1.0
+# v1.1.0 (pre-release)
 - Added a feature that allows selecting multiple items in book handler (in right click menu) by @jborza in #31, that fixes #28
 
 # v1.0.9
