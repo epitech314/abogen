@@ -4,6 +4,7 @@ import tempfile
 import platform
 import base64
 import re
+from abogen.queued_item import QueuedItem
 import hf_tracker
 import hashlib  # Added for cache path generation
 from PyQt5.QtWidgets import (
@@ -560,6 +561,9 @@ class abogen(QWidget):
             if platform.system() == "Windows":
                 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("abogen")
 
+        # Queued items list
+        self.queued_items = []
+
         self.initUI()
         self.speed_slider.setValue(int(self.config.get("speed", 1.00) * 100))
         self.update_speed_label()
@@ -808,6 +812,26 @@ class abogen(QWidget):
 
         controls_layout.addLayout(gpu_layout)
 
+
+        # Manage queue button, start queue button
+        queue_row = QHBoxLayout()
+        # Add to queue button
+        self.btn_add_to_queue = QPushButton("Add to Queue", self)
+        self.btn_add_to_queue.setFixedHeight(40)
+        self.btn_add_to_queue.clicked.connect(self.add_to_queue)
+        queue_row.addWidget(self.btn_add_to_queue)
+        # Manage queue button
+        self.btn_manage_queue = QPushButton("Manage Queue", self)
+        self.btn_manage_queue.setFixedHeight(40)
+        self.btn_manage_queue.clicked.connect(self.manage_queue)
+        queue_row.addWidget(self.btn_manage_queue)
+        # Start queue button
+        self.btn_start_queue = QPushButton("Start Queue", self)
+        self.btn_start_queue.setFixedHeight(40)
+        self.btn_start_queue.clicked.connect(self.start_queue)
+        queue_row.addWidget(self.btn_start_queue)
+        controls_layout.addLayout(queue_row)
+
         # Start button
         self.btn_start = QPushButton("Start", self)
         self.btn_start.setFixedHeight(60)
@@ -982,7 +1006,7 @@ class abogen(QWidget):
             else:
                 temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
                 os.makedirs(temp_dir, exist_ok=True)
-                
+
             fd, tmp = tempfile.mkstemp(
                 prefix=f"{base_name}_", suffix=".txt", dir=temp_dir
             )
@@ -1238,6 +1262,41 @@ class abogen(QWidget):
 
         self.progress_bar.repaint()
         QApplication.processEvents()
+
+    def add_to_queue(self):
+        if not self.selected_file:
+            self.input_box.set_error("Please add a file.")
+            return
+        selected_lang = None
+        voice_formula = None
+        actual_subtitle_mode = None
+
+        item = QueuedItem(
+            file_name=self.selected_file,
+            lang_code=selected_lang, # TODO copy from start_conversion
+            speed=self.speed_slider.value() / 100.0,
+            voice=voice_formula, # TODO copy from start_conversion
+            save_option=self.save_option,
+            output_folder=self.selected_output_folder,
+            subtitle_mode=actual_subtitle_mode, # TODO copy from start_conversion
+            output_format=self.selected_format,
+            total_char_count=self.char_count
+        )
+        self.queued_items.append(item)
+
+    def manage_queue(self):
+        if not self.queued_items:
+            self.input_box.set_error("Queue is empty.")
+            return
+        # TODO show a dialog to manage the queue
+        pass
+
+    def start_queue(self):
+        if not self.queued_items:
+            self.input_box.set_error("Queue is empty.")
+            return
+        # TODO process the queue
+        pass
 
     def start_conversion(self):
         if not self.selected_file:
