@@ -4,6 +4,7 @@ import tempfile
 import platform
 import base64
 import re
+from abogen.queue_manager_gui import QueueManager
 from abogen.queued_item import QueuedItem
 import hf_tracker
 import hashlib  # Added for cache path generation
@@ -823,11 +824,13 @@ class abogen(QWidget):
         # Manage queue button
         self.btn_manage_queue = QPushButton("Manage Queue", self)
         self.btn_manage_queue.setFixedHeight(40)
+        self.btn_manage_queue.setEnabled(False)
         self.btn_manage_queue.clicked.connect(self.manage_queue)
         queue_row.addWidget(self.btn_manage_queue)
         # Start queue button
         self.btn_start_queue = QPushButton("Start Queue", self)
         self.btn_start_queue.setFixedHeight(40)
+        self.btn_start_queue.setEnabled(False)
         self.btn_start_queue.clicked.connect(self.start_queue)
         queue_row.addWidget(self.btn_start_queue)
         controls_layout.addLayout(queue_row)
@@ -1263,6 +1266,20 @@ class abogen(QWidget):
         self.progress_bar.repaint()
         QApplication.processEvents()
 
+    def enable_disable_queue_buttons(self):
+        enabled = bool(self.queued_items)
+        self.btn_start_queue.setEnabled(enabled)
+        self.btn_manage_queue.setEnabled(enabled)
+
+    def enqueue(self, item : QueuedItem):
+        self.queued_items.append(item)
+        self.update_log((f"Enqueued: {item.file_name}", True))
+        # enable start queue button, manage queue button
+        self.enable_disable_queue_buttons()
+
+    def get_queue(self):
+        return self.queued_items
+
     def add_to_queue(self):
         if not self.selected_file:
             self.input_box.set_error("Please add a file.")
@@ -1280,16 +1297,22 @@ class abogen(QWidget):
             output_folder=self.selected_output_folder,
             subtitle_mode=actual_subtitle_mode, # TODO copy from start_conversion
             output_format=self.selected_format,
-            total_char_count=self.char_count
+            total_char_count=self.char_count,
+            use_gpu=self.gpu_ok
         )
-        self.queued_items.append(item)
+        self.enqueue(item)
 
     def manage_queue(self):
         if not self.queued_items:
             self.input_box.set_error("Queue is empty.")
             return
-        # TODO show a dialog to manage the queue
-        pass
+        # show a dialog to manage the queue
+        dialog = QueueManager(self, self.queued_items)
+        if dialog.exec_() == QDialog.Accepted:
+            # TODO take the new queue
+            self.queued_items = dialog.get_queue()
+            # re-enable/disable buttons based on queue state
+            self.enable_disable_queue_buttons()
 
     def start_queue(self):
         if not self.queued_items:
