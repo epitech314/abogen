@@ -1284,9 +1284,9 @@ class abogen(QWidget):
         if not self.selected_file:
             self.input_box.set_error("Please add a file.")
             return
-        selected_lang = None
-        voice_formula = None
-        actual_subtitle_mode = None
+        selected_lang = self.get_selected_lang()
+        voice_formula = self.get_voice_formula()
+        actual_subtitle_mode = self.get_actual_subtitle_mode()
 
         item = QueuedItem(
             file_name=self.selected_file,
@@ -1304,6 +1304,8 @@ class abogen(QWidget):
         # Clear input after adding to queue
         self.input_box.clear_input()
 
+
+
     def manage_queue(self):
         if not self.queued_items:
             self.input_box.set_error("Queue is empty.")
@@ -1311,7 +1313,6 @@ class abogen(QWidget):
         # show a dialog to manage the queue
         dialog = QueueManager(self, self.queued_items)
         if dialog.exec_() == QDialog.Accepted:
-            # TODO take the new queue
             self.queued_items = dialog.get_queue()
             # re-enable/disable buttons based on queue state
             self.enable_disable_queue_buttons()
@@ -1320,8 +1321,58 @@ class abogen(QWidget):
         if not self.queued_items:
             self.input_box.set_error("Queue is empty.")
             return
-        # TODO process the queue
+        # convert queued items, one by one - continued in queue_item_conversion_finished
+        self.convert_first_queued_item()
         pass
+
+    def convert_first_queued_item(self):
+        if not self.queued_items:
+            return
+        # Start conversion for the first item in the queue
+        item = self.queued_items[0]
+        self.selected_file = item.file_name
+        self.selected_lang = item.lang_code
+        self.speed_slider.setValue(int(item.speed * 100))
+        self.selected_voice = item.voice
+        self.save_option = item.save_option
+        self.selected_output_folder = item.output_folder
+        self.subtitle_mode = item.subtitle_mode
+        self.selected_format = item.output_format
+        self.char_count = item.total_char_count
+        self.gpu_ok = item.use_gpu
+        # remove the first item from the queue
+        self.queued_items.pop(0)
+
+        # Start conversion for the queued item
+        self.start_conversion()
+
+    def queue_item_conversion_finished(self, message, output_path):
+        self.go_back_ui()
+        self.convert_first_queued_item()
+
+    def get_voice_formula(self):
+        if self.mixed_voice_state:
+            formula_components = [
+                f"{name}*{weight}" for name, weight in self.mixed_voice_state
+            ]
+            return " + ".join(filter(None, formula_components))
+        else:
+            return self.selected_voice
+
+    def get_selected_lang(self):
+        if self.selected_profile_name:
+            from voice_profiles import load_profiles
+            entry = load_profiles().get(self.selected_profile_name, {})
+            return entry.get("language")
+        else:
+            return self.selected_voice[0] if self.selected_voice else None
+
+    def get_actual_subtitle_mode(self):
+        return (
+                "Disabled"
+                if not self.subtitle_combo.isEnabled()
+                else self.subtitle_mode
+            )
 
     def start_conversion(self):
         if not self.selected_file:
@@ -1438,6 +1489,9 @@ class abogen(QWidget):
             self.conversion_thread.log_updated.connect(self.update_log)
             self.conversion_thread.conversion_finished.connect(
                 self.on_conversion_finished
+            )
+            self.conversion_thread.conversion_finished.connect(
+                self.queue_item_conversion_finished
             )
 
             # Connect chapters_detected signal
