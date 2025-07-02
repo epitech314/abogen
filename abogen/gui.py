@@ -1301,6 +1301,8 @@ class abogen(QWidget):
             use_gpu=self.gpu_ok
         )
         self.enqueue(item)
+        # Clear input after adding to queue
+        self.input_box.clear_input()
 
     def manage_queue(self):
         if not self.queued_items:

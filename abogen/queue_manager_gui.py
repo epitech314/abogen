@@ -57,13 +57,23 @@ class QueueManager(QDialog):
         if not self.queue:
             return
         for item in self.queue:
+            # TODO take just the file name from the item, no directories
             self.listwidget.addItem(item.file_name)
 
-        # self.listwidget.clicked.connect(self.clicked)
-
     def remove_item(self):
+        item = self.listwidget.currentItem()
+        if not item:
+            return
+        found_item = [q for q in self.queue if q.file_name==item.text()][0]
+        self.queue.remove(found_item)
+        # rebind the queue to the listwidget
+        self.listwidget.clear()
+        self.process_queue()
         pass
 
     def clear_queue(self):
         self.queue.clear()
         self.listwidget.clear()
+
+    def get_queue(self):
+        return self.queue
