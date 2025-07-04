@@ -1,5 +1,6 @@
 # v1.1.0 (pre-release)
 - Added a feature that allows selecting multiple items in book handler (in right click menu) by @jborza in #31, that fixes #28
+- Added dark theme support, allowing users to switch between light and dark themes in the settings.
 
 # v1.0.9
 - Added chunking/segmenting system that fixes memory outage issues when processing large audio files.

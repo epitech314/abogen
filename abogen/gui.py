@@ -39,6 +39,7 @@ from PyQt5.QtCore import (
     QIODevice,
     QSize,
     QTimer,
+    QEvent,
 )
 from PyQt5.QtGui import (
     QTextCursor,
@@ -71,6 +72,7 @@ from constants import (
     LANGUAGE_DESCRIPTIONS,
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
+    COLORS
 )
 from threading import Thread
 from voice_formula_gui import VoiceFormulaDialog
@@ -79,7 +81,22 @@ from voice_profiles import load_profiles
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
     import ctypes
+    import winreg
 
+class DarkTitleBarEventFilter(QObject):
+    def __init__(self, is_windows, get_dark_mode_func, set_title_bar_dark_mode_func):
+        super().__init__()
+        self.is_windows = is_windows
+        self.get_dark_mode = get_dark_mode_func
+        self.set_title_bar_dark_mode = set_title_bar_dark_mode_func
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Show:
+            # Only apply to QWidget windows
+            if isinstance(obj, QWidget) and obj.isWindow():
+                if self.is_windows and self.get_dark_mode():
+                    self.set_title_bar_dark_mode(obj, True)
+        return False
 
 class ShowWarningSignalEmitter(QObject):  # New class to handle signal emission
     show_warning_signal = pyqtSignal(str, str)
@@ -521,6 +538,7 @@ class abogen(QWidget):
     def __init__(self):
         super().__init__()
         self.config = load_config()
+        self.apply_theme(self.config.get("theme", "system"))
         migrate_subtitle_format(self.config)
         self.check_updates = self.config.get("check_updates", True)
         self.save_option = self.config.get("save_option", "Save next to input file")
@@ -808,7 +826,7 @@ class abogen(QWidget):
         gpu_layout.addLayout(gpu_checkbox_layout)
 
         # Settings button with icon
-        settings_icon_path = get_resource_path("abogen.assets", "settings.png")
+        settings_icon_path = get_resource_path("abogen.assets", "settings.svg")
         self.settings_btn = QPushButton(self)
         if settings_icon_path and os.path.exists(settings_icon_path):
             self.settings_btn.setIcon(QIcon(settings_icon_path))
@@ -1931,9 +1949,159 @@ class abogen(QWidget):
             # If dialog is rejected, cancel the conversion
             self.cancel_conversion()
 
+    def apply_theme(self, theme):
+        from PyQt5.QtGui import QPalette, QColor
+        from PyQt5.QtWidgets import QStyleFactory
+
+        app = QApplication.instance()
+        is_windows = platform.system() == "Windows"
+        available_styles = [s.lower() for s in QStyleFactory.keys()]
+
+        def is_windows_dark_mode():
+            try:
+                import winreg
+                with winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+                ) as key:
+                    value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                    return value == 0
+            except Exception:
+                return False
+
+        # --- Theme selection logic ---
+        def set_dark_palette():
+            palette = QPalette()
+            dark_bg = QColor(COLORS["DARK_BG"])
+            base_bg = QColor(COLORS["DARK_BASE"])
+            alt_bg = QColor(COLORS["DARK_ALT"])
+            button_bg = QColor(COLORS["DARK_BUTTON"])
+            disabled_fg = QColor(COLORS["DARK_DISABLED"])
+            palette.setColor(QPalette.ColorRole.Window, dark_bg)
+            palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Base, base_bg)
+            palette.setColor(QPalette.ColorRole.AlternateBase, alt_bg)
+            palette.setColor(QPalette.ColorRole.ToolTipBase, dark_bg)
+            palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.Button, button_bg)
+            palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+            # Disabled roles
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, disabled_fg)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, disabled_fg)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, disabled_fg)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base, dark_bg)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, dark_bg)
+            app.setPalette(palette)
+            
+
+        def set_light_palette():
+            palette = QPalette()
+            disabled_fg = QColor(COLORS["LIGHT_DISABLED"])
+            palette.setColor(QPalette.ColorRole.Window, QColor(COLORS["LIGHT_BG"]))
+            palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.Base, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.AlternateBase, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.black)
+            palette.setColor(QPalette.ColorRole.Button, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.black)
+            # Disabled roles
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, disabled_fg)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, disabled_fg)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, disabled_fg)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base, Qt.GlobalColor.white)
+            palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, Qt.GlobalColor.white)
+            app.setPalette(palette)
+
+        # --- Dark title bar support for Windows ---
+        def set_title_bar_dark_mode(window, enable):
+            if is_windows:
+                try:
+                    window.update()
+                    DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+                    set_window_attribute = ctypes.windll.dwmapi.DwmSetWindowAttribute
+                    hwnd = int(window.winId())
+                    value = ctypes.c_int(2 if enable else 0)
+                    set_window_attribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value))
+                except Exception:
+                    pass
+
+        # Main logic
+        dark_mode = theme == "dark" or (theme == "system" and is_windows and is_windows_dark_mode())
+        if dark_mode:
+            app.setStyle("Fusion")
+            set_dark_palette()
+        elif (theme == "light" or theme == "system") and is_windows:
+            if "windowsvista" in available_styles:
+                app.setStyle("windowsvista")
+            else:
+                app.setStyle("Fusion")
+            app.setPalette(QPalette())
+        elif theme == "light":
+            app.setStyle("Fusion")
+            set_light_palette()
+        else:
+            app.setStyle("Fusion")
+            app.setPalette(QPalette())
+
+        # Always set the title bar mode according to the current theme for all top-level widgets
+        for widget in app.topLevelWidgets():
+            set_title_bar_dark_mode(widget, dark_mode)
+
+        # Refresh all top-level widgets
+        style_name = app.style().objectName()
+        app.setStyle(style_name)
+        for widget in app.topLevelWidgets():
+            app.style().polish(widget)
+            widget.update()
+
+        # Remove old event filter if present, then install a new one for dark title bar on new windows
+        if hasattr(app, "_dark_titlebar_event_filter"):
+            app.removeEventFilter(app._dark_titlebar_event_filter)
+            delattr(app, "_dark_titlebar_event_filter")
+
+        def get_dark_mode():
+            return theme == "dark" or (theme == "system" and is_windows and is_windows_dark_mode())
+        app._dark_titlebar_event_filter = DarkTitleBarEventFilter(
+            is_windows, get_dark_mode, set_title_bar_dark_mode
+        )
+        app.installEventFilter(app._dark_titlebar_event_filter)
+
+        # Save config if changed
+        if self.config.get("theme", "system") != theme:
+            self.config["theme"] = theme
+            save_config(self.config)
+
     def show_settings_menu(self):
         """Show a dropdown menu for settings options."""
         menu = QMenu(self)
+
+        theme_menu = QMenu("Theme", self)
+        theme_menu.setToolTip("Choose the application theme")
+
+        theme_group = QActionGroup(self)
+        theme_group.setExclusive(True)
+
+        # Theme options: (internal_value, display_text)
+        theme_options = [
+            ("system", "System"),
+            ("light", "Light"),
+            ("dark", "Dark"),
+        ]
+
+        # Get current theme from config, default to "system"
+        current_theme = self.config.get("theme", "system")
+        for value, text in theme_options:
+            theme_action = QAction(text, self)
+            theme_action.setCheckable(True)
+            theme_action.setChecked(current_theme == value)
+            theme_action.triggered.connect(lambda checked, v=value: self.apply_theme(v))
+            theme_group.addAction(theme_action)
+            theme_menu.addAction(theme_action)
+
+        menu.addMenu(theme_menu)
 
         # Add replace single newlines option
         newline_action = QAction("Replace single newlines with spaces", self)
