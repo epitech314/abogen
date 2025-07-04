@@ -503,11 +503,25 @@ class TextboxDialog(QDialog):
         self.update_char_count()
         self.text_edit.setFocus()
 
+def migrate_subtitle_format(config):
+    """Convert old subtitle_format values to new internal keys."""
+    old_to_new = {
+        "srt": "srt",
+        "ass (wide)": "ass_wide",
+        "ass (narrow)": "ass_narrow",
+        "ass (centered wide)": "ass_centered_wide",
+        "ass (centered narrow)": "ass_centered_narrow",
+    }
+    val = config.get("subtitle_format")
+    if val in old_to_new:
+        config["subtitle_format"] = old_to_new[val]
+        save_config(config)
 
 class abogen(QWidget):
     def __init__(self):
         super().__init__()
         self.config = load_config()
+        migrate_subtitle_format(self.config)
         self.check_updates = self.config.get("check_updates", True)
         self.save_option = self.config.get("save_option", "Save next to input file")
         self.selected_output_folder = self.config.get("selected_output_folder", None)
@@ -1336,7 +1350,7 @@ class abogen(QWidget):
             # Pass separate_chapters_format setting
             self.conversion_thread.separate_chapters_format = self.separate_chapters_format
             # Pass subtitle format setting
-            self.conversion_thread.subtitle_format = self.config.get("subtitle_format", "srt")
+            self.conversion_thread.subtitle_format = self.config.get("subtitle_format", "ass_centered_narrow")
             # Pass chapter count for EPUB or PDF files
             if self.selected_file_type in ["epub", "pdf"] and hasattr(
                 self, "selected_chapters"
@@ -1936,19 +1950,28 @@ class abogen(QWidget):
         # Add subtitle format option
         subtitle_format_menu = QMenu("Subtitle format", self)
         subtitle_format_menu.setToolTip("Choose the format for generated subtitles")
-        
+
         subtitle_format_group = QActionGroup(self)
         subtitle_format_group.setExclusive(True)
-        
-        subtitle_format = self.config.get("subtitle_format", "srt")
-        for format_option in ["srt", "ass (wide)", "ass (narrow)", "ass (centered wide)", "ass (centered narrow)"]:
-            format_action = QAction(f"{format_option}", self)
+
+        # Define mapping: (internal_value, display_text)
+        subtitle_formats = [
+            ("srt", "SRT (standard)"),
+            ("ass_wide", "ASS (wide)"),
+            ("ass_narrow", "ASS (narrow)"),
+            ("ass_centered_wide", "ASS (centered wide)"),
+            ("ass_centered_narrow", "ASS (centered narrow)"),
+        ]
+
+        subtitle_format = self.config.get("subtitle_format", "ass_centered_narrow")
+        for value, text in subtitle_formats:
+            format_action = QAction(text, self)
             format_action.setCheckable(True)
-            format_action.setChecked(subtitle_format == format_option)
-            format_action.triggered.connect(lambda checked, fmt=format_option: self.set_subtitle_format(fmt))
+            format_action.setChecked(subtitle_format == value)
+            format_action.triggered.connect(lambda checked, fmt=value: self.set_subtitle_format(fmt))
             subtitle_format_group.addAction(format_action)
             subtitle_format_menu.addAction(format_action)
-            
+
         menu.addMenu(subtitle_format_menu)
         
         # Add separate chapters format option

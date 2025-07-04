@@ -693,8 +693,8 @@ class ConversionThread(QThread):
                         
                         if 'ass' in subtitle_format:
                             # Generate ASS subtitle
-                            is_centered = 'centered' in subtitle_format
-                            is_narrow = 'narrow' in subtitle_format
+                            is_centered = subtitle_format in ("ass_centered_wide", "ass_centered_narrow")
+                            is_narrow = subtitle_format in ("ass_narrow", "ass_centered_narrow")
                             self._write_ass_subtitle(chapter_subtitle_path, chapter_subtitle_entries, is_centered, is_narrow)
                         else:
                             # Generate SRT subtitle (default)
@@ -772,10 +772,10 @@ class ConversionThread(QThread):
                         subtitle_path = os.path.splitext(final_out_path)[0] + f".{file_extension}"
                         
                         if 'ass' in subtitle_format:
-                            # Generate ASS subtitle with optional centering and margin
-                            is_centered = 'centered' in subtitle_format
-                            is_narrow = 'narrow' in subtitle_format
-                            self._write_ass_subtitle(subtitle_path, subtitle_entries, is_centered, is_narrow)
+                            # Generate ASS subtitle
+                            is_centered = subtitle_format in ("ass_centered_wide", "ass_centered_narrow")
+                            is_narrow = subtitle_format in ("ass_narrow", "ass_centered_narrow")
+                            self._write_ass_subtitle(chapter_subtitle_path, chapter_subtitle_entries, is_centered, is_narrow)
                         else:
                             # Generate SRT subtitle (default)
                             with open(subtitle_path, "w", encoding="utf-8", errors="replace") as srt_file:
