@@ -571,7 +571,7 @@ class abogen(QWidget):
         self.use_gpu = self.config.get(
             "use_gpu", True  # Load GPU setting with default True
         )
-        self.replace_single_newlines = self.config.get("replace_single_newlines", False)
+        self.replace_single_newlines = self.config.get("replace_single_newlines", True)
         self._pending_close_event = None
         self.gpu_ok = False  # Initialize GPU availability status
 

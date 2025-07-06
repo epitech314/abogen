@@ -91,7 +91,7 @@ _sleep_procs = {"Darwin": None, "Linux": None}  # Store sleep prevention process
 def clean_text(text, *args, **kwargs):
     # Load replace_single_newlines from config
     cfg = load_config()
-    replace_single_newlines = cfg.get("replace_single_newlines", False)
+    replace_single_newlines = cfg.get("replace_single_newlines", True)
     # Collapse all whitespace (excluding newlines) into single spaces per line and trim edges
     lines = [re.sub(r"[^\S\n]+", " ", line).strip() for line in text.splitlines()]
     text = "\n".join(lines)
