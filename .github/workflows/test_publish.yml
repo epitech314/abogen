@@ -2,11 +2,11 @@ name: Build multi-arch Docker Image
 
 on:
   # Build and push
-  release:
-    types: [published]
+  #release:
+  #  types: [published]
   # Build only
-  push:
-    branches: [main]
+  #push:
+  #  branches: [main]
   # TODO - enable build on pull requests if build times can be reduced
   # pull_request:
   workflow_dispatch:
