@@ -161,6 +161,7 @@ class HandlerDialog(QDialog):
         self.treeWidget.expandAll()
         if self.treeWidget.topLevelItemCount() > 0:
             self.treeWidget.setCurrentItem(self.treeWidget.topLevelItem(0))
+            self.treeWidget.setFocus()
 
         # Update checkbox states
         self._update_checkbox_states()

@@ -102,3 +102,19 @@ SAMPLE_VOICE_TEXTS = {
     "p": "Este é um exemplo da voz selecionada.",
     "z": "这是所选语音的示例。",
 }
+
+COLORS = {
+    "BLUE": "#007dff",
+    "RED": "#c0392b",
+    "YELLOW_BACKGROUND": "rgba(255, 221, 51, 0.40)",
+    "GREY_BACKGROUND": "rgba(128, 128, 128, 0.15)",
+    "RED_BACKGROUND": "rgba(232, 78, 60, 0.15)",
+    # Theme palette colors
+    "DARK_BG": "#202326",
+    "DARK_BASE": "#141618",
+    "DARK_ALT": "#2c2f31",
+    "DARK_BUTTON": "#292c30",
+    "DARK_DISABLED": "#535353",
+    "LIGHT_BG": "#eff0f1",
+    "LIGHT_DISABLED": "#9a9999",
+}

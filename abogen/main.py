@@ -3,6 +3,7 @@ import sys
 import platform
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
 
 # Add the directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
@@ -23,6 +24,25 @@ if sys.stderr is None:
 # Enable MPS GPU acceleration on Mac Apple Silicon
 if platform.system() == "Darwin" and platform.processor() == "arm":
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
+# Custom message handler to filter out specific Qt warnings
+def qt_message_handler(mode, context, message):
+    if "Wayland does not support QWindow::requestActivate()" in message:
+        return  # Suppress this specific message
+    if "setGrabPopup called with a parent, QtWaylandClient" in message:
+        return
+    if mode == QtMsgType.QtWarningMsg:
+        print(f"Qt Warning: {message}")
+    elif mode == QtMsgType.QtCriticalMsg:
+        print(f"Qt Critical: {message}")
+    elif mode == QtMsgType.QtFatalMsg:
+        print(f"Qt Fatal: {message}")
+    elif mode == QtMsgType.QtInfoMsg:
+        print(f"Qt Info: {message}")
+
+
+# Install the custom message handler
+qInstallMessageHandler(qt_message_handler)
 
 # Set application ID for Windows taskbar icon
 if platform.system() == "Windows":

@@ -24,14 +24,18 @@ from PyQt5.QtWidgets import (
     QMenu,
     QAction,
     QComboBox,
+    QApplication,
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint, QRect, QSize
-from PyQt5.QtGui import QPixmap, QIcon, QColor
+from PyQt5.QtGui import QPixmap, QIcon
 from constants import (
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
     LANGUAGE_DESCRIPTIONS,
+    COLORS,
 )
+import re
+import platform
 from utils import get_resource_path
 from voice_profiles import (
     load_profiles,
@@ -221,6 +225,19 @@ class VoiceMixer(QWidget):
         self.slider.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self.slider.setFixedWidth(SLIDER_WIDTH)
 
+        # Fix slider in Windows
+        if platform.system() == "Windows":
+            appstyle = QApplication.instance().style().objectName().lower()
+            if appstyle != "windowsvista":
+                # Set custom groove color for disabled state using COLORS["GREY_BACKGROUND"]
+                self.slider.setStyleSheet(f"""
+                    QSlider::groove:vertical:disabled {{
+                        background: {COLORS.get("GREY_BACKGROUND")};
+                        width: 4px;
+                        border-radius: 4px;
+                    }}
+                """)
+
         # Connect controls
         self.slider.valueChanged.connect(lambda val: self.spin_box.setValue(val / 100))
         self.spin_box.valueChanged.connect(
@@ -271,9 +288,9 @@ class HoverLabel(QLabel):
         self.delete_button = QPushButton("×", self)
         self.delete_button.setFixedSize(16, 16)
         self.delete_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #ff5555;
+            f"""
+            QPushButton {{
+                background-color: {COLORS.get("RED")};
                 color: white;
                 border-radius: 7px;
                 font-weight: bold;
@@ -281,11 +298,11 @@ class HoverLabel(QLabel):
                 border: none;
                 padding: 0px;
                 margin: 0px;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-color: red;
-            }
-        """
+            }}
+            """
         )
         # Make sure the entire button is clickable, not just the text
         self.delete_button.setFocusPolicy(Qt.NoFocus)
@@ -350,6 +367,9 @@ class VoiceFormulaDialog(QDialog):
         profile_layout.addLayout(header_layout)
         # Profile list
         self.profile_list = QListWidget()
+        self.profile_list.setSelectionMode(QListWidget.SingleSelection)
+        self.profile_list.setSelectionBehavior(QListWidget.SelectRows)
+        self.profile_list.setStyleSheet("QListWidget::item:selected { background: palette(highlight); color: palette(highlighted-text); }")
         icon = QIcon(get_resource_path("abogen.assets", "profile.png"))
         if self._virtual_new_profile:
             item = QListWidgetItem(icon, "New profile")
@@ -738,7 +758,7 @@ class VoiceFormulaDialog(QDialog):
                 percentage = weight / total * 100
                 # Make the voice name bold and include percentage
                 voice_label = HoverLabel(
-                    f'<b><span style="color:#007dff">{name}: {percentage:.1f}%</span></b>',
+                    f'<b><span style="color:{COLORS.get("BLUE")}">{name}: {percentage:.1f}%</span></b>',
                     name,
                 )
                 voice_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -952,6 +972,18 @@ class VoiceFormulaDialog(QDialog):
             event.ignore()
             return
         super().closeEvent(event)
+
+    def _parse_rgba_to_qcolor(self, rgba_str):
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QColor
+        """Helper to convert 'rgba(R,G,B,A_float)' string to QColor."""
+        match = re.match(r"rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)", rgba_str)
+        if match:
+            r, g, b = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            a_float = float(match.group(4))
+            a_int = int(a_float * 255)
+            return QColor(r, g, b, a_int)
+        return Qt.GlobalColor.transparent
 
     def mark_profile_modified(self):
         item = self.profile_list.currentItem()
@@ -1339,23 +1371,20 @@ class VoiceFormulaDialog(QDialog):
                 self.profile_list.setItemWidget(item, widget)
 
     def update_profile_list_colors(self):
+        from PyQt5.QtCore import Qt
         profiles = load_profiles()
         for i in range(self.profile_list.count()):
             item = self.profile_list.item(i)
             name = item.text().lstrip("*")
             if self._virtual_new_profile and name == "New profile":
-                color = QColor("#ffff00")  # yellow
-                color.setAlpha(64)  # Set transparency
-                item.setBackground(color)
+                color = self._parse_rgba_to_qcolor(COLORS.get("YELLOW_BACKGROUND"))
+                item.setData(Qt.BackgroundRole, color)
             elif item.text().startswith("*"):
-                color = QColor("#ffff00")  # yellow
-                color.setAlpha(64)  # Set transparency
-                item.setBackground(color)
+                color = self._parse_rgba_to_qcolor(COLORS.get("YELLOW_BACKGROUND"))
+                item.setData(Qt.BackgroundRole, color)
             else:
-                item.setBackground(self.profile_list.palette().base().color()) # Use default list item background
-
+                item.setData(Qt.BackgroundRole, self.profile_list.palette().base().color())
                 weights = profiles.get(name, {}).get("voices", [])
-                # Defensive: only sum if weights is a list of (voice, weight) pairs
                 total = 0
                 if isinstance(weights, list):
                     for entry in weights:
@@ -1366,9 +1395,8 @@ class VoiceFormulaDialog(QDialog):
                         ):
                             total += entry[1]
                 if total == 0:
-                    color = QColor("#ff0000")  # red
-                    color.setAlpha(64)  # Set transparency
-                    item.setBackground(color)
+                    color = self._parse_rgba_to_qcolor(COLORS.get("RED_BACKGROUND"))
+                    item.setData(Qt.BackgroundRole, color)
         self.update_profile_save_buttons()
 
     def preview_current_mix(self):
