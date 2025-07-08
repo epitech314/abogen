@@ -4,6 +4,8 @@ import tempfile
 import platform
 import base64
 import re
+from abogen.queue_manager_gui import QueueManager
+from abogen.queued_item import QueuedItem
 import hf_tracker
 import hashlib  # Added for cache path generation
 from PyQt5.QtWidgets import (
@@ -200,10 +202,22 @@ class InputBox(QLabel):
         name = os.path.basename(file_path)
         char_count = "N/A"
 
+        def parse_size(size_str):
+            # Use regex to extract the numeric part
+            match = re.match(r"([\d.]+)", size_str)
+            if match:
+                return float(match.group(1))
+            raise ValueError(f"Invalid size format: {size_str}")
+
+
         # Format numbers with commas
         def format_num(n):
             try:
-                return f"{int(n):,}"
+                if isinstance(n, str):
+                    size = int(parse_size(n))
+                    return f"{size:,}"
+                else:
+                    return f"{n:,}"
             except Exception:
                 return str(n)
 
@@ -592,6 +606,9 @@ class abogen(QWidget):
             if platform.system() == "Windows":
                 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("abogen")
 
+        # Queued items list
+        self.queued_items = []
+
         self.initUI()
         self.speed_slider.setValue(int(self.config.get("speed", 1.00) * 100))
         self.update_speed_label()
@@ -840,6 +857,29 @@ class abogen(QWidget):
 
         controls_layout.addLayout(gpu_layout)
 
+
+        # Manage queue button, start queue button
+        queue_row = QHBoxLayout()
+        # Add to queue button
+        self.btn_add_to_queue = QPushButton("Add to Queue", self)
+        self.btn_add_to_queue.setFixedHeight(40)
+        self.btn_add_to_queue.setEnabled(False)
+        self.btn_add_to_queue.clicked.connect(self.add_to_queue)
+        queue_row.addWidget(self.btn_add_to_queue)
+        # Manage queue button
+        self.btn_manage_queue = QPushButton("Manage Queue", self)
+        self.btn_manage_queue.setFixedHeight(40)
+        self.btn_manage_queue.setEnabled(False)
+        self.btn_manage_queue.clicked.connect(self.manage_queue)
+        queue_row.addWidget(self.btn_manage_queue)
+        # Start queue button
+        self.btn_start_queue = QPushButton("Start Queue", self)
+        self.btn_start_queue.setFixedHeight(40)
+        self.btn_start_queue.setEnabled(False)
+        self.btn_start_queue.clicked.connect(self.start_queue)
+        queue_row.addWidget(self.btn_start_queue)
+        controls_layout.addLayout(queue_row)
+
         # Start button
         self.btn_start = QPushButton("Start", self)
         self.btn_start.setFixedHeight(60)
@@ -926,6 +966,8 @@ class abogen(QWidget):
                     file_path  # Set the displayed file path for text files
                 )
                 self.input_box.set_file_info(file_path)
+            # Enable add to queue button
+            self.btn_add_to_queue.setEnabled(True)
         except Exception as e:
             self._show_error_message_box(
                 "File Dialog Error", f"Could not open file dialog:\n{e}"
@@ -1014,7 +1056,7 @@ class abogen(QWidget):
             else:
                 temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
                 os.makedirs(temp_dir, exist_ok=True)
-                
+
             fd, tmp = tempfile.mkstemp(
                 prefix=f"{base_name}_", suffix=".txt", dir=temp_dir
             )
@@ -1271,6 +1313,118 @@ class abogen(QWidget):
         self.progress_bar.repaint()
         QApplication.processEvents()
 
+    def enable_disable_queue_buttons(self):
+        enabled = bool(self.queued_items)
+        self.btn_start_queue.setEnabled(enabled)
+        self.btn_manage_queue.setEnabled(enabled)
+        self.btn_add_to_queue.setEnabled(False)
+
+    def enqueue(self, item : QueuedItem):
+        self.queued_items.append(item)
+        self.update_log((f"Enqueued: {item.file_name}", True))
+        # enable start queue button, manage queue button
+        self.enable_disable_queue_buttons()
+
+    def get_queue(self):
+        return self.queued_items
+
+    def add_to_queue(self):
+        if not self.selected_file:
+            self.input_box.set_error("Please add a file.")
+            return
+        actual_subtitle_mode = self.get_actual_subtitle_mode()
+        voice_formula = self.get_voice_formula()
+        selected_lang = self.get_selected_lang(voice_formula)
+
+        item = QueuedItem(
+            file_name=self.selected_file,
+            lang_code=selected_lang,
+            speed=self.speed_slider.value() / 100.0,
+            voice=voice_formula,
+            save_option=self.save_option,
+            output_folder=self.selected_output_folder,
+            subtitle_mode=actual_subtitle_mode,
+            output_format=self.selected_format,
+            total_char_count=self.char_count,
+            use_gpu=self.gpu_ok
+        )
+        self.enqueue(item)
+        # Clear input after adding to queue
+        self.input_box.clear_input()
+
+    def manage_queue(self):
+        if not self.queued_items:
+            self.input_box.set_error("Queue is empty.")
+            return
+        # show a dialog to manage the queue
+        dialog = QueueManager(self, self.queued_items)
+        if dialog.exec_() == QDialog.Accepted:
+            self.queued_items = dialog.get_queue()
+            # re-enable/disable buttons based on queue state
+            self.enable_disable_queue_buttons()
+
+    def start_queue(self):
+        if not self.queued_items:
+            self.input_box.set_error("Queue is empty.")
+            return
+        # convert queued items, one by one - continued in queue_item_conversion_finished
+        self.convert_first_queued_item()
+        pass
+
+    def convert_first_queued_item(self):
+        if not self.queued_items:
+            return
+        # Start conversion for the first item in the queue
+        item = self.queued_items[0]
+        self.selected_file = item.file_name
+        self.selected_lang = item.lang_code
+        self.speed_slider.setValue(int(item.speed * 100))
+        self.selected_voice = item.voice
+        self.save_option = item.save_option
+        self.selected_output_folder = item.output_folder
+        self.subtitle_mode = item.subtitle_mode
+        self.selected_format = item.output_format
+        self.char_count = item.total_char_count
+        self.gpu_ok = item.use_gpu
+        # remove the first item from the queue
+        self.queued_items.pop(0)
+
+        # Start conversion for the queued item
+        self.start_conversion()
+
+    def queue_item_conversion_finished(self):
+        self.go_back_ui()
+        self.convert_first_queued_item()
+
+    def get_voice_formula(self) -> str:
+        if self.mixed_voice_state:
+            formula_components = [
+                f"{name}*{weight}" for name, weight in self.mixed_voice_state
+            ]
+            return " + ".join(filter(None, formula_components))
+        else:
+            return self.selected_voice
+
+    def get_selected_lang(self, voice_formula) -> str:
+        if self.selected_profile_name:
+            from voice_profiles import load_profiles
+            entry = load_profiles().get(self.selected_profile_name, {})
+            selected_lang = entry.get("language")
+        else:
+            selected_lang = self.selected_voice[0] if self.selected_voice else None
+        # fallback: extract from formula if missing
+        if not selected_lang:
+                m = re.search(r"\b([a-z])", voice_formula)
+                selected_lang = m.group(1) if m else None
+        return selected_lang
+
+    def get_actual_subtitle_mode(self) -> str:
+        return (
+                "Disabled"
+                if not self.subtitle_combo.isEnabled()
+                else self.subtitle_mode
+            )
+
     def start_conversion(self):
         if not self.selected_file:
             self.input_box.set_error("Please add a file.")
@@ -1313,32 +1467,12 @@ class abogen(QWidget):
             self.btn_cancel.setEnabled(True)
 
             # Override subtitle_mode to "Disabled" if subtitle_combo is disabled
-            actual_subtitle_mode = (
-                "Disabled"
-                if not self.subtitle_combo.isEnabled()
-                else self.subtitle_mode
-            )
+            actual_subtitle_mode = self.get_actual_subtitle_mode()
 
             # if voice formula is not None, use the selected voice
-            if self.mixed_voice_state:
-                formula_components = [
-                    f"{name}*{weight}" for name, weight in self.mixed_voice_state
-                ]
-                voice_formula = " + ".join(filter(None, formula_components))
-            else:
-                voice_formula = self.selected_voice
+            voice_formula = self.get_voice_formula()
             # determine selected language: use profile setting if profile selected, else voice code
-            if self.selected_profile_name:
-                from voice_profiles import load_profiles
-
-                entry = load_profiles().get(self.selected_profile_name, {})
-                selected_lang = entry.get("language")
-            else:
-                selected_lang = self.selected_voice[0] if self.selected_voice else None
-            # fallback: extract from formula if missing
-            if not selected_lang:
-                m = re.search(r"\b([a-z])", voice_formula)
-                selected_lang = m.group(1) if m else None
+            selected_lang = self.get_selected_lang(voice_formula)
 
             self.conversion_thread = ConversionThread(
                 self.selected_file,
@@ -1463,6 +1597,8 @@ class abogen(QWidget):
         self.log_text.moveCursor(QTextCursor.End)
         self.log_text.ensureCursorVisible()
         save_config(self.config)
+        # Start new queued item, if we're using a queued conversion
+        self.queue_item_conversion_finished()
 
     def reset_ui(self):
         try:
