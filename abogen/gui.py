@@ -185,10 +185,22 @@ class InputBox(QLabel):
         name = os.path.basename(file_path)
         char_count = "N/A"
 
+        def parse_size(size_str):
+            # Use regex to extract the numeric part
+            match = re.match(r"([\d.]+)", size_str)
+            if match:
+                return float(match.group(1))
+            raise ValueError(f"Invalid size format: {size_str}")
+
+
         # Format numbers with commas
         def format_num(n):
             try:
-                return f"{int(n):,}"
+                if isinstance(n, str):
+                    size = int(parse_size(n))
+                    return f"{size:,}"
+                else:
+                    return f"{n:,}"
             except Exception:
                 return str(n)
 
@@ -819,6 +831,7 @@ class abogen(QWidget):
         # Add to queue button
         self.btn_add_to_queue = QPushButton("Add to Queue", self)
         self.btn_add_to_queue.setFixedHeight(40)
+        self.btn_add_to_queue.setEnabled(False)
         self.btn_add_to_queue.clicked.connect(self.add_to_queue)
         queue_row.addWidget(self.btn_add_to_queue)
         # Manage queue button
@@ -921,6 +934,8 @@ class abogen(QWidget):
                     file_path  # Set the displayed file path for text files
                 )
                 self.input_box.set_file_info(file_path)
+            # Enable add to queue button
+            self.btn_add_to_queue.setEnabled(True)
         except Exception as e:
             self._show_error_message_box(
                 "File Dialog Error", f"Could not open file dialog:\n{e}"
@@ -1270,6 +1285,7 @@ class abogen(QWidget):
         enabled = bool(self.queued_items)
         self.btn_start_queue.setEnabled(enabled)
         self.btn_manage_queue.setEnabled(enabled)
+        self.btn_add_to_queue.setEnabled(False)
 
     def enqueue(self, item : QueuedItem):
         self.queued_items.append(item)
@@ -1344,11 +1360,11 @@ class abogen(QWidget):
         # Start conversion for the queued item
         self.start_conversion()
 
-    def queue_item_conversion_finished(self, message, output_path):
+    def queue_item_conversion_finished(self):
         self.go_back_ui()
         self.convert_first_queued_item()
 
-    def get_voice_formula(self):
+    def get_voice_formula(self) -> str:
         if self.mixed_voice_state:
             formula_components = [
                 f"{name}*{weight}" for name, weight in self.mixed_voice_state
@@ -1357,7 +1373,7 @@ class abogen(QWidget):
         else:
             return self.selected_voice
 
-    def get_selected_lang(self, voice_formula):
+    def get_selected_lang(self, voice_formula) -> str:
         if self.selected_profile_name:
             from voice_profiles import load_profiles
             entry = load_profiles().get(self.selected_profile_name, {})
@@ -1368,8 +1384,9 @@ class abogen(QWidget):
         if not selected_lang:
                 m = re.search(r"\b([a-z])", voice_formula)
                 selected_lang = m.group(1) if m else None
+        return selected_lang
 
-    def get_actual_subtitle_mode(self):
+    def get_actual_subtitle_mode(self) -> str:
         return (
                 "Disabled"
                 if not self.subtitle_combo.isEnabled()
@@ -1472,10 +1489,6 @@ class abogen(QWidget):
             self.conversion_thread.conversion_finished.connect(
                 self.on_conversion_finished
             )
-            # TODO remove
-            # self.conversion_thread.conversion_finished.connect(
-            #     self.queue_item_conversion_finished
-            # )
 
             # Connect chapters_detected signal
             self.conversion_thread.chapters_detected.connect(
@@ -1552,6 +1565,7 @@ class abogen(QWidget):
         self.log_text.moveCursor(QTextCursor.End)
         self.log_text.ensureCursorVisible()
         save_config(self.config)
+        # Start new queued item, if we're using a queued conversion
         self.queue_item_conversion_finished()
 
     def reset_ui(self):
