@@ -1284,18 +1284,18 @@ class abogen(QWidget):
         if not self.selected_file:
             self.input_box.set_error("Please add a file.")
             return
-        selected_lang = self.get_selected_lang()
-        voice_formula = self.get_voice_formula()
         actual_subtitle_mode = self.get_actual_subtitle_mode()
+        voice_formula = self.get_voice_formula()
+        selected_lang = self.get_selected_lang(voice_formula)
 
         item = QueuedItem(
             file_name=self.selected_file,
-            lang_code=selected_lang, # TODO copy from start_conversion
+            lang_code=selected_lang,
             speed=self.speed_slider.value() / 100.0,
-            voice=voice_formula, # TODO copy from start_conversion
+            voice=voice_formula,
             save_option=self.save_option,
             output_folder=self.selected_output_folder,
-            subtitle_mode=actual_subtitle_mode, # TODO copy from start_conversion
+            subtitle_mode=actual_subtitle_mode,
             output_format=self.selected_format,
             total_char_count=self.char_count,
             use_gpu=self.gpu_ok
@@ -1303,8 +1303,6 @@ class abogen(QWidget):
         self.enqueue(item)
         # Clear input after adding to queue
         self.input_box.clear_input()
-
-
 
     def manage_queue(self):
         if not self.queued_items:
@@ -1359,13 +1357,17 @@ class abogen(QWidget):
         else:
             return self.selected_voice
 
-    def get_selected_lang(self):
+    def get_selected_lang(self, voice_formula):
         if self.selected_profile_name:
             from voice_profiles import load_profiles
             entry = load_profiles().get(self.selected_profile_name, {})
-            return entry.get("language")
+            selected_lang = entry.get("language")
         else:
-            return self.selected_voice[0] if self.selected_voice else None
+            selected_lang = self.selected_voice[0] if self.selected_voice else None
+        # fallback: extract from formula if missing
+        if not selected_lang:
+                m = re.search(r"\b([a-z])", voice_formula)
+                selected_lang = m.group(1) if m else None
 
     def get_actual_subtitle_mode(self):
         return (
@@ -1416,32 +1418,12 @@ class abogen(QWidget):
             self.btn_cancel.setEnabled(True)
 
             # Override subtitle_mode to "Disabled" if subtitle_combo is disabled
-            actual_subtitle_mode = (
-                "Disabled"
-                if not self.subtitle_combo.isEnabled()
-                else self.subtitle_mode
-            )
+            actual_subtitle_mode = self.get_actual_subtitle_mode()
 
             # if voice formula is not None, use the selected voice
-            if self.mixed_voice_state:
-                formula_components = [
-                    f"{name}*{weight}" for name, weight in self.mixed_voice_state
-                ]
-                voice_formula = " + ".join(filter(None, formula_components))
-            else:
-                voice_formula = self.selected_voice
+            voice_formula = self.get_voice_formula()
             # determine selected language: use profile setting if profile selected, else voice code
-            if self.selected_profile_name:
-                from voice_profiles import load_profiles
-
-                entry = load_profiles().get(self.selected_profile_name, {})
-                selected_lang = entry.get("language")
-            else:
-                selected_lang = self.selected_voice[0] if self.selected_voice else None
-            # fallback: extract from formula if missing
-            if not selected_lang:
-                m = re.search(r"\b([a-z])", voice_formula)
-                selected_lang = m.group(1) if m else None
+            selected_lang = self.get_selected_lang(voice_formula)
 
             self.conversion_thread = ConversionThread(
                 self.selected_file,
@@ -1490,9 +1472,10 @@ class abogen(QWidget):
             self.conversion_thread.conversion_finished.connect(
                 self.on_conversion_finished
             )
-            self.conversion_thread.conversion_finished.connect(
-                self.queue_item_conversion_finished
-            )
+            # TODO remove
+            # self.conversion_thread.conversion_finished.connect(
+            #     self.queue_item_conversion_finished
+            # )
 
             # Connect chapters_detected signal
             self.conversion_thread.chapters_detected.connect(
@@ -1569,6 +1552,7 @@ class abogen(QWidget):
         self.log_text.moveCursor(QTextCursor.End)
         self.log_text.ensureCursorVisible()
         save_config(self.config)
+        self.queue_item_conversion_finished()
 
     def reset_ui(self):
         try:
