@@ -3,16 +3,10 @@
 # button to clear the queue
 
 from PyQt5.QtWidgets import (
-    QWidget,
     QDialog,
     QVBoxLayout,
     QDialogButtonBox,
-    QLabel,
-    QCheckBox,
-    QSlider,
     QPushButton,
-    QHBoxLayout,
-    QMessageBox,
     QListWidget,
 )
 

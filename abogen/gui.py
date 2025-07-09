@@ -143,11 +143,16 @@ class InputBox(QLabel):
         self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }}")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setCursor(Qt.PointingHandCursor)
+
+        # Add clear button
         self.clear_btn = QPushButton("✕", self)
         self.clear_btn.setFixedSize(28, 28)
         self.clear_btn.hide()
         self.clear_btn.clicked.connect(self.clear_input)
+
+        # Add Chapters button
         self.chapters_btn = QPushButton("Chapters", self)
+        self.chapters_btn.setStyleSheet("QPushButton { padding: 6px 10px; }")
         self.chapters_btn.hide()
         self.chapters_btn.clicked.connect(self.on_chapters_clicked)
 
@@ -156,6 +161,7 @@ class InputBox(QLabel):
         self.textbox_btn.setStyleSheet("QPushButton { padding: 6px 10px; }")
         self.textbox_btn.setToolTip("Input text directly instead of using a file")
         self.textbox_btn.clicked.connect(self.on_textbox_clicked)
+
         # Add Edit button matching the textbox button
         self.edit_btn = QPushButton("Edit", self)
         self.edit_btn.setStyleSheet("QPushButton { padding: 6px 10px; }")
@@ -180,9 +186,9 @@ class InputBox(QLabel):
         # Position textbox button at top left
         self.textbox_btn.move(margin, margin)
         self.edit_btn.move(margin, margin)
-        # Position go to folder button at bottom right
+        # Position go to folder button at bottom right with correct margins
         self.go_to_folder_btn.move(
-            self.width() - self.go_to_folder_btn.width(),
+            self.width() - self.go_to_folder_btn.width() - margin,
             self.height() - self.go_to_folder_btn.height() - margin,
         )
 
@@ -272,6 +278,7 @@ class InputBox(QLabel):
             else:  # PDF - always use Pages
                 self.chapters_btn.setText(f"Pages ({chapter_count})")
 
+
         # Hide textbox and show edit only for .txt files
         self.textbox_btn.hide()
         # Show edit button for txt files directly
@@ -287,12 +294,21 @@ class InputBox(QLabel):
 
         self.edit_btn.setVisible(should_show_edit)
         self.go_to_folder_btn.show()
+        # Enable add to queue button only when file is accepted (input box is green)
+        self.resizeEvent(None)
+        if hasattr(self.window(), 'btn_add_to_queue'):
+            self.window().btn_add_to_queue.setEnabled(True)
+
+        self.chapters_btn.adjustSize()
 
     def set_error(self, message):
         self.setText(message)
         self.setStyleSheet(f"QLabel {{ {self.STYLE_ERROR} }} QLabel:hover {{ {self.STYLE_ERROR_HOVER} }}")
         # Show textbox button in error state as well
         self.textbox_btn.show()
+        # Disable add to queue button on error
+        if hasattr(self.window(), 'btn_add_to_queue'):
+            self.window().btn_add_to_queue.setEnabled(False)
 
     def clear_input(self):
         self.window().selected_file = None
@@ -310,6 +326,9 @@ class InputBox(QLabel):
         self.textbox_btn.show()
         self.edit_btn.hide()
         self.go_to_folder_btn.hide()
+        # Disable add to queue button when input is cleared
+        if hasattr(self.window(), 'btn_add_to_queue'):
+            self.window().btn_add_to_queue.setEnabled(False)
 
     def _human_readable_size(self, size, decimal_places=2):
         for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -608,6 +627,7 @@ class abogen(QWidget):
 
         # Queued items list
         self.queued_items = []
+        self.current_queue_index = 0
 
         self.initUI()
         self.speed_slider.setValue(int(self.config.get("speed", 1.00) * 100))
@@ -966,8 +986,6 @@ class abogen(QWidget):
                     file_path  # Set the displayed file path for text files
                 )
                 self.input_box.set_file_info(file_path)
-            # Enable add to queue button
-            self.btn_add_to_queue.setEnabled(True)
         except Exception as e:
             self._show_error_message_box(
                 "File Dialog Error", f"Could not open file dialog:\n{e}"
@@ -1317,7 +1335,6 @@ class abogen(QWidget):
         enabled = bool(self.queued_items)
         self.btn_start_queue.setEnabled(enabled)
         self.btn_manage_queue.setEnabled(enabled)
-        self.btn_add_to_queue.setEnabled(False)
 
     def enqueue(self, item : QueuedItem):
         self.queued_items.append(item)
@@ -1367,34 +1384,36 @@ class abogen(QWidget):
         if not self.queued_items:
             self.input_box.set_error("Queue is empty.")
             return
-        # convert queued items, one by one - continued in queue_item_conversion_finished
-        self.convert_first_queued_item()
-        pass
+        self.current_queue_index = 0  # Start from the first item
+        self.start_next_queued_item()
 
-    def convert_first_queued_item(self):
-        if not self.queued_items:
-            return
-        # Start conversion for the first item in the queue
-        item = self.queued_items[0]
-        self.selected_file = item.file_name
-        self.selected_lang = item.lang_code
-        self.speed_slider.setValue(int(item.speed * 100))
-        self.selected_voice = item.voice
-        self.save_option = item.save_option
-        self.selected_output_folder = item.output_folder
-        self.subtitle_mode = item.subtitle_mode
-        self.selected_format = item.output_format
-        self.char_count = item.total_char_count
-        self.gpu_ok = item.use_gpu
-        # remove the first item from the queue
-        self.queued_items.pop(0)
-
-        # Start conversion for the queued item
-        self.start_conversion()
+    def start_next_queued_item(self):
+        if self.current_queue_index < len(self.queued_items):
+            item = self.queued_items[self.current_queue_index]
+            self.selected_file = item.file_name
+            self.selected_lang = item.lang_code
+            self.speed_slider.setValue(int(item.speed * 100))
+            self.selected_voice = item.voice
+            self.save_option = item.save_option
+            self.selected_output_folder = item.output_folder
+            self.subtitle_mode = item.subtitle_mode
+            self.selected_format = item.output_format
+            self.char_count = item.total_char_count
+            self.gpu_ok = item.use_gpu
+            self.start_conversion()
+        else:
+            # Queue finished, reset index
+            self.current_queue_index = 0
 
     def queue_item_conversion_finished(self):
-        self.go_back_ui()
-        self.convert_first_queued_item()
+        # Called after each conversion finishes
+        self.current_queue_index += 1
+        if self.current_queue_index < len(self.queued_items):
+            self.go_back_ui()
+            self.start_next_queued_item()
+        else:
+            self.current_queue_index = 0  # Reset for next time
+
 
     def get_voice_formula(self) -> str:
         if self.mixed_voice_state:
