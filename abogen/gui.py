@@ -124,14 +124,14 @@ class IconProvider(QFileIconProvider):
 
 class InputBox(QLabel):
     # Define CSS styles as class constants
-    STYLE_DEFAULT = "border:2px dashed #aaa; border-radius:5px; padding:20px; background:rgba(0, 102, 255, 0.05); min-height:100px;"
-    STYLE_DEFAULT_HOVER = "background:rgba(0, 102, 255, 0.1); border-color:#6ab0de;"
+    STYLE_DEFAULT = f"border:2px dashed #aaa; border-radius:5px; padding:20px; background:{COLORS['BLUE_BG']}; min-height:100px;"
+    STYLE_DEFAULT_HOVER = f"background:{COLORS['BLUE_BG_HOVER']}; border-color:{COLORS['BLUE_BORDER_HOVER']};"
     
-    STYLE_ACTIVE = "border:2px dashed #42ad4a; border-radius:5px; padding:20px; background:rgba(66, 173, 73, 0.1); min-height:100px;"
-    STYLE_ACTIVE_HOVER = "background:rgba(66, 173, 73, 0.15); border-color:#42ad4a;"
+    STYLE_ACTIVE = f"border:2px dashed {COLORS['GREEN']}; border-radius:5px; padding:20px; background:{COLORS['GREEN_BG']}; min-height:100px;"
+    STYLE_ACTIVE_HOVER = f"background:{COLORS['GREEN_BG_HOVER']}; border-color:{COLORS['GREEN_BORDER']};"
     
-    STYLE_ERROR = "border:2px dashed #e74c3c; border-radius:5px; padding:20px; background:rgba(232, 78, 60, 0.10); min-height:100px; color:#c0392b;" 
-    STYLE_ERROR_HOVER = "background:rgba(232, 78, 60, 0.15); border-color:#e74c3c;"
+    STYLE_ERROR = f"border:2px dashed {COLORS['RED']}; border-radius:5px; padding:20px; background:{COLORS['RED_BG']}; min-height:100px; color:{COLORS['RED']};"
+    STYLE_ERROR_HOVER = f"background:{COLORS['RED_BG_HOVER']}; border-color:{COLORS['RED']};"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -206,7 +206,7 @@ class InputBox(QLabel):
 
         size_str = self._human_readable_size(os.path.getsize(file_path))
         name = os.path.basename(file_path)
-        char_count = "N/A"
+        char_count = 0
 
         def parse_size(size_str):
             # Use regex to extract the numeric part
@@ -653,6 +653,9 @@ class abogen(QWidget):
                     self.selected_lang = entry[0][0] if entry and entry[0] else None
         if self.save_option == "Choose output folder" and self.selected_output_folder:
             self.save_path_label.setText(self.selected_output_folder)
+            self.save_path_label.setStyleSheet(
+                f"QLabel {{ color: {COLORS['GREEN']}; }}"
+            )
             self.save_path_label.show()
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
         # Enable/disable subtitle options based on selected language (profile or voice)
@@ -689,6 +692,26 @@ class abogen(QWidget):
         container_layout.setSpacing(15)
         self.input_box = InputBox(self)
         container_layout.addWidget(self.input_box, 1)
+        # Manage queue button, start queue button
+        self.queue_row_widget = QWidget(self)  # Make queue_row a QWidget
+        queue_row = QHBoxLayout(self.queue_row_widget)
+        queue_row.setContentsMargins(0, 0, 0, 0)
+        self.btn_add_to_queue = QPushButton("Add to Queue", self)
+        self.btn_add_to_queue.setFixedHeight(40)
+        self.btn_add_to_queue.setEnabled(False)
+        self.btn_add_to_queue.clicked.connect(self.add_to_queue)
+        queue_row.addWidget(self.btn_add_to_queue)
+        self.btn_manage_queue = QPushButton("Manage Queue", self)
+        self.btn_manage_queue.setFixedHeight(40)
+        self.btn_manage_queue.setEnabled(True)
+        self.btn_manage_queue.clicked.connect(self.manage_queue)
+        queue_row.addWidget(self.btn_manage_queue)
+        self.btn_start_queue = QPushButton("Clear Queue", self)
+        self.btn_start_queue.setFixedHeight(40)
+        self.btn_start_queue.setEnabled(False)
+        self.btn_start_queue.clicked.connect(self.clear_queue)
+        queue_row.addWidget(self.btn_start_queue)
+        container_layout.addWidget(self.queue_row_widget)
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
         self.log_text.setFrameStyle(QTextEdit.NoFrame)
@@ -876,29 +899,6 @@ class abogen(QWidget):
         gpu_layout.addWidget(self.settings_btn)
 
         controls_layout.addLayout(gpu_layout)
-
-
-        # Manage queue button, start queue button
-        queue_row = QHBoxLayout()
-        # Add to queue button
-        self.btn_add_to_queue = QPushButton("Add to Queue", self)
-        self.btn_add_to_queue.setFixedHeight(40)
-        self.btn_add_to_queue.setEnabled(False)
-        self.btn_add_to_queue.clicked.connect(self.add_to_queue)
-        queue_row.addWidget(self.btn_add_to_queue)
-        # Manage queue button
-        self.btn_manage_queue = QPushButton("Manage Queue", self)
-        self.btn_manage_queue.setFixedHeight(40)
-        self.btn_manage_queue.setEnabled(False)
-        self.btn_manage_queue.clicked.connect(self.manage_queue)
-        queue_row.addWidget(self.btn_manage_queue)
-        # Start queue button
-        self.btn_start_queue = QPushButton("Start Queue", self)
-        self.btn_start_queue.setFixedHeight(40)
-        self.btn_start_queue.setEnabled(False)
-        self.btn_start_queue.clicked.connect(self.start_queue)
-        queue_row.addWidget(self.btn_start_queue)
-        controls_layout.addLayout(queue_row)
 
         # Start button
         self.btn_start = QPushButton("Start", self)
@@ -1334,11 +1334,34 @@ class abogen(QWidget):
     def enable_disable_queue_buttons(self):
         enabled = bool(self.queued_items)
         self.btn_start_queue.setEnabled(enabled)
-        self.btn_manage_queue.setEnabled(enabled)
+        # Update Manage Queue button text with count
+        if enabled:
+            self.btn_manage_queue.setText(f"Manage Queue ({len(self.queued_items)})")
+            self.btn_manage_queue.setStyleSheet(
+                f"QPushButton {{ color: {COLORS['GREEN']}; }}"
+            )
+        else:
+            self.btn_manage_queue.setText("Manage Queue")
+            self.btn_manage_queue.setStyleSheet("")
+        # Change main Start button to 'Start queue' if queue has items
+        if enabled:
+            self.btn_start.setText("Start queue")
+            try:
+                self.btn_start.clicked.disconnect()
+            except Exception:
+                pass
+            self.btn_start.clicked.connect(self.start_queue)
+        else:
+            self.btn_start.setText("Start")
+            try:
+                self.btn_start.clicked.disconnect()
+            except Exception:
+                pass
+            self.btn_start.clicked.connect(self.start_conversion)
 
     def enqueue(self, item : QueuedItem):
         self.queued_items.append(item)
-        self.update_log((f"Enqueued: {item.file_name}", True))
+        #self.update_log((f"Enqueued: {item.file_name}", True))
         # enable start queue button, manage queue button
         self.enable_disable_queue_buttons()
 
@@ -1362,17 +1385,46 @@ class abogen(QWidget):
             output_folder=self.selected_output_folder,
             subtitle_mode=actual_subtitle_mode,
             output_format=self.selected_format,
-            total_char_count=self.char_count,
-            use_gpu=self.gpu_ok
+            total_char_count=self.char_count
         )
+
+        # Prevent adding duplicate items to the queue
+        for queued_item in self.queued_items:
+            if (
+                queued_item.file_name == item.file_name and
+                queued_item.lang_code == item.lang_code and
+                queued_item.speed == item.speed and
+                queued_item.voice == item.voice and
+                queued_item.save_option == item.save_option and
+                queued_item.output_folder == item.output_folder and
+                queued_item.subtitle_mode == item.subtitle_mode and
+                queued_item.output_format == item.output_format and
+                queued_item.total_char_count == item.total_char_count
+            ):
+                QMessageBox.warning(self, "Duplicate Item", "This item is already in the queue.")
+                return
+
         self.enqueue(item)
         # Clear input after adding to queue
         self.input_box.clear_input()
+        self.enable_disable_queue_buttons()
+
+    def clear_queue(self):
+        # Warn user if more than 1 item in the queue before clearing
+        if len(self.queued_items) > 1:
+            reply = QMessageBox.question(
+                self,
+                "Confirm Clear Queue",
+                f"Are you sure you want to clear {len(self.queued_items)} items from the queue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+        self.queued_items = []
+        self.enable_disable_queue_buttons()
 
     def manage_queue(self):
-        if not self.queued_items:
-            self.input_box.set_error("Queue is empty.")
-            return
         # show a dialog to manage the queue
         dialog = QueueManager(self, self.queued_items)
         if dialog.exec_() == QDialog.Accepted:
@@ -1381,9 +1433,6 @@ class abogen(QWidget):
             self.enable_disable_queue_buttons()
 
     def start_queue(self):
-        if not self.queued_items:
-            self.input_box.set_error("Queue is empty.")
-            return
         self.current_queue_index = 0  # Start from the first item
         self.start_next_queued_item()
 
@@ -1399,7 +1448,6 @@ class abogen(QWidget):
             self.subtitle_mode = item.subtitle_mode
             self.selected_format = item.output_format
             self.char_count = item.total_char_count
-            self.gpu_ok = item.use_gpu
             self.start_conversion()
         else:
             # Queue finished, reset index
@@ -1455,6 +1503,7 @@ class abogen(QWidget):
         self.progress_bar.setFormat("%p%")  # Reset format initially
         self.etr_label.hide()  # Hide ETR label initially
         self.controls_widget.hide()
+        self.queue_row_widget.hide()  # Hide queue row when process starts
         self.progress_bar.show()
         self.btn_cancel.show()
         QApplication.processEvents()
@@ -1635,6 +1684,7 @@ class abogen(QWidget):
             if self.open_file_btn:
                 self.open_file_btn.show()
             self.controls_widget.show()
+            self.queue_row_widget.show()  # Show queue row on reset
             self.finish_widget.hide()
             self.btn_start.setText("Start")
             # Disconnect only if connected, then reconnect
@@ -1643,12 +1693,14 @@ class abogen(QWidget):
             except TypeError:
                 pass  # Ignore error if not connected
             self.btn_start.clicked.connect(self.start_conversion)
+            self.enable_disable_queue_buttons()
         except Exception as e:
             self._show_error_message_box("Reset Error", f"Could not reset UI:\n{e}")
 
     def go_back_ui(self):
         self.finish_widget.hide()
         self.controls_widget.show()
+        self.queue_row_widget.show()  # Show queue row on go back
         self.progress_bar.hide()
         self.restore_input_box()
 
@@ -2023,6 +2075,7 @@ class abogen(QWidget):
             self.progress_bar.hide()
             self.btn_cancel.hide()
             self.controls_widget.show()
+            self.queue_row_widget.show()  # Show queue row on cancel
             self.finish_widget.hide()
             self.restore_input_box()
             display_path = (

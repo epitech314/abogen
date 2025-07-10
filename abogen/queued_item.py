@@ -12,4 +12,3 @@ class QueuedItem:
     subtitle_mode: str
     output_format: str
     total_char_count: int
-    use_gpu: bool

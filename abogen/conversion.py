@@ -324,7 +324,7 @@ class ConversionThread(QThread):
             if hasattr(self, "file_size_str"):
                 self.log_updated.emit(f"- File size: {self.file_size_str}")
 
-            self.log_updated.emit(f"- Total characters: {self.total_char_count:,}")
+            self.log_updated.emit(f"- Total characters: {int(self.total_char_count):,}")
 
             self.log_updated.emit(
                 f"- Language: {self.lang_code} ({LANGUAGE_DESCRIPTIONS.get(self.lang_code, 'Unknown')})"
