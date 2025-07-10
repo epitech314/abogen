@@ -5,17 +5,110 @@
 from PyQt5.QtWidgets import (
     QDialog,
     QVBoxLayout,
-    QHBoxLayout,  # added
+    QHBoxLayout,
     QDialogButtonBox,
     QPushButton,
     QListWidget,
     QListWidgetItem,
     QFileIconProvider,
     QLabel,
+    QWidget,
+    QSizePolicy,
 )
 from PyQt5.QtCore import QFileInfo, Qt
 from constants import COLORS
 from copy import deepcopy
+from PyQt5.QtGui import QFontMetrics
+
+class ElidedLabel(QLabel):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self._full_text = text
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+    def setText(self, text):
+        self._full_text = text
+        super().setText(text)
+        self.update()
+
+    def resizeEvent(self, event):
+        metrics = QFontMetrics(self.font())
+        elided = metrics.elidedText(self._full_text, Qt.ElideRight, self.width())
+        super().setText(elided)
+        super().resizeEvent(event)
+
+    def fullText(self):
+        return self._full_text
+
+class QueueListItemWidget(QWidget):
+    def __init__(self, file_name, char_count):
+        super().__init__()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(12, 0, 6, 0)
+        layout.setSpacing(0)
+        import os
+        name_label = ElidedLabel(os.path.basename(file_name))
+        char_label = QLabel(f"Chars: {char_count}")
+        char_label.setStyleSheet(f"color: {COLORS['LIGHT_DISABLED']};")
+        char_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        char_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        layout.addWidget(name_label, 1)
+        layout.addWidget(char_label, 0)
+        self.setLayout(layout)
+
+class DroppableQueueListWidget(QListWidget):
+    def __init__(self, parent_dialog):
+        super().__init__()
+        self.parent_dialog = parent_dialog
+        self.setAcceptDrops(True)
+        # Overlay for drag hover
+        self.drag_overlay = QLabel("", self)
+        self.drag_overlay.setAlignment(Qt.AlignCenter)
+        self.drag_overlay.setStyleSheet(
+            f"border:2px dashed {COLORS['BLUE_BORDER_HOVER']}; border-radius:5px; padding:20px; background:{COLORS['BLUE_BG_HOVER']};"
+        )
+        self.drag_overlay.setVisible(False)
+        self.drag_overlay.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.isLocalFile() and url.toLocalFile().lower().endswith('.txt'):
+                    self.drag_overlay.resize(self.size())
+                    self.drag_overlay.setVisible(True)
+                    event.acceptProposedAction()
+                    return
+        self.drag_overlay.setVisible(False)
+        event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.isLocalFile() and url.toLocalFile().lower().endswith('.txt'):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self.drag_overlay.setVisible(False)
+        event.accept()
+
+    def dropEvent(self, event):
+        self.drag_overlay.setVisible(False)
+        if event.mimeData().hasUrls():
+            file_paths = [url.toLocalFile() for url in event.mimeData().urls() if url.isLocalFile() and url.toLocalFile().lower().endswith('.txt')]
+            if file_paths:
+                self.parent_dialog.add_files_from_paths(file_paths)
+                event.acceptProposedAction()
+            else:
+                event.ignore()
+        else:
+            event.ignore()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'drag_overlay'):
+            self.drag_overlay.resize(self.size())
 
 class QueueManager(QDialog):
     def __init__(self, parent, queue: list, title="Queue Manager", size=(600, 700)):
@@ -27,7 +120,7 @@ class QueueManager(QDialog):
         layout.setContentsMargins(15, 15, 15, 15)  # set main layout margins
         layout.setSpacing(12)  # set spacing between widgets in main layout
         # list of queued items
-        self.listwidget = QListWidget()
+        self.listwidget = DroppableQueueListWidget(self)
         self.listwidget.setSelectionMode(QListWidget.ExtendedSelection)
         self.listwidget.setAlternatingRowColors(True)
         self.listwidget.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -47,12 +140,13 @@ class QueueManager(QDialog):
         layout.addWidget(instructions)
         # Overlay label for empty queue
         self.empty_overlay = QLabel(
-            "No items in the queue.",
+            "Drag and drop your text files here or use the 'Add files' button.",
             self.listwidget
         )
         self.empty_overlay.setAlignment(Qt.AlignCenter)
-        self.empty_overlay.setStyleSheet(f"color: {COLORS['LIGHT_DISABLED']}; background: transparent;")
+        self.empty_overlay.setStyleSheet(f"color: {COLORS['LIGHT_DISABLED']}; background: transparent; padding: 20px;")
         self.empty_overlay.setWordWrap(True)
+        self.empty_overlay.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.empty_overlay.hide()
         # add queue items to the list
         self.process_queue()
@@ -118,7 +212,7 @@ class QueueManager(QDialog):
                 display_name = os.path.basename(file_name)
             # Get icon for the file
             icon = icon_provider.icon(QFileInfo(file_name))
-            list_item = QListWidgetItem(icon, display_name)
+            list_item = QListWidgetItem()
             # Set tooltip with detailed info
             output_folder = getattr(item, 'output_folder', '')
             tooltip = (
@@ -137,8 +231,12 @@ class QueueManager(QDialog):
                 f"<b>Replace Single Newlines:</b> {getattr(item, 'replace_single_newlines', False)}"
             )
             list_item.setToolTip(tooltip)
+            list_item.setIcon(icon)
+            # Use custom widget for display
+            char_count = getattr(item, 'total_char_count', 0)
+            widget = QueueListItemWidget(file_name, char_count)
             self.listwidget.addItem(list_item)
-
+            self.listwidget.setItemWidget(list_item, widget)
         self.update_button_states()
 
     def remove_item(self):
@@ -229,19 +327,13 @@ class QueueManager(QDialog):
                 'output_folder', 'subtitle_mode', 'output_format', 'total_char_count', 'replace_single_newlines']}
         return attrs
 
-    def add_more_files(self):
-        from PyQt5.QtWidgets import QFileDialog, QMessageBox
+    def add_files_from_paths(self, file_paths):
+        from utils import calculate_text_length
+        from PyQt5.QtWidgets import QMessageBox
         import os
-        from utils import calculate_text_length  # import the function
-        # Only allow .txt files
-        files, _ = QFileDialog.getOpenFileNames(self, "Select .txt files", "", "Text Files (*.txt)")
-        if not files:
-            return
-        # Get current attribute values from GUI
         current_attrs = self.get_current_attributes()
         duplicates = []
-        for file_path in files:
-            # Create a dummy item with the current GUI attributes
+        for file_path in file_paths:
             class QueueItem:
                 pass
             item = QueueItem()
@@ -280,10 +372,20 @@ class QueueManager(QDialog):
             QMessageBox.warning(
                 self,
                 "Duplicate Item(s)",
-                f"Skipping {len(duplicates)} file(s) with the same attributes, they are already in the queue."
+                f"Skipping {len(duplicates)} file(s) with the same attributes, already in the queue."
             )
         self.process_queue()
         self.update_button_states()
+
+    def add_more_files(self):
+        from PyQt5.QtWidgets import QFileDialog, QMessageBox
+        import os
+        from utils import calculate_text_length  # import the function
+        # Only allow .txt files
+        files, _ = QFileDialog.getOpenFileNames(self, "Select .txt files", "", "Text Files (*.txt)")
+        if not files:
+            return
+        self.add_files_from_paths(files)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

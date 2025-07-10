@@ -2037,7 +2037,7 @@ class abogen(QWidget):
             if cached_path and os.path.exists(cached_path):
                 temp_wav = cached_path
             else:  # Should not happen if cache check was done
-                self._show_error_message_box("Preview Error", "Cache file expected but not found.")
+                self._show_error_message_box("Preview Error", "Cache file expected but not found, please try again.")
                 self._preview_cleanup()
                 return
         else:  # Should have temp_wav from preview_thread or handled by cache check
