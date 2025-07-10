@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
 )
 from PyQt5.QtCore import QFileInfo, Qt
-from constants import COLORS
+from abogen.constants import COLORS
 from copy import deepcopy
 from PyQt5.QtGui import QFontMetrics
 
@@ -243,26 +243,23 @@ class QueueManager(QDialog):
         items = self.listwidget.selectedItems()
         if not items:
             return
-        import os
         from PyQt5.QtWidgets import QMessageBox
-        display_names = [item.text() for item in items]
-        to_remove = []
-        for q in self.queue:
-            if os.path.basename(q.file_name) in display_names:
-                to_remove.append(q)
+        # Remove by index to ensure correct mapping
+        rows = sorted([self.listwidget.row(item) for item in items], reverse=True)
         # Warn user if removing multiple files
-        if len(to_remove) > 1:
+        if len(rows) > 1:
             reply = QMessageBox.question(
                 self,
                 "Confirm Remove",
-                f"Are you sure you want to remove {len(to_remove)} selected items from the queue?",
+                f"Are you sure you want to remove {len(rows)} selected items from the queue?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
             if reply != QMessageBox.Yes:
                 return
-        for item in to_remove:
-            self.queue.remove(item)
+        for row in rows:
+            if 0 <= row < len(self.queue):
+                del self.queue[row]
         self.process_queue()
         self.update_button_states()
 
@@ -328,7 +325,7 @@ class QueueManager(QDialog):
         return attrs
 
     def add_files_from_paths(self, file_paths):
-        from utils import calculate_text_length
+        from abogen.utils import calculate_text_length
         from PyQt5.QtWidgets import QMessageBox
         import os
         current_attrs = self.get_current_attributes()
@@ -378,9 +375,8 @@ class QueueManager(QDialog):
         self.update_button_states()
 
     def add_more_files(self):
-        from PyQt5.QtWidgets import QFileDialog, QMessageBox
-        import os
-        from utils import calculate_text_length  # import the function
+        from PyQt5.QtWidgets import QFileDialog
+        from abogen.utils import calculate_text_length  # import the function
         # Only allow .txt files
         files, _ = QFileDialog.getOpenFileNames(self, "Select .txt files", "", "Text Files (*.txt)")
         if not files:

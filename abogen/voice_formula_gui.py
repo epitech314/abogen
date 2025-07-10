@@ -28,7 +28,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint, QRect, QSize
 from PyQt5.QtGui import QPixmap, QIcon
-from constants import (
+from abogen.constants import (
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
     LANGUAGE_DESCRIPTIONS,
@@ -36,8 +36,8 @@ from constants import (
 )
 import re
 import platform
-from utils import get_resource_path
-from voice_profiles import (
+from abogen.utils import get_resource_path
+from abogen.voice_profiles import (
     load_profiles,
     save_profiles,
     delete_profile,
@@ -1084,7 +1084,7 @@ class VoiceFormulaDialog(QDialog):
             self, "Import Profiles", "", "JSON Files (*.json)"
         )
         if path:
-            from voice_profiles import load_profiles, save_profiles
+            from abogen.voice_profiles import load_profiles, save_profiles
 
             # Try to read the file and count profiles
             try:

@@ -1,4 +1,4 @@
-from utils import get_version
+from abogen.utils import get_version
 
 # Program Information
 PROGRAM_NAME = "abogen"

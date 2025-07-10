@@ -7,9 +7,9 @@ from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
 
 # Add the directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from gui import abogen
-from utils import get_resource_path
-from constants import PROGRAM_NAME, VERSION
+from abogen.gui import abogen
+from abogen.utils import get_resource_path
+from abogen.constants import PROGRAM_NAME, VERSION
 
 # Set environment variables for AMD ROCm
 os.environ["MIOPEN_FIND_MODE"] = "FAST"

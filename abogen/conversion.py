@@ -6,11 +6,11 @@ import chardet
 import charset_normalizer
 import hashlib  # For generating unique cache filenames
 from platformdirs import user_desktop_dir
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
 from utils import clean_text, create_process
-from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS
+from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS, COLORS
 from voice_formulas import get_new_voice
 import hf_tracker
 import static_ffmpeg
@@ -61,7 +61,7 @@ class ChapterOptionsDialog(QDialog):
         self.merge_at_end_checkbox = QCheckBox("Create a merged version at the end")
 
         # Set default states
-        self.save_separately_checkbox.setChecked(True)
+        self.save_separately_checkbox.setChecked(False)
         self.merge_at_end_checkbox.setChecked(True)
 
         # Connect checkbox state change signal
@@ -72,13 +72,35 @@ class ChapterOptionsDialog(QDialog):
         layout.addWidget(self.save_separately_checkbox)
         layout.addWidget(self.merge_at_end_checkbox)
 
+        # Countdown label
+        self.countdown_seconds = 30
+        self.countdown_label = QLabel(f"Auto-accepting in {self.countdown_seconds} seconds...")
+        self.countdown_label.setStyleSheet(f"color: {COLORS['GREEN']};")
+        layout.addWidget(self.countdown_label)
+
         # Add OK button
         button_box = QDialogButtonBox(QDialogButtonBox.Ok)
         button_box.accepted.connect(self.accept)
         layout.addWidget(button_box)
 
+        # Timer for countdown
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._on_timer_tick)
+        self._timer.start(1000)  # 1 second interval
+
+        # Store button_box for later use
+        self._button_box = button_box
+
         # Initialize merge checkbox state
         self.update_merge_checkbox_state()
+
+    def _on_timer_tick(self):
+        self.countdown_seconds -= 1
+        if self.countdown_seconds > 0:
+            self.countdown_label.setText(f"Auto-accepting in {self.countdown_seconds} seconds...")
+        else:
+            self._timer.stop()
+            self._button_box.accepted.emit()  # Simulate OK click
 
     def update_merge_checkbox_state(self):
         # Enable merge checkbox only if save separately is checked
@@ -131,6 +153,7 @@ class ConversionThread(QThread):
         start_time,
         total_char_count,
         use_gpu=True,
+        from_queue=False
     ):  # Add use_gpu parameter
         super().__init__()
         self._chapter_options_event = threading.Event()
@@ -145,6 +168,7 @@ class ConversionThread(QThread):
         self.subtitle_mode = subtitle_mode
         self.cancel_requested = False
         self.output_format = output_format
+        self.from_queue = from_queue
         self.start_time = start_time  # Store start_time
         self.total_char_count = total_char_count  # Use passed total character count
         self.processed_char_count = 0  # Initialize processed character count
@@ -316,8 +340,13 @@ class ConversionThread(QThread):
             hf_tracker.set_log_callback(lambda msg: self.log_updated.emit(msg))
             # Show configuration
             self.log_updated.emit("Configuration:")
-            # Use display_path for logs if available, otherwise use the actual file name
-            display_file = self.display_path if self.display_path else self.file_name
+            
+            # Use file_name for logs if from_queue, otherwise use display_path if available
+            if getattr(self, "from_queue", False):
+                display_file = self.file_name
+            else:
+                display_file = self.display_path if self.display_path else self.file_name
+
             self.log_updated.emit(f"- Input File: {display_file}")
 
             # Use file size string passed from GUI
@@ -447,7 +476,14 @@ class ConversionThread(QThread):
             save_chapters_separately = getattr(self, "save_chapters_separately", False)
             chapters_out_dir = None
             suffix = ""
-            base_path = self.display_path if self.display_path else self.file_name
+
+
+            # Use file_name for logs if from_queue, otherwise use display_path if available
+            if getattr(self, "from_queue", False):
+                base_path = self.file_name
+            else:
+                base_path = self.display_path if self.display_path else self.file_name
+
             base_name = os.path.splitext(os.path.basename(base_path))[0]
             if self.save_option == "Save to Desktop":
                 parent_dir = user_desktop_dir()
@@ -946,8 +982,13 @@ class ConversionThread(QThread):
         genre_match = re.search(r"<<METADATA_GENRE:([^>]*)>>", text)
         
         # Use display path or filename as fallback for title
-        filename = os.path.splitext(os.path.basename(self.display_path if self.display_path else self.file_name))[0]
         
+        # Use file_name for logs if from_queue, otherwise use display_path if available
+        if getattr(self, "from_queue", False):
+            filename = os.path.splitext(os.path.basename(self.file_name))[0]
+        else:
+            filename = os.path.splitext(os.path.basename(self.display_path if self.display_path else self.file_name))[0]
+
         if title_match:
             metadata_options.extend(["-metadata", f"title={title_match.group(1)}"])
         else:

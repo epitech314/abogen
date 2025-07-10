@@ -6,7 +6,7 @@ import base64
 import re
 from abogen.queue_manager_gui import QueueManager
 from abogen.queued_item import QueuedItem
-import hf_tracker
+import abogen.hf_tracker as hf_tracker
 import hashlib  # Added for cache path generation
 from PyQt5.QtWidgets import (
     QApplication,
@@ -53,7 +53,7 @@ from PyQt5.QtGui import (
     QColor,
     QMovie,
 )
-from utils import (
+from abogen.utils import (
     load_config,
     save_config,
     get_gpu_acceleration,
@@ -64,9 +64,9 @@ from utils import (
     get_resource_path,
     LoadPipelineThread,
 )
-from conversion import ConversionThread, VoicePreviewThread, PlayAudioThread
-from book_handler import HandlerDialog
-from constants import (
+from abogen.conversion import ConversionThread, VoicePreviewThread, PlayAudioThread
+from abogen.book_handler import HandlerDialog
+from abogen.constants import (
     PROGRAM_NAME,
     VERSION,
     GITHUB_URL,
@@ -77,8 +77,8 @@ from constants import (
     COLORS
 )
 from threading import Thread
-from voice_formula_gui import VoiceFormulaDialog
-from voice_profiles import load_profiles
+from abogen.voice_formula_gui import VoiceFormulaDialog
+from abogen.voice_profiles import load_profiles
 
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
@@ -300,6 +300,9 @@ class InputBox(QLabel):
             self.window().btn_add_to_queue.setEnabled(True)
 
         self.chapters_btn.adjustSize()
+        # Reset the input_box_cleared_by_queue flag after setting file info
+        if hasattr(self.window(), 'input_box_cleared_by_queue'):
+            self.window().input_box_cleared_by_queue = False
 
     def set_error(self, message):
         self.setText(message)
@@ -329,6 +332,9 @@ class InputBox(QLabel):
         # Disable add to queue button when input is cleared
         if hasattr(self.window(), 'btn_add_to_queue'):
             self.window().btn_add_to_queue.setEnabled(False)
+        # Reset the input_box_cleared_by_queue flag after setting file info
+        if hasattr(self.window(), 'input_box_cleared_by_queue'):
+            self.window().input_box_cleared_by_queue = True
 
     def _human_readable_size(self, size, decimal_places=2):
         for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -343,15 +349,38 @@ class InputBox(QLabel):
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
-            ext = event.mimeData().urls()[0].toLocalFile().lower()
-            if ext.endswith(".txt") or ext.endswith(".epub") or ext.endswith(".pdf"):
-                event.acceptProposedAction()
-                return
+            urls = event.mimeData().urls()
+            if urls:
+                ext = urls[0].toLocalFile().lower()
+                if ext.endswith(".txt") or ext.endswith(".epub") or ext.endswith(".pdf"):
+                    event.acceptProposedAction()
+                    # Set hover style based on current state
+                    if self.styleSheet().find(self.STYLE_ACTIVE) != -1:
+                        self.setStyleSheet(f"QLabel {{ {self.STYLE_ACTIVE} }} QLabel:hover {{ {self.STYLE_ACTIVE_HOVER} }} {self.STYLE_ACTIVE_HOVER}")
+                    elif self.styleSheet().find(self.STYLE_ERROR) != -1:
+                        self.setStyleSheet(f"QLabel {{ {self.STYLE_ERROR} }} QLabel:hover {{ {self.STYLE_ERROR_HOVER} }} {self.STYLE_ERROR_HOVER}")
+                    else:
+                        self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }} {self.STYLE_DEFAULT_HOVER}")
+                    return
         event.ignore()
+
+    def dragLeaveEvent(self, event):
+        # Restore the style based on current state
+        if self.styleSheet().find(self.STYLE_ACTIVE) != -1:
+            self.setStyleSheet(f"QLabel {{ {self.STYLE_ACTIVE} }} QLabel:hover {{ {self.STYLE_ACTIVE_HOVER} }}")
+        elif self.styleSheet().find(self.STYLE_ERROR) != -1:
+            self.setStyleSheet(f"QLabel {{ {self.STYLE_ERROR} }} QLabel:hover {{ {self.STYLE_ERROR_HOVER} }}")
+        else:
+            self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }}")
+        event.accept()
 
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
-            file_path = event.mimeData().urls()[0].toLocalFile()
+            urls = event.mimeData().urls()
+            if not urls:
+                event.ignore()
+                return
+            file_path = urls[0].toLocalFile()
             win = self.window()
             if file_path.lower().endswith(".txt"):
                 win.selected_file, win.selected_file_type = file_path, "txt"
@@ -642,7 +671,7 @@ class abogen(QWidget):
             self.voice_combo.setCurrentIndex(idx)
             # If a profile is selected at startup, load voices and language
             if self.selected_profile_name:
-                from voice_profiles import load_profiles
+                from abogen.voice_profiles import load_profiles
 
                 entry = load_profiles().get(self.selected_profile_name, {})
                 if isinstance(entry, dict):
@@ -706,11 +735,11 @@ class abogen(QWidget):
         self.btn_manage_queue.setEnabled(True)
         self.btn_manage_queue.clicked.connect(self.manage_queue)
         queue_row.addWidget(self.btn_manage_queue)
-        self.btn_start_queue = QPushButton("Clear Queue", self)
-        self.btn_start_queue.setFixedHeight(40)
-        self.btn_start_queue.setEnabled(False)
-        self.btn_start_queue.clicked.connect(self.clear_queue)
-        queue_row.addWidget(self.btn_start_queue)
+        self.btn_clear_queue = QPushButton("Clear Queue", self)
+        self.btn_clear_queue.setFixedHeight(40)
+        self.btn_clear_queue.setEnabled(False)
+        self.btn_clear_queue.clicked.connect(self.clear_queue)
+        queue_row.addWidget(self.btn_clear_queue)
         container_layout.addWidget(self.queue_row_widget)
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
@@ -1026,6 +1055,9 @@ class abogen(QWidget):
         self.setLayout(outer_layout)
         self.populate_profiles_in_voice_combo()
 
+        # Initialize flag to track if input box was cleared by queue
+        self.input_box_cleared_by_queue = False
+
     def open_file_dialog(self):
         if self.is_converting:
             return
@@ -1255,7 +1287,7 @@ class abogen(QWidget):
         if isinstance(data, str) and data.startswith("profile:"):
             pname = data.split(":", 1)[1]
             self.selected_profile_name = pname
-            from voice_profiles import load_profiles
+            from abogen.voice_profiles import load_profiles
 
             entry = load_profiles().get(pname, {})
             # set mixed voices and language
@@ -1288,7 +1320,7 @@ class abogen(QWidget):
                 self.subtitle_combo.setEnabled(False)
 
     def update_subtitle_combo_for_profile(self, profile_name):
-        from voice_profiles import load_profiles
+        from abogen.voice_profiles import load_profiles
 
         entry = load_profiles().get(profile_name, {})
         lang = entry.get("language") if isinstance(entry, dict) else None
@@ -1398,7 +1430,7 @@ class abogen(QWidget):
 
     def enable_disable_queue_buttons(self):
         enabled = bool(self.queued_items)
-        self.btn_start_queue.setEnabled(enabled)
+        self.btn_clear_queue.setEnabled(enabled)
         # Update Manage Queue button text with count
         if enabled:
             self.btn_manage_queue.setText(f"Manage Queue ({len(self.queued_items)})")
@@ -1434,15 +1466,18 @@ class abogen(QWidget):
         return self.queued_items
 
     def add_to_queue(self):
-        if not self.selected_file:
+        # Use the file currently displayed in the input box
+        file_to_queue = self.displayed_file_path if self.displayed_file_path else self.selected_file
+
+        if not file_to_queue:
             self.input_box.set_error("Please add a file.")
             return
         actual_subtitle_mode = self.get_actual_subtitle_mode()
         voice_formula = self.get_voice_formula()
         selected_lang = self.get_selected_lang(voice_formula)
 
-        item = QueuedItem(
-            file_name=self.selected_file,
+        item_queue = QueuedItem(
+            file_name=file_to_queue,
             lang_code=selected_lang,
             speed=self.speed_slider.value() / 100.0,
             voice=voice_formula,
@@ -1457,23 +1492,24 @@ class abogen(QWidget):
         # Prevent adding duplicate items to the queue
         for queued_item in self.queued_items:
             if (
-                queued_item.file_name == item.file_name and
-                queued_item.lang_code == item.lang_code and
-                queued_item.speed == item.speed and
-                queued_item.voice == item.voice and
-                queued_item.save_option == item.save_option and
-                queued_item.output_folder == item.output_folder and
-                queued_item.subtitle_mode == item.subtitle_mode and
-                queued_item.output_format == item.output_format and
-                queued_item.total_char_count == item.total_char_count and
-                getattr(queued_item, "replace_single_newlines", False) == item.replace_single_newlines
+                queued_item.file_name == item_queue.file_name and
+                queued_item.lang_code == item_queue.lang_code and
+                queued_item.speed == item_queue.speed and
+                queued_item.voice == item_queue.voice and
+                queued_item.save_option == item_queue.save_option and
+                queued_item.output_folder == item_queue.output_folder and
+                queued_item.subtitle_mode == item_queue.subtitle_mode and
+                queued_item.output_format == item_queue.output_format and
+                getattr(queued_item, "replace_single_newlines", False) == item_queue.replace_single_newlines
             ):
                 QMessageBox.warning(self, "Duplicate Item", "This item is already in the queue.")
                 return
 
-        self.enqueue(item)
+        print("Adding:", item_queue)
+        self.enqueue(item_queue)
         # Clear input after adding to queue
         self.input_box.clear_input()
+        self.input_box_cleared_by_queue = True  # Set flag
         self.enable_disable_queue_buttons()
 
     def clear_queue(self):
@@ -1505,18 +1541,18 @@ class abogen(QWidget):
 
     def start_next_queued_item(self):
         if self.current_queue_index < len(self.queued_items):
-            item = self.queued_items[self.current_queue_index]
-            self.selected_file = item.file_name
-            self.selected_lang = item.lang_code
-            self.speed_slider.setValue(int(item.speed * 100))
-            self.selected_voice = item.voice
-            self.save_option = item.save_option
-            self.selected_output_folder = item.output_folder
-            self.subtitle_mode = item.subtitle_mode
-            self.selected_format = item.output_format
-            self.char_count = item.total_char_count
-            self.replace_single_newlines = getattr(item, "replace_single_newlines", False)
-            self.start_conversion()
+            queued_item = self.queued_items[self.current_queue_index]
+            self.selected_file = queued_item.file_name
+            self.selected_lang = queued_item.lang_code
+            self.speed_slider.setValue(int(queued_item.speed * 100))
+            self.selected_voice = queued_item.voice
+            self.save_option = queued_item.save_option
+            self.selected_output_folder = queued_item.output_folder
+            self.subtitle_mode = queued_item.subtitle_mode
+            self.selected_format = queued_item.output_format
+            self.char_count = queued_item.total_char_count
+            self.replace_single_newlines = getattr(queued_item, "replace_single_newlines", False)
+            self.start_conversion(from_queue=True)
         else:
             # Queue finished, reset index
             self.current_queue_index = 0
@@ -1542,7 +1578,7 @@ class abogen(QWidget):
 
     def get_selected_lang(self, voice_formula) -> str:
         if self.selected_profile_name:
-            from voice_profiles import load_profiles
+            from abogen.voice_profiles import load_profiles
             entry = load_profiles().get(self.selected_profile_name, {})
             selected_lang = entry.get("language")
         else:
@@ -1560,7 +1596,7 @@ class abogen(QWidget):
                 else self.subtitle_mode
             )
 
-    def start_conversion(self):
+    def start_conversion(self, from_queue=False):
         if not self.selected_file:
             self.input_box.set_error("Please add a file.")
             return
@@ -1624,6 +1660,7 @@ class abogen(QWidget):
                 start_time=self.start_time,
                 total_char_count=self.char_count,
                 use_gpu=self.gpu_ok,
+                from_queue=from_queue,
             )  # Use gpu_ok status
             # Pass the displayed file path to the log_updated signal handler in ConversionThread
             self.conversion_thread.display_path = display_path
@@ -1695,11 +1732,13 @@ class abogen(QWidget):
                 if self.displayed_file_path
                 else self.selected_file
             )
-            # Check if the file exists before trying to set file info
-            if display_path and os.path.exists(display_path):
-                self.input_box.set_file_info(display_path)
+            # Only repopulate if not cleared by queue
+            if not getattr(self, 'input_box_cleared_by_queue', False):
+                if display_path and os.path.exists(display_path):
+                    self.input_box.set_file_info(display_path)
+                else:
+                    self.input_box.clear_input()
             else:
-                # Clear the input if the file no longer exists
                 self.input_box.clear_input()
             return
 
@@ -1738,8 +1777,6 @@ class abogen(QWidget):
 
     def reset_ui(self):
         try:
-            self.restore_input_box()
-            self.input_box.clear_input()  # Reset text and style
             self.etr_label.hide()  # Hide ETR label
             self.progress_bar.setValue(0)
             self.progress_bar.hide()
@@ -1762,6 +1799,8 @@ class abogen(QWidget):
                 pass  # Ignore error if not connected
             self.btn_start.clicked.connect(self.start_conversion)
             self.enable_disable_queue_buttons()
+            self.restore_input_box()
+            self.input_box.clear_input()  # Reset text and style
         except Exception as e:
             self._show_error_message_box("Reset Error", f"Could not reset UI:\n{e}")
 
@@ -1777,11 +1816,13 @@ class abogen(QWidget):
             self.displayed_file_path if self.displayed_file_path else self.selected_file
         )
 
-        # Check if the file exists before trying to set file info
-        if display_path and os.path.exists(display_path):
-            self.input_box.set_file_info(display_path)
+        # Only repopulate if not cleared by queue
+        if not getattr(self, 'input_box_cleared_by_queue', False):
+            if display_path and os.path.exists(display_path):
+                self.input_box.set_file_info(display_path)
+            else:
+                self.input_box.clear_input()
         else:
-            # Clear the input if the file no longer exists
             self.input_box.clear_input()
 
         # Ensure open file button is visible when going back
@@ -1868,7 +1909,7 @@ class abogen(QWidget):
             voice_formula = " + ".join(filter(None, components))
             voice_to_cache = voice_formula
             if self.selected_profile_name:
-                from voice_profiles import load_profiles
+                from abogen.voice_profiles import load_profiles
                 entry = load_profiles().get(self.selected_profile_name, {})
                 lang_to_cache = entry.get("language")
             else:
@@ -2002,7 +2043,7 @@ class abogen(QWidget):
             voice = " + ".join(filter(None, components))
             # determine language: use profile setting, else explicit mixer selection, else fallback to first voice code
             if self.selected_profile_name:
-                from voice_profiles import load_profiles
+                from abogen.voice_profiles import load_profiles
 
                 entry = load_profiles().get(self.selected_profile_name, {})
                 lang = entry.get("language")
@@ -2151,11 +2192,13 @@ class abogen(QWidget):
                 if self.displayed_file_path
                 else self.selected_file
             )
-            # Check if the file exists before trying to set file info
-            if display_path and os.path.exists(display_path):
-                self.input_box.set_file_info(display_path)
+            # Only repopulate if not cleared by queue
+            if not getattr(self, 'input_box_cleared_by_queue', False):
+                if display_path and os.path.exists(display_path):
+                    self.input_box.set_file_info(display_path)
+                else:
+                    self.input_box.clear_input()
             else:
-                # Clear the input if the file no longer exists
                 self.input_box.clear_input()
             if (
                 hasattr(self, "conversion_thread")
@@ -2213,7 +2256,7 @@ class abogen(QWidget):
 
     def show_chapter_options_dialog(self, chapter_count):
         """Show dialog to ask user about chapter processing options when chapters are detected in a .txt file"""
-        from conversion import ChapterOptionsDialog
+        from abogen.conversion import ChapterOptionsDialog
 
         dialog = ChapterOptionsDialog(chapter_count, parent=self)
         dialog.setWindowModality(Qt.ApplicationModal)
@@ -2458,7 +2501,7 @@ class abogen(QWidget):
 
     def reveal_config_in_explorer(self):
         """Open the configuration file location in file explorer."""
-        from utils import get_user_config_path
+        from abogen.utils import get_user_config_path
 
         try:
             config_path = get_user_config_path()
@@ -2490,7 +2533,7 @@ class abogen(QWidget):
         """Create a desktop shortcut to this program using PowerShell."""
         import sys
         from platformdirs import user_desktop_dir
-        from utils import create_process
+        from abogen.utils import create_process
 
         try:
             if platform.system() == "Windows":
@@ -2625,7 +2668,7 @@ Categories=AudioVideo;Audio;Utility;
         save_config(self.config)
 
     def show_voice_formula_dialog(self):
-        from voice_profiles import load_profiles
+        from abogen.voice_profiles import load_profiles
 
         profiles = load_profiles()
         initial_state = None
