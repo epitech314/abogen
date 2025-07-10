@@ -738,10 +738,10 @@ class abogen(QWidget):
         controls_layout.addLayout(speed_layout)
         self.speed_slider.valueChanged.connect(self.update_speed_label)
         # Voice selection
-        voice_layout = QVBoxLayout()
+        voice_layout = QHBoxLayout()
         voice_layout.setSpacing(7)
-        voice_layout.addWidget(QLabel("Select Voice:", self))
-        voice_row = QHBoxLayout()
+        voice_label = QLabel("Select voice:", self)
+        voice_layout.addWidget(voice_label)
         self.voice_combo = QComboBox(self)
         self.voice_combo.currentIndexChanged.connect(self.on_voice_combo_changed)
         self.voice_combo.setStyleSheet(
@@ -751,8 +751,8 @@ class abogen(QWidget):
             "The first character represents the language:\n"
             '"a" => American English\n"b" => British English\n"e" => Spanish\n"f" => French\n"h" => Hindi\n"i" => Italian\n"j" => Japanese\n"p" => Brazilian Portuguese\n"z" => Mandarin Chinese\nThe second character represents the gender:\n"m" => Male\n"f" => Female'
         )
-        voice_row.addWidget(self.voice_combo)
-
+        self.voice_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        voice_layout.addWidget(self.voice_combo)
         # Voice formula button
         self.btn_voice_formula_mixer = QPushButton(self)
         mixer_icon_path = get_resource_path("abogen.assets", "voice_mixer.png")
@@ -761,8 +761,7 @@ class abogen(QWidget):
         self.btn_voice_formula_mixer.setFixedSize(40, 36)
         self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")
         self.btn_voice_formula_mixer.clicked.connect(self.show_voice_formula_dialog)
-        voice_row.addWidget(self.btn_voice_formula_mixer)
-
+        voice_layout.addWidget(self.btn_voice_formula_mixer)
         # Play/Stop icons
         def make_icon(color, shape):
             pix = QPixmap(20, 20)
@@ -792,14 +791,16 @@ class abogen(QWidget):
         self.btn_preview.setFixedSize(40, 36)
         self.btn_preview.setStyleSheet("QPushButton { padding: 6px 12px; }")
         self.btn_preview.clicked.connect(self.preview_voice)
-        voice_row.addWidget(self.btn_preview)
+        voice_layout.addWidget(self.btn_preview)
         self.preview_playing = False
         self.play_audio_thread = None  # Keep track of audio playing thread
-        voice_layout.addLayout(voice_row)
         controls_layout.addLayout(voice_layout)
-        # Subtitle mode
-        subtitle_layout = QVBoxLayout()
-        subtitle_layout.addWidget(QLabel("Generate subtitles:", self))
+
+        # Generate subtitles
+        subtitle_layout = QHBoxLayout()
+        subtitle_layout.setSpacing(7)
+        subtitle_label = QLabel("Generate subtitles:", self)
+        subtitle_layout.addWidget(subtitle_label)
         self.subtitle_combo = QComboBox(self)
         self.subtitle_combo.setToolTip(
             "Choose how subtitles will be generated:\n"
@@ -820,6 +821,7 @@ class abogen(QWidget):
         self.subtitle_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
+        self.subtitle_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
         self.subtitle_combo.currentTextChanged.connect(self.on_subtitle_mode_changed)
         # Enable/disable subtitle options based on selected language (profile or voice)
@@ -827,13 +829,17 @@ class abogen(QWidget):
         self.subtitle_combo.setEnabled(enable)
         subtitle_layout.addWidget(self.subtitle_combo)
         controls_layout.addLayout(subtitle_layout)
-        # Output format
-        format_layout = QVBoxLayout()
-        format_layout.addWidget(QLabel("Output Format:", self))
+
+        # Output voice format
+        format_layout = QHBoxLayout()
+        format_layout.setSpacing(7)
+        format_label = QLabel("Output voice format:", self)
+        format_layout.addWidget(format_label)
         self.format_combo = QComboBox(self)
         self.format_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
+        self.format_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         # Add items with display labels and underlying keys
         for key, label in [
             ("wav", "wav"),
@@ -853,9 +859,61 @@ class abogen(QWidget):
         )
         format_layout.addWidget(self.format_combo)
         controls_layout.addLayout(format_layout)
+
+        # Output subtitle format
+        subtitle_format_layout = QHBoxLayout()
+        subtitle_format_layout.setSpacing(7)
+        subtitle_format_label = QLabel("Output subtitle format:", self)
+        subtitle_format_layout.addWidget(subtitle_format_label)
+        self.subtitle_format_combo = QComboBox(self)
+        self.subtitle_format_combo.setStyleSheet(
+            "QComboBox { min-height: 20px; padding: 6px 12px; }"
+        )
+        self.subtitle_format_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        subtitle_formats = [
+            ("srt", "SRT (standard)"),
+            ("ass_wide", "ASS (wide)"),
+            ("ass_narrow", "ASS (narrow)"),
+            ("ass_centered_wide", "ASS (centered wide)"),
+            ("ass_centered_narrow", "ASS (centered narrow)")
+        ]
+        for value, text in subtitle_formats:
+            self.subtitle_format_combo.addItem(text, value)
+        subtitle_format = self.config.get("subtitle_format", "ass_centered_narrow")
+        idx = self.subtitle_format_combo.findData(subtitle_format)
+        if idx >= 0:
+            self.subtitle_format_combo.setCurrentIndex(idx)
+        self.subtitle_format_combo.currentIndexChanged.connect(
+            lambda i: self.set_subtitle_format(self.subtitle_format_combo.itemData(i))
+        )
+        subtitle_format_layout.addWidget(self.subtitle_format_combo)
+        controls_layout.addLayout(subtitle_format_layout)
+
+        # Replace single newlines dropdown (acts like checkbox)
+        replace_newlines_layout = QHBoxLayout()
+        replace_newlines_layout.setSpacing(7)
+        replace_newlines_label = QLabel("Replace single newlines:", self)
+        replace_newlines_layout.addWidget(replace_newlines_label)
+        self.replace_newlines_combo = QComboBox(self)
+        self.replace_newlines_combo.addItems(["Disabled", "Enabled"])
+        self.replace_newlines_combo.setToolTip("Replace single newlines in the input text with spaces before processing.")
+        self.replace_newlines_combo.setStyleSheet(
+            "QComboBox { min-height: 20px; padding: 6px 12px; }"
+        )
+        self.replace_newlines_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # Set initial value based on config
+        self.replace_newlines_combo.setCurrentIndex(1 if self.replace_single_newlines else 0)
+        self.replace_newlines_combo.currentIndexChanged.connect(
+            lambda idx: self.toggle_replace_single_newlines(idx == 1)
+        )
+        replace_newlines_layout.addWidget(self.replace_newlines_combo)
+        controls_layout.addLayout(replace_newlines_layout)
+
         # Save location
-        save_layout = QVBoxLayout()
-        save_layout.addWidget(QLabel("Save Location:", self))
+        save_layout = QHBoxLayout()
+        save_layout.setSpacing(7)
+        save_label = QLabel("Save Location:", self)
+        save_layout.addWidget(save_label)
         self.save_combo = QComboBox(self)
         save_options = [
             "Save next to input file",
@@ -866,6 +924,7 @@ class abogen(QWidget):
         self.save_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
+        self.save_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.save_combo.setCurrentText(self.save_option)
         self.save_combo.currentTextChanged.connect(self.on_save_option_changed)
         save_layout.addWidget(self.save_combo)
@@ -884,6 +943,12 @@ class abogen(QWidget):
         self.gpu_checkbox.stateChanged.connect(self.on_gpu_setting_changed)
         gpu_checkbox_layout.addWidget(self.gpu_checkbox)
         gpu_layout.addLayout(gpu_checkbox_layout)
+
+        # Set initial enabled state for subtitle format combo
+        if self.subtitle_mode == "Disabled":
+            self.subtitle_format_combo.setEnabled(False)
+        else:
+            self.subtitle_format_combo.setEnabled(True)
 
         # Settings button with icon
         settings_icon_path = get_resource_path("abogen.assets", "settings.svg")
@@ -1385,7 +1450,8 @@ class abogen(QWidget):
             output_folder=self.selected_output_folder,
             subtitle_mode=actual_subtitle_mode,
             output_format=self.selected_format,
-            total_char_count=self.char_count
+            total_char_count=self.char_count,
+            replace_single_newlines=self.replace_single_newlines
         )
 
         # Prevent adding duplicate items to the queue
@@ -1399,7 +1465,8 @@ class abogen(QWidget):
                 queued_item.output_folder == item.output_folder and
                 queued_item.subtitle_mode == item.subtitle_mode and
                 queued_item.output_format == item.output_format and
-                queued_item.total_char_count == item.total_char_count
+                queued_item.total_char_count == item.total_char_count and
+                getattr(queued_item, "replace_single_newlines", False) == item.replace_single_newlines
             ):
                 QMessageBox.warning(self, "Duplicate Item", "This item is already in the queue.")
                 return
@@ -1448,6 +1515,7 @@ class abogen(QWidget):
             self.subtitle_mode = item.subtitle_mode
             self.selected_format = item.output_format
             self.char_count = item.total_char_count
+            self.replace_single_newlines = getattr(item, "replace_single_newlines", False)
             self.start_conversion()
         else:
             # Queue finished, reset index
@@ -2104,6 +2172,11 @@ class abogen(QWidget):
         self.subtitle_mode = mode
         self.config["subtitle_mode"] = mode
         save_config(self.config)
+        # Disable subtitle format combo if subtitles are disabled
+        if mode == "Disabled":
+            self.subtitle_format_combo.setEnabled(False)
+        else:
+            self.subtitle_format_combo.setEnabled(True)
 
     def on_format_changed(self, fmt):
         self.selected_format = fmt
@@ -2311,45 +2384,6 @@ class abogen(QWidget):
 
         menu.addMenu(theme_menu)
 
-        # Add replace single newlines option
-        newline_action = QAction("Replace single newlines with spaces", self)
-        newline_action.setCheckable(True)
-        newline_action.setChecked(self.replace_single_newlines)
-        newline_action.triggered.connect(self.toggle_replace_single_newlines)
-        menu.addAction(newline_action)
-
-        # Add max words per subtitle option
-        max_words_action = QAction("Configure max words per subtitle", self)
-        max_words_action.triggered.connect(self.set_max_subtitle_words)
-        menu.addAction(max_words_action)
-        
-        # Add subtitle format option
-        subtitle_format_menu = QMenu("Subtitle format", self)
-        subtitle_format_menu.setToolTip("Choose the format for generated subtitles")
-
-        subtitle_format_group = QActionGroup(self)
-        subtitle_format_group.setExclusive(True)
-
-        # Define mapping: (internal_value, display_text)
-        subtitle_formats = [
-            ("srt", "SRT (standard)"),
-            ("ass_wide", "ASS (wide)"),
-            ("ass_narrow", "ASS (narrow)"),
-            ("ass_centered_wide", "ASS (centered wide)"),
-            ("ass_centered_narrow", "ASS (centered narrow)"),
-        ]
-
-        subtitle_format = self.config.get("subtitle_format", "ass_centered_narrow")
-        for value, text in subtitle_formats:
-            format_action = QAction(text, self)
-            format_action.setCheckable(True)
-            format_action.setChecked(subtitle_format == value)
-            format_action.triggered.connect(lambda checked, fmt=value: self.set_subtitle_format(fmt))
-            subtitle_format_group.addAction(format_action)
-            subtitle_format_menu.addAction(format_action)
-
-        menu.addMenu(subtitle_format_menu)
-        
         # Add separate chapters format option
         separate_chapters_format_menu = QMenu("Separate chapters audio format", self)
         separate_chapters_format_menu.setToolTip("Choose the format for individual chapter files")
@@ -2366,6 +2400,13 @@ class abogen(QWidget):
             separate_chapters_format_menu.addAction(format_action)
             
         menu.addMenu(separate_chapters_format_menu)
+
+        # Add max words per subtitle option
+        max_words_action = QAction("Configure max words per subtitle", self)
+        max_words_action.triggered.connect(self.set_max_subtitle_words)
+        menu.addAction(max_words_action)
+        
+
 
         # Add separator
         menu.addSeparator()
@@ -2410,9 +2451,9 @@ class abogen(QWidget):
 
         menu.exec_(self.settings_btn.mapToGlobal(QPoint(0, self.settings_btn.height())))
 
-    def toggle_replace_single_newlines(self, checked):
-        self.replace_single_newlines = checked
-        self.config["replace_single_newlines"] = checked
+    def toggle_replace_single_newlines(self, enabled):
+        self.replace_single_newlines = enabled
+        self.config["replace_single_newlines"] = enabled
         save_config(self.config)
 
     def reveal_config_in_explorer(self):
@@ -2609,8 +2650,6 @@ Categories=AudioVideo;Audio;Utility;
                     initial_state = entry
             else:
                 initial_state = []
-        else:
-            initial_state = []
         dialog = VoiceFormulaDialog(
             self, initial_state=initial_state, selected_profile=selected_profile
         )

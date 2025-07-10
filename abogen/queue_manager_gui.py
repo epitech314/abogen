@@ -15,11 +15,13 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QFileInfo, Qt
 from constants import COLORS
+from copy import deepcopy
 
 class QueueManager(QDialog):
     def __init__(self, parent, queue: list, title="Queue Manager", size=(600, 700)):
         super().__init__()
         self.queue = queue
+        self._original_queue = deepcopy(queue)  # Store a deep copy of the original queue
         self.parent = parent
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 15, 15, 15)  # set main layout margins
@@ -131,7 +133,8 @@ class QueueManager(QDialog):
             tooltip += (
                 f"<b>Subtitle Mode:</b> {getattr(item, 'subtitle_mode', '')}<br>"
                 f"<b>Output Format:</b> {getattr(item, 'output_format', '')}<br>"
-                f"<b>Characters:</b> {getattr(item, 'total_char_count', '')}"
+                f"<b>Characters:</b> {getattr(item, 'total_char_count', '')}<br>"
+                f"<b>Replace Single Newlines:</b> {getattr(item, 'replace_single_newlines', False)}"
             )
             list_item.setToolTip(tooltip)
             self.listwidget.addItem(list_item)
@@ -143,11 +146,23 @@ class QueueManager(QDialog):
         if not items:
             return
         import os
+        from PyQt5.QtWidgets import QMessageBox
         display_names = [item.text() for item in items]
         to_remove = []
         for q in self.queue:
             if os.path.basename(q.file_name) in display_names:
                 to_remove.append(q)
+        # Warn user if removing multiple files
+        if len(to_remove) > 1:
+            reply = QMessageBox.question(
+                self,
+                "Confirm Remove",
+                f"Are you sure you want to remove {len(to_remove)} selected items from the queue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
         for item in to_remove:
             self.queue.remove(item)
         self.process_queue()
@@ -205,11 +220,13 @@ class QueueManager(QDialog):
             attrs['output_format'] = getattr(parent, 'selected_format', '')
             # total_char_count
             attrs['total_char_count'] = getattr(parent, 'char_count', '')
+            # replace_single_newlines
+            attrs['replace_single_newlines'] = getattr(parent, 'replace_single_newlines', False)
         else:
             # fallback: empty values
             attrs = {k: '' for k in [
                 'lang_code', 'speed', 'voice', 'save_option',
-                'output_folder', 'subtitle_mode', 'output_format', 'total_char_count']}
+                'output_folder', 'subtitle_mode', 'output_format', 'total_char_count', 'replace_single_newlines']}
         return attrs
 
     def add_more_files(self):
@@ -250,7 +267,8 @@ class QueueManager(QDialog):
                     getattr(queued_item, 'output_folder', None) == getattr(item, 'output_folder', None) and
                     getattr(queued_item, 'subtitle_mode', None) == getattr(item, 'subtitle_mode', None) and
                     getattr(queued_item, 'output_format', None) == getattr(item, 'output_format', None) and
-                    getattr(queued_item, 'total_char_count', None) == getattr(item, 'total_char_count', None)
+                    getattr(queued_item, 'total_char_count', None) == getattr(item, 'total_char_count', None) and
+                    getattr(queued_item, 'replace_single_newlines', False) == getattr(item, 'replace_single_newlines', False)
                 ):
                     is_duplicate = True
                     break
@@ -259,7 +277,11 @@ class QueueManager(QDialog):
                 continue
             self.queue.append(item)
         if duplicates:
-            QMessageBox.warning(self, "Duplicate Item(s)", "The following file(s) with the same attributes are already in the queue and were not added:\n" + '\n'.join(duplicates))
+            QMessageBox.warning(
+                self,
+                "Duplicate Item(s)",
+                f"Skipping {len(duplicates)} file(s) with the same attributes, they are already in the queue."
+            )
         self.process_queue()
         self.update_button_states()
 
@@ -290,9 +312,28 @@ class QueueManager(QDialog):
         selected_items = self.listwidget.selectedItems()
         menu = QMenu(self)
         if len(selected_items) == 1:
+            # Add Remove action
             remove_action = QAction("Remove this item", self)
             remove_action.triggered.connect(self.remove_item)
             menu.addAction(remove_action)
+
+            # Add Open file action
+            open_file_action = QAction("Open file", self)
+            def open_file():
+                from PyQt5.QtWidgets import QMessageBox
+                item = selected_items[0]
+                display_name = item.text()
+                for q in self.queue:
+                    if os.path.basename(q.file_name) == display_name:
+                        if not os.path.exists(q.file_name):
+                            QMessageBox.warning(self, "File Not Found", f"The file does not exist.")
+                            return
+                        QDesktopServices.openUrl(QUrl.fromLocalFile(q.file_name))
+                        break
+            open_file_action.triggered.connect(open_file)
+            menu.addAction(open_file_action)
+
+            # Add Go to folder action
             go_to_folder_action = QAction("Go to folder", self)
             def go_to_folder():
                 from PyQt5.QtWidgets import QMessageBox
@@ -309,21 +350,7 @@ class QueueManager(QDialog):
                         break
             go_to_folder_action.triggered.connect(go_to_folder)
             menu.addAction(go_to_folder_action)
-            # Add Open file action
-            open_file_action = QAction("Open file", self)
-            def open_file():
-                from PyQt5.QtWidgets import QMessageBox
-                item = selected_items[0]
-                display_name = item.text()
-                for q in self.queue:
-                    if os.path.basename(q.file_name) == display_name:
-                        if not os.path.exists(q.file_name):
-                            QMessageBox.warning(self, "File Not Found", f"The file does not exist.")
-                            return
-                        QDesktopServices.openUrl(QUrl.fromLocalFile(q.file_name))
-                        break
-            open_file_action.triggered.connect(open_file)
-            menu.addAction(open_file_action)
+
         elif len(selected_items) > 1:
             remove_action = QAction(f"Remove selected ({len(selected_items)})", self)
             remove_action.triggered.connect(self.remove_item)
@@ -333,3 +360,34 @@ class QueueManager(QDialog):
         clear_action.triggered.connect(self.clear_queue)
         menu.addAction(clear_action)
         menu.exec_(global_pos)
+
+    def accept(self):
+        # Accept: keep changes
+        super().accept()
+
+    def reject(self):
+        # Cancel: restore original queue
+        from PyQt5.QtWidgets import QMessageBox
+        # Warn if user changed a lot (e.g., more than 1 items difference)
+        original_count = len(self._original_queue)
+        current_count = len(self.queue)
+        if abs(original_count - current_count) > 1:
+            reply = QMessageBox.question(
+                self,
+                "Confirm Cancel",
+                f"Are you sure you want to cancel and discard all changes?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+        self.queue.clear()
+        self.queue.extend(deepcopy(self._original_queue))
+        super().reject()
+
+    def keyPressEvent(self, event):
+        from PyQt5.QtCore import Qt
+        if event.key() == Qt.Key_Delete:
+            self.remove_item()
+        else:
+            super().keyPressEvent(event)

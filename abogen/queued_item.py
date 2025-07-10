@@ -12,3 +12,4 @@ class QueuedItem:
     subtitle_mode: str
     output_format: str
     total_char_count: int
+    replace_single_newlines: bool = False
