@@ -4,7 +4,9 @@ import tempfile
 import platform
 import base64
 import re
-import hf_tracker
+from abogen.queue_manager_gui import QueueManager
+from abogen.queued_item import QueuedItem
+import abogen.hf_tracker as hf_tracker
 import hashlib  # Added for cache path generation
 from PyQt5.QtWidgets import (
     QApplication,
@@ -51,7 +53,7 @@ from PyQt5.QtGui import (
     QColor,
     QMovie,
 )
-from utils import (
+from abogen.utils import (
     load_config,
     save_config,
     get_gpu_acceleration,
@@ -62,9 +64,9 @@ from utils import (
     get_resource_path,
     LoadPipelineThread,
 )
-from conversion import ConversionThread, VoicePreviewThread, PlayAudioThread
-from book_handler import HandlerDialog
-from constants import (
+from abogen.conversion import ConversionThread, VoicePreviewThread, PlayAudioThread
+from abogen.book_handler import HandlerDialog
+from abogen.constants import (
     PROGRAM_NAME,
     VERSION,
     GITHUB_URL,
@@ -74,9 +76,9 @@ from constants import (
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
     COLORS
 )
-from threading import Thread
-from voice_formula_gui import VoiceFormulaDialog
-from voice_profiles import load_profiles
+import threading
+from abogen.voice_formula_gui import VoiceFormulaDialog
+from abogen.voice_profiles import load_profiles
 
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
@@ -122,14 +124,14 @@ class IconProvider(QFileIconProvider):
 
 class InputBox(QLabel):
     # Define CSS styles as class constants
-    STYLE_DEFAULT = "border:2px dashed #aaa; border-radius:5px; padding:20px; background:rgba(0, 102, 255, 0.05); min-height:100px;"
-    STYLE_DEFAULT_HOVER = "background:rgba(0, 102, 255, 0.1); border-color:#6ab0de;"
+    STYLE_DEFAULT = f"border:2px dashed #aaa; border-radius:5px; padding:20px; background:{COLORS['BLUE_BG']}; min-height:100px;"
+    STYLE_DEFAULT_HOVER = f"background:{COLORS['BLUE_BG_HOVER']}; border-color:{COLORS['BLUE_BORDER_HOVER']};"
     
-    STYLE_ACTIVE = "border:2px dashed #42ad4a; border-radius:5px; padding:20px; background:rgba(66, 173, 73, 0.1); min-height:100px;"
-    STYLE_ACTIVE_HOVER = "background:rgba(66, 173, 73, 0.15); border-color:#42ad4a;"
+    STYLE_ACTIVE = f"border:2px dashed {COLORS['GREEN']}; border-radius:5px; padding:20px; background:{COLORS['GREEN_BG']}; min-height:100px;"
+    STYLE_ACTIVE_HOVER = f"background:{COLORS['GREEN_BG_HOVER']}; border-color:{COLORS['GREEN_BORDER']};"
     
-    STYLE_ERROR = "border:2px dashed #e74c3c; border-radius:5px; padding:20px; background:rgba(232, 78, 60, 0.10); min-height:100px; color:#c0392b;" 
-    STYLE_ERROR_HOVER = "background:rgba(232, 78, 60, 0.15); border-color:#e74c3c;"
+    STYLE_ERROR = f"border:2px dashed {COLORS['RED']}; border-radius:5px; padding:20px; background:{COLORS['RED_BG']}; min-height:100px; color:{COLORS['RED']};"
+    STYLE_ERROR_HOVER = f"background:{COLORS['RED_BG_HOVER']}; border-color:{COLORS['RED']};"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -141,11 +143,16 @@ class InputBox(QLabel):
         self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }}")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setCursor(Qt.PointingHandCursor)
+
+        # Add clear button
         self.clear_btn = QPushButton("✕", self)
         self.clear_btn.setFixedSize(28, 28)
         self.clear_btn.hide()
         self.clear_btn.clicked.connect(self.clear_input)
+
+        # Add Chapters button
         self.chapters_btn = QPushButton("Chapters", self)
+        self.chapters_btn.setStyleSheet("QPushButton { padding: 6px 10px; }")
         self.chapters_btn.hide()
         self.chapters_btn.clicked.connect(self.on_chapters_clicked)
 
@@ -154,6 +161,7 @@ class InputBox(QLabel):
         self.textbox_btn.setStyleSheet("QPushButton { padding: 6px 10px; }")
         self.textbox_btn.setToolTip("Input text directly instead of using a file")
         self.textbox_btn.clicked.connect(self.on_textbox_clicked)
+
         # Add Edit button matching the textbox button
         self.edit_btn = QPushButton("Edit", self)
         self.edit_btn.setStyleSheet("QPushButton { padding: 6px 10px; }")
@@ -178,9 +186,9 @@ class InputBox(QLabel):
         # Position textbox button at top left
         self.textbox_btn.move(margin, margin)
         self.edit_btn.move(margin, margin)
-        # Position go to folder button at bottom right
+        # Position go to folder button at bottom right with correct margins
         self.go_to_folder_btn.move(
-            self.width() - self.go_to_folder_btn.width(),
+            self.width() - self.go_to_folder_btn.width() - margin,
             self.height() - self.go_to_folder_btn.height() - margin,
         )
 
@@ -198,12 +206,24 @@ class InputBox(QLabel):
 
         size_str = self._human_readable_size(os.path.getsize(file_path))
         name = os.path.basename(file_path)
-        char_count = "N/A"
+        char_count = 0
+
+        def parse_size(size_str):
+            # Use regex to extract the numeric part
+            match = re.match(r"([\d.]+)", size_str)
+            if match:
+                return float(match.group(1))
+            raise ValueError(f"Invalid size format: {size_str}")
+
 
         # Format numbers with commas
         def format_num(n):
             try:
-                return f"{int(n):,}"
+                if isinstance(n, str):
+                    size = int(parse_size(n))
+                    return f"{size:,}"
+                else:
+                    return f"{n:,}"
             except Exception:
                 return str(n)
 
@@ -241,7 +261,7 @@ class InputBox(QLabel):
             self.window().char_count = 0
         # embed icon at native size with word-wrap for the filename
         self.setText(
-            f'<img src="data:image/png;base64,{img_data}"><br><span style="display: inline-block; max-width: 100%; word-break: break-all;"><b>{name}</b></span><br>Size: {format_num(size_str)}<br>Characters: {format_num(char_count)}'
+            f'<img src="data:image/png;base64,{img_data}"><br><span style="display: inline-block; max-width: 100%; word-break: break-all;"><b>{name}</b></span><br>Size: {size_str}<br>Characters: {format_num(char_count)}'
         )
         # Set fixed width to force wrapping
         self.setWordWrap(True)
@@ -258,6 +278,7 @@ class InputBox(QLabel):
             else:  # PDF - always use Pages
                 self.chapters_btn.setText(f"Pages ({chapter_count})")
 
+
         # Hide textbox and show edit only for .txt files
         self.textbox_btn.hide()
         # Show edit button for txt files directly
@@ -273,12 +294,24 @@ class InputBox(QLabel):
 
         self.edit_btn.setVisible(should_show_edit)
         self.go_to_folder_btn.show()
+        # Enable add to queue button only when file is accepted (input box is green)
+        self.resizeEvent(None)
+        if hasattr(self.window(), 'btn_add_to_queue'):
+            self.window().btn_add_to_queue.setEnabled(True)
+
+        self.chapters_btn.adjustSize()
+        # Reset the input_box_cleared_by_queue flag after setting file info
+        if hasattr(self.window(), 'input_box_cleared_by_queue'):
+            self.window().input_box_cleared_by_queue = False
 
     def set_error(self, message):
         self.setText(message)
         self.setStyleSheet(f"QLabel {{ {self.STYLE_ERROR} }} QLabel:hover {{ {self.STYLE_ERROR_HOVER} }}")
         # Show textbox button in error state as well
         self.textbox_btn.show()
+        # Disable add to queue button on error
+        if hasattr(self.window(), 'btn_add_to_queue'):
+            self.window().btn_add_to_queue.setEnabled(False)
 
     def clear_input(self):
         self.window().selected_file = None
@@ -296,6 +329,12 @@ class InputBox(QLabel):
         self.textbox_btn.show()
         self.edit_btn.hide()
         self.go_to_folder_btn.hide()
+        # Disable add to queue button when input is cleared
+        if hasattr(self.window(), 'btn_add_to_queue'):
+            self.window().btn_add_to_queue.setEnabled(False)
+        # Reset the input_box_cleared_by_queue flag after setting file info
+        if hasattr(self.window(), 'input_box_cleared_by_queue'):
+            self.window().input_box_cleared_by_queue = True
 
     def _human_readable_size(self, size, decimal_places=2):
         for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -310,15 +349,38 @@ class InputBox(QLabel):
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
-            ext = event.mimeData().urls()[0].toLocalFile().lower()
-            if ext.endswith(".txt") or ext.endswith(".epub") or ext.endswith(".pdf"):
-                event.acceptProposedAction()
-                return
+            urls = event.mimeData().urls()
+            if urls:
+                ext = urls[0].toLocalFile().lower()
+                if ext.endswith(".txt") or ext.endswith(".epub") or ext.endswith(".pdf"):
+                    event.acceptProposedAction()
+                    # Set hover style based on current state
+                    if self.styleSheet().find(self.STYLE_ACTIVE) != -1:
+                        self.setStyleSheet(f"QLabel {{ {self.STYLE_ACTIVE} }} QLabel:hover {{ {self.STYLE_ACTIVE_HOVER} }} {self.STYLE_ACTIVE_HOVER}")
+                    elif self.styleSheet().find(self.STYLE_ERROR) != -1:
+                        self.setStyleSheet(f"QLabel {{ {self.STYLE_ERROR} }} QLabel:hover {{ {self.STYLE_ERROR_HOVER} }} {self.STYLE_ERROR_HOVER}")
+                    else:
+                        self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }} {self.STYLE_DEFAULT_HOVER}")
+                    return
         event.ignore()
+
+    def dragLeaveEvent(self, event):
+        # Restore the style based on current state
+        if self.styleSheet().find(self.STYLE_ACTIVE) != -1:
+            self.setStyleSheet(f"QLabel {{ {self.STYLE_ACTIVE} }} QLabel:hover {{ {self.STYLE_ACTIVE_HOVER} }}")
+        elif self.styleSheet().find(self.STYLE_ERROR) != -1:
+            self.setStyleSheet(f"QLabel {{ {self.STYLE_ERROR} }} QLabel:hover {{ {self.STYLE_ERROR_HOVER} }}")
+        else:
+            self.setStyleSheet(f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }}")
+        event.accept()
 
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
-            file_path = event.mimeData().urls()[0].toLocalFile()
+            urls = event.mimeData().urls()
+            if not urls:
+                event.ignore()
+                return
+            file_path = urls[0].toLocalFile()
             win = self.window()
             if file_path.lower().endswith(".txt"):
                 win.selected_file, win.selected_file_type = file_path, "txt"
@@ -515,7 +577,7 @@ class TextboxDialog(QDialog):
     def insert_chapter_marker(self):
         # Insert a fixed chapter marker without prompting
         cursor = self.text_edit.textCursor()
-        cursor.insertText("<<CHAPTER_MARKER:Title>>")
+        cursor.insertText("\n<<CHAPTER_MARKER:Title>>\n")
         self.text_edit.setTextCursor(cursor)
         self.update_char_count()
         self.text_edit.setFocus()
@@ -547,6 +609,8 @@ class abogen(QWidget):
         self.displayed_file_path = (
             None  # Add new variable to track the displayed file path
         )
+        # Max log lines
+        self.log_window_max_lines = self.config.get("log_window_max_lines", 5000)
         self.selected_chapters = set()
         self.last_opened_book_path = None  # Track the last opened book path
         self.last_output_path = None
@@ -592,6 +656,13 @@ class abogen(QWidget):
             if platform.system() == "Windows":
                 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("abogen")
 
+        # Queued items list
+        self.queued_items = []
+        self.current_queue_index = 0
+
+        # Log lines
+        self._log_lines = []
+
         self.initUI()
         self.speed_slider.setValue(int(self.config.get("speed", 1.00) * 100))
         self.update_speed_label()
@@ -605,7 +676,7 @@ class abogen(QWidget):
             self.voice_combo.setCurrentIndex(idx)
             # If a profile is selected at startup, load voices and language
             if self.selected_profile_name:
-                from voice_profiles import load_profiles
+                from abogen.voice_profiles import load_profiles
 
                 entry = load_profiles().get(self.selected_profile_name, {})
                 if isinstance(entry, dict):
@@ -616,7 +687,7 @@ class abogen(QWidget):
                     self.selected_lang = entry[0][0] if entry and entry[0] else None
         if self.save_option == "Choose output folder" and self.selected_output_folder:
             self.save_path_label.setText(self.selected_output_folder)
-            self.save_path_label.show()
+            self.save_path_row_widget.show()
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
         # Enable/disable subtitle options based on selected language (profile or voice)
         enable = self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
@@ -652,6 +723,26 @@ class abogen(QWidget):
         container_layout.setSpacing(15)
         self.input_box = InputBox(self)
         container_layout.addWidget(self.input_box, 1)
+        # Manage queue button, start queue button
+        self.queue_row_widget = QWidget(self)  # Make queue_row a QWidget
+        queue_row = QHBoxLayout(self.queue_row_widget)
+        queue_row.setContentsMargins(0, 0, 0, 0)
+        self.btn_add_to_queue = QPushButton("Add to Queue", self)
+        self.btn_add_to_queue.setFixedHeight(40)
+        self.btn_add_to_queue.setEnabled(False)
+        self.btn_add_to_queue.clicked.connect(self.add_to_queue)
+        queue_row.addWidget(self.btn_add_to_queue)
+        self.btn_manage_queue = QPushButton("Manage Queue", self)
+        self.btn_manage_queue.setFixedHeight(40)
+        self.btn_manage_queue.setEnabled(True)
+        self.btn_manage_queue.clicked.connect(self.manage_queue)
+        queue_row.addWidget(self.btn_manage_queue)
+        self.btn_clear_queue = QPushButton("Clear Queue", self)
+        self.btn_clear_queue.setFixedHeight(40)
+        self.btn_clear_queue.setEnabled(False)
+        self.btn_clear_queue.clicked.connect(self.clear_queue)
+        queue_row.addWidget(self.btn_clear_queue)
+        container_layout.addWidget(self.queue_row_widget)
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
         self.log_text.setFrameStyle(QTextEdit.NoFrame)
@@ -678,10 +769,10 @@ class abogen(QWidget):
         controls_layout.addLayout(speed_layout)
         self.speed_slider.valueChanged.connect(self.update_speed_label)
         # Voice selection
-        voice_layout = QVBoxLayout()
+        voice_layout = QHBoxLayout()
         voice_layout.setSpacing(7)
-        voice_layout.addWidget(QLabel("Select Voice:", self))
-        voice_row = QHBoxLayout()
+        voice_label = QLabel("Select voice:", self)
+        voice_layout.addWidget(voice_label)
         self.voice_combo = QComboBox(self)
         self.voice_combo.currentIndexChanged.connect(self.on_voice_combo_changed)
         self.voice_combo.setStyleSheet(
@@ -691,8 +782,8 @@ class abogen(QWidget):
             "The first character represents the language:\n"
             '"a" => American English\n"b" => British English\n"e" => Spanish\n"f" => French\n"h" => Hindi\n"i" => Italian\n"j" => Japanese\n"p" => Brazilian Portuguese\n"z" => Mandarin Chinese\nThe second character represents the gender:\n"m" => Male\n"f" => Female'
         )
-        voice_row.addWidget(self.voice_combo)
-
+        self.voice_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        voice_layout.addWidget(self.voice_combo)
         # Voice formula button
         self.btn_voice_formula_mixer = QPushButton(self)
         mixer_icon_path = get_resource_path("abogen.assets", "voice_mixer.png")
@@ -701,8 +792,7 @@ class abogen(QWidget):
         self.btn_voice_formula_mixer.setFixedSize(40, 36)
         self.btn_voice_formula_mixer.setStyleSheet("QPushButton { padding: 6px 12px; }")
         self.btn_voice_formula_mixer.clicked.connect(self.show_voice_formula_dialog)
-        voice_row.addWidget(self.btn_voice_formula_mixer)
-
+        voice_layout.addWidget(self.btn_voice_formula_mixer)
         # Play/Stop icons
         def make_icon(color, shape):
             pix = QPixmap(20, 20)
@@ -732,14 +822,16 @@ class abogen(QWidget):
         self.btn_preview.setFixedSize(40, 36)
         self.btn_preview.setStyleSheet("QPushButton { padding: 6px 12px; }")
         self.btn_preview.clicked.connect(self.preview_voice)
-        voice_row.addWidget(self.btn_preview)
+        voice_layout.addWidget(self.btn_preview)
         self.preview_playing = False
         self.play_audio_thread = None  # Keep track of audio playing thread
-        voice_layout.addLayout(voice_row)
         controls_layout.addLayout(voice_layout)
-        # Subtitle mode
-        subtitle_layout = QVBoxLayout()
-        subtitle_layout.addWidget(QLabel("Generate subtitles:", self))
+
+        # Generate subtitles
+        subtitle_layout = QHBoxLayout()
+        subtitle_layout.setSpacing(7)
+        subtitle_label = QLabel("Generate subtitles:", self)
+        subtitle_layout.addWidget(subtitle_label)
         self.subtitle_combo = QComboBox(self)
         self.subtitle_combo.setToolTip(
             "Choose how subtitles will be generated:\n"
@@ -760,6 +852,7 @@ class abogen(QWidget):
         self.subtitle_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
+        self.subtitle_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
         self.subtitle_combo.currentTextChanged.connect(self.on_subtitle_mode_changed)
         # Enable/disable subtitle options based on selected language (profile or voice)
@@ -767,13 +860,17 @@ class abogen(QWidget):
         self.subtitle_combo.setEnabled(enable)
         subtitle_layout.addWidget(self.subtitle_combo)
         controls_layout.addLayout(subtitle_layout)
-        # Output format
-        format_layout = QVBoxLayout()
-        format_layout.addWidget(QLabel("Output Format:", self))
+
+        # Output voice format
+        format_layout = QHBoxLayout()
+        format_layout.setSpacing(7)
+        format_label = QLabel("Output voice format:", self)
+        format_layout.addWidget(format_label)
         self.format_combo = QComboBox(self)
         self.format_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
+        self.format_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         # Add items with display labels and underlying keys
         for key, label in [
             ("wav", "wav"),
@@ -793,9 +890,61 @@ class abogen(QWidget):
         )
         format_layout.addWidget(self.format_combo)
         controls_layout.addLayout(format_layout)
+
+        # Output subtitle format
+        subtitle_format_layout = QHBoxLayout()
+        subtitle_format_layout.setSpacing(7)
+        subtitle_format_label = QLabel("Output subtitle format:", self)
+        subtitle_format_layout.addWidget(subtitle_format_label)
+        self.subtitle_format_combo = QComboBox(self)
+        self.subtitle_format_combo.setStyleSheet(
+            "QComboBox { min-height: 20px; padding: 6px 12px; }"
+        )
+        self.subtitle_format_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        subtitle_formats = [
+            ("srt", "SRT (standard)"),
+            ("ass_wide", "ASS (wide)"),
+            ("ass_narrow", "ASS (narrow)"),
+            ("ass_centered_wide", "ASS (centered wide)"),
+            ("ass_centered_narrow", "ASS (centered narrow)")
+        ]
+        for value, text in subtitle_formats:
+            self.subtitle_format_combo.addItem(text, value)
+        subtitle_format = self.config.get("subtitle_format", "ass_centered_narrow")
+        idx = self.subtitle_format_combo.findData(subtitle_format)
+        if idx >= 0:
+            self.subtitle_format_combo.setCurrentIndex(idx)
+        self.subtitle_format_combo.currentIndexChanged.connect(
+            lambda i: self.set_subtitle_format(self.subtitle_format_combo.itemData(i))
+        )
+        subtitle_format_layout.addWidget(self.subtitle_format_combo)
+        controls_layout.addLayout(subtitle_format_layout)
+
+        # Replace single newlines dropdown (acts like checkbox)
+        replace_newlines_layout = QHBoxLayout()
+        replace_newlines_layout.setSpacing(7)
+        replace_newlines_label = QLabel("Replace single newlines:", self)
+        replace_newlines_layout.addWidget(replace_newlines_label)
+        self.replace_newlines_combo = QComboBox(self)
+        self.replace_newlines_combo.addItems(["Disabled", "Enabled"])
+        self.replace_newlines_combo.setToolTip("Replace single newlines in the input text with spaces before processing.")
+        self.replace_newlines_combo.setStyleSheet(
+            "QComboBox { min-height: 20px; padding: 6px 12px; }"
+        )
+        self.replace_newlines_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # Set initial value based on config
+        self.replace_newlines_combo.setCurrentIndex(1 if self.replace_single_newlines else 0)
+        self.replace_newlines_combo.currentIndexChanged.connect(
+            lambda idx: self.toggle_replace_single_newlines(idx == 1)
+        )
+        replace_newlines_layout.addWidget(self.replace_newlines_combo)
+        controls_layout.addLayout(replace_newlines_layout)
+
         # Save location
-        save_layout = QVBoxLayout()
-        save_layout.addWidget(QLabel("Save Location:", self))
+        save_layout = QHBoxLayout()
+        save_layout.setSpacing(7)
+        save_label = QLabel("Save location:", self)
+        save_layout.addWidget(save_label)
         self.save_combo = QComboBox(self)
         save_options = [
             "Save next to input file",
@@ -806,13 +955,28 @@ class abogen(QWidget):
         self.save_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
+        self.save_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.save_combo.setCurrentText(self.save_option)
         self.save_combo.currentTextChanged.connect(self.on_save_option_changed)
         save_layout.addWidget(self.save_combo)
-        self.save_path_label = QLabel("", self)
-        self.save_path_label.hide()
-        save_layout.addWidget(self.save_path_label)
         controls_layout.addLayout(save_layout)
+
+        # Save path label
+        self.save_path_row_widget = QWidget(self)
+        save_path_row = QHBoxLayout(self.save_path_row_widget)
+        save_path_row.setSpacing(7)
+        save_path_row.setContentsMargins(0, 0, 0, 0)
+        selected_folder_label = QLabel("Selected folder:", self.save_path_row_widget)
+        save_path_row.addWidget(selected_folder_label)
+        self.save_path_label = QLabel("", self.save_path_row_widget)
+        self.save_path_label.setStyleSheet(
+            f"QLabel {{ color: {COLORS['GREEN']}; }}"
+        )
+        self.save_path_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        save_path_row.addWidget(self.save_path_label)
+        self.save_path_row_widget.hide()  # Hide the whole row by default
+        controls_layout.addWidget(self.save_path_row_widget)
+
         # GPU Acceleration Checkbox with Settings button
         gpu_layout = QHBoxLayout()
         gpu_checkbox_layout = QVBoxLayout()
@@ -824,6 +988,12 @@ class abogen(QWidget):
         self.gpu_checkbox.stateChanged.connect(self.on_gpu_setting_changed)
         gpu_checkbox_layout.addWidget(self.gpu_checkbox)
         gpu_layout.addLayout(gpu_checkbox_layout)
+
+        # Set initial enabled state for subtitle format combo
+        if self.subtitle_mode == "Disabled":
+            self.subtitle_format_combo.setEnabled(False)
+        else:
+            self.subtitle_format_combo.setEnabled(True)
 
         # Settings button with icon
         settings_icon_path = get_resource_path("abogen.assets", "settings.svg")
@@ -900,6 +1070,9 @@ class abogen(QWidget):
         outer_layout.addWidget(container)
         self.setLayout(outer_layout)
         self.populate_profiles_in_voice_combo()
+
+        # Initialize flag to track if input box was cleared by queue
+        self.input_box_cleared_by_queue = False
 
     def open_file_dialog(self):
         if self.is_converting:
@@ -1014,7 +1187,7 @@ class abogen(QWidget):
             else:
                 temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
                 os.makedirs(temp_dir, exist_ok=True)
-                
+
             fd, tmp = tempfile.mkstemp(
                 prefix=f"{base_name}_", suffix=".txt", dir=temp_dir
             )
@@ -1130,7 +1303,7 @@ class abogen(QWidget):
         if isinstance(data, str) and data.startswith("profile:"):
             pname = data.split(":", 1)[1]
             self.selected_profile_name = pname
-            from voice_profiles import load_profiles
+            from abogen.voice_profiles import load_profiles
 
             entry = load_profiles().get(pname, {})
             # set mixed voices and language
@@ -1163,7 +1336,7 @@ class abogen(QWidget):
                 self.subtitle_combo.setEnabled(False)
 
     def update_subtitle_combo_for_profile(self, profile_name):
-        from voice_profiles import load_profiles
+        from abogen.voice_profiles import load_profiles
 
         entry = load_profiles().get(profile_name, {})
         lang = entry.get("language") if isinstance(entry, dict) else None
@@ -1210,6 +1383,7 @@ class abogen(QWidget):
         self.input_box.hide()
         self.log_text.show()
         self.log_text.clear()
+        self._log_lines = []
         QApplication.processEvents()
 
     def restore_input_box(self):
@@ -1230,35 +1404,61 @@ class abogen(QWidget):
         self._update_log_main_thread(message)
 
     def _update_log_main_thread(self, message):
-        sb = self.log_text.verticalScrollBar()
-        prev_val = sb.value()
-        at_bottom = prev_val == sb.maximum()
-        # save current text cursor to preserve selection
-        old_cursor = self.log_text.textCursor()
-        # prepare html
+        if not hasattr(self, '_log_lines'):
+            self._log_lines = []
+
+        # Always produce a single HTML line (with color if tuple)
         if isinstance(message, tuple):
             text, spec = message
             color = "green" if spec is True else ("red" if spec is False else spec)
-            html = self.color_text(text, color)
+            html_line = self.color_text(text, color)
         else:
-            html = str(message).replace("\n", "<br>") + "<br>"
-        # move cursor to end for insertion
-        insert_cursor = self.log_text.textCursor()
-        insert_cursor.movePosition(QTextCursor.End)
-        self.log_text.setTextCursor(insert_cursor)
-        self.log_text.insertHtml(html)
-        # restore original cursor/selection
-        self.log_text.setTextCursor(old_cursor)
-        # restore scroll position
-        sb.setValue(sb.maximum() if at_bottom else prev_val)
+            html_line = f"{str(message).replace(chr(10), '<br>')}<br>"
+
+        self._log_lines.append(html_line)
+
+        # Check if user is at bottom BEFORE inserting
+        sb = self.log_text.verticalScrollBar()
+        at_bottom = sb.value() >= sb.maximum() - 2
+
+        # Trim buffer if needed
+        if len(self._log_lines) > self.log_window_max_lines:
+            self._log_lines = self._log_lines[-self.log_window_max_lines:]
+            self.log_text.clear()
+            for line in self._log_lines:
+                self.log_text.insertHtml(line)
+        else:
+            self.log_text.insertHtml(html_line)
+
+        # If user was at bottom before, scroll to new bottom
+        if at_bottom:
+            sb.setValue(sb.maximum())
+
         QApplication.processEvents()
+
+    def _get_queue_progress_format(self, value=None):
+        """Return the progress bar format string for queue mode."""
+        if hasattr(self, 'queued_items') and self.queued_items and hasattr(self, 'current_queue_index'):
+            N = self.current_queue_index + 1
+            M = len(self.queued_items)
+            percent = value if value is not None else self.progress_bar.value()
+            return f"{percent}% ({N}/{M})"
+        else:
+            percent = value if value is not None else self.progress_bar.value()
+            return f"{percent}%"
 
     def update_progress(self, value, etr_str):  # Add etr_str parameter
         # Ensure progress doesn't exceed 99%
         if value >= 100:
             value = 99
         self.progress_bar.setValue(value)
-        self.progress_bar.setFormat("%p%")  # Keep format as percentage only
+        # Show queue progress if in queue mode
+        if hasattr(self, 'queued_items') and self.queued_items and hasattr(self, 'current_queue_index'):
+            N = self.current_queue_index + 1
+            M = len(self.queued_items)
+            self.progress_bar.setFormat(f"{value}% ({N}/{M})")
+        else:
+            self.progress_bar.setFormat(f"{value}%")
         self.etr_label.setText(
             f"Estimated time remaining: {etr_str}"
         )  # Update ETR label
@@ -1271,7 +1471,178 @@ class abogen(QWidget):
         self.progress_bar.repaint()
         QApplication.processEvents()
 
-    def start_conversion(self):
+    def enable_disable_queue_buttons(self):
+        enabled = bool(self.queued_items)
+        self.btn_clear_queue.setEnabled(enabled)
+        # Update Manage Queue button text with count
+        if enabled:
+            self.btn_manage_queue.setText(f"Manage Queue ({len(self.queued_items)})")
+            self.btn_manage_queue.setStyleSheet(
+                f"QPushButton {{ color: {COLORS['GREEN']}; }}"
+            )
+        else:
+            self.btn_manage_queue.setText("Manage Queue")
+            self.btn_manage_queue.setStyleSheet("")
+        # Change main Start button to 'Start queue' if queue has items
+        if enabled:
+            self.btn_start.setText(f"Start queue ({len(self.queued_items)})")
+            try:
+                self.btn_start.clicked.disconnect()
+            except Exception:
+                pass
+            self.btn_start.clicked.connect(self.start_queue)
+        else:
+            self.btn_start.setText("Start")
+            try:
+                self.btn_start.clicked.disconnect()
+            except Exception:
+                pass
+            self.btn_start.clicked.connect(self.start_conversion)
+
+    def enqueue(self, item : QueuedItem):
+        self.queued_items.append(item)
+        #self.update_log((f"Enqueued: {item.file_name}", True))
+        # enable start queue button, manage queue button
+        self.enable_disable_queue_buttons()
+
+    def get_queue(self):
+        return self.queued_items
+
+    def add_to_queue(self):
+        # Use the file currently displayed in the input box
+        file_to_queue = self.displayed_file_path if self.displayed_file_path else self.selected_file
+
+        if not file_to_queue:
+            self.input_box.set_error("Please add a file.")
+            return
+        actual_subtitle_mode = self.get_actual_subtitle_mode()
+        voice_formula = self.get_voice_formula()
+        selected_lang = self.get_selected_lang(voice_formula)
+
+        item_queue = QueuedItem(
+            file_name=file_to_queue,
+            lang_code=selected_lang,
+            speed=self.speed_slider.value() / 100.0,
+            voice=voice_formula,
+            save_option=self.save_option,
+            output_folder=self.selected_output_folder,
+            subtitle_mode=actual_subtitle_mode,
+            output_format=self.selected_format,
+            total_char_count=self.char_count,
+            replace_single_newlines=self.replace_single_newlines
+        )
+
+        # Prevent adding duplicate items to the queue
+        for queued_item in self.queued_items:
+            if (
+                queued_item.file_name == item_queue.file_name and
+                queued_item.lang_code == item_queue.lang_code and
+                queued_item.speed == item_queue.speed and
+                queued_item.voice == item_queue.voice and
+                queued_item.save_option == item_queue.save_option and
+                queued_item.output_folder == item_queue.output_folder and
+                queued_item.subtitle_mode == item_queue.subtitle_mode and
+                queued_item.output_format == item_queue.output_format and
+                getattr(queued_item, "replace_single_newlines", False) == item_queue.replace_single_newlines
+            ):
+                QMessageBox.warning(self, "Duplicate Item", "This item is already in the queue.")
+                return
+
+        self.enqueue(item_queue)
+        # Clear input after adding to queue
+        self.input_box.clear_input()
+        self.input_box_cleared_by_queue = True  # Set flag
+        self.enable_disable_queue_buttons()
+
+    def clear_queue(self):
+        # Warn user if more than 1 item in the queue before clearing
+        if len(self.queued_items) > 1:
+            reply = QMessageBox.question(
+                self,
+                "Confirm Clear Queue",
+                f"Are you sure you want to clear {len(self.queued_items)} items from the queue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+        self.queued_items = []
+        self.enable_disable_queue_buttons()
+
+    def manage_queue(self):
+        # show a dialog to manage the queue
+        dialog = QueueManager(self, self.queued_items)
+        if dialog.exec_() == QDialog.Accepted:
+            self.queued_items = dialog.get_queue()
+            # re-enable/disable buttons based on queue state
+            self.enable_disable_queue_buttons()
+
+    def start_queue(self):
+        self.current_queue_index = 0  # Start from the first item
+        # Set progress bar to 0% (1/M) immediately
+        if self.queued_items:
+            self.progress_bar.setValue(0)
+            self.progress_bar.setFormat(f"0% (1/{len(self.queued_items)})")
+            self.progress_bar.show()
+        self.start_next_queued_item()
+
+    def start_next_queued_item(self):
+        if self.current_queue_index < len(self.queued_items):
+            queued_item = self.queued_items[self.current_queue_index]
+            self.selected_file = queued_item.file_name
+            self.selected_lang = queued_item.lang_code
+            self.speed_slider.setValue(int(queued_item.speed * 100))
+            self.selected_voice = queued_item.voice
+            self.save_option = queued_item.save_option
+            self.selected_output_folder = queued_item.output_folder
+            self.subtitle_mode = queued_item.subtitle_mode
+            self.selected_format = queued_item.output_format
+            self.char_count = queued_item.total_char_count
+            self.replace_single_newlines = getattr(queued_item, "replace_single_newlines", False)
+            self.start_conversion(from_queue=True)
+        else:
+            # Queue finished, reset index
+            self.current_queue_index = 0
+
+    def queue_item_conversion_finished(self):
+        # Called after each conversion finishes
+        self.current_queue_index += 1
+        if self.current_queue_index < len(self.queued_items):
+            self.start_next_queued_item()
+        else:
+            self.current_queue_index = 0  # Reset for next time
+
+
+    def get_voice_formula(self) -> str:
+        if self.mixed_voice_state:
+            formula_components = [
+                f"{name}*{weight}" for name, weight in self.mixed_voice_state
+            ]
+            return " + ".join(filter(None, formula_components))
+        else:
+            return self.selected_voice
+
+    def get_selected_lang(self, voice_formula) -> str:
+        if self.selected_profile_name:
+            from abogen.voice_profiles import load_profiles
+            entry = load_profiles().get(self.selected_profile_name, {})
+            selected_lang = entry.get("language")
+        else:
+            selected_lang = self.selected_voice[0] if self.selected_voice else None
+        # fallback: extract from formula if missing
+        if not selected_lang:
+                m = re.search(r"\b([a-z])", voice_formula)
+                selected_lang = m.group(1) if m else None
+        return selected_lang
+
+    def get_actual_subtitle_mode(self) -> str:
+        return (
+                "Disabled"
+                if not self.subtitle_combo.isEnabled()
+                else self.subtitle_mode
+            )
+
+    def start_conversion(self, from_queue=False):
         if not self.selected_file:
             self.input_box.set_error("Please add a file.")
             return
@@ -1279,9 +1650,16 @@ class abogen(QWidget):
         self.is_converting = True
         self.convert_input_box_to_log()
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("%p%")  # Reset format initially
+        # Show queue progress if in queue mode
+        if from_queue and hasattr(self, 'queued_items') and self.queued_items and hasattr(self, 'current_queue_index'):
+            N = self.current_queue_index + 1
+            M = len(self.queued_items)
+            self.progress_bar.setFormat(f"0% ({N}/{M})")
+        else:
+            self.progress_bar.setFormat("%p%")  # Reset format initially
         self.etr_label.hide()  # Hide ETR label initially
         self.controls_widget.hide()
+        self.queue_row_widget.hide()  # Hide queue row when process starts
         self.progress_bar.show()
         self.btn_cancel.show()
         QApplication.processEvents()
@@ -1313,32 +1691,12 @@ class abogen(QWidget):
             self.btn_cancel.setEnabled(True)
 
             # Override subtitle_mode to "Disabled" if subtitle_combo is disabled
-            actual_subtitle_mode = (
-                "Disabled"
-                if not self.subtitle_combo.isEnabled()
-                else self.subtitle_mode
-            )
+            actual_subtitle_mode = self.get_actual_subtitle_mode()
 
             # if voice formula is not None, use the selected voice
-            if self.mixed_voice_state:
-                formula_components = [
-                    f"{name}*{weight}" for name, weight in self.mixed_voice_state
-                ]
-                voice_formula = " + ".join(filter(None, formula_components))
-            else:
-                voice_formula = self.selected_voice
+            voice_formula = self.get_voice_formula()
             # determine selected language: use profile setting if profile selected, else voice code
-            if self.selected_profile_name:
-                from voice_profiles import load_profiles
-
-                entry = load_profiles().get(self.selected_profile_name, {})
-                selected_lang = entry.get("language")
-            else:
-                selected_lang = self.selected_voice[0] if self.selected_voice else None
-            # fallback: extract from formula if missing
-            if not selected_lang:
-                m = re.search(r"\b([a-z])", voice_formula)
-                selected_lang = m.group(1) if m else None
+            selected_lang = self.get_selected_lang(voice_formula)
 
             self.conversion_thread = ConversionThread(
                 self.selected_file,
@@ -1354,6 +1712,7 @@ class abogen(QWidget):
                 start_time=self.start_time,
                 total_char_count=self.char_count,
                 use_gpu=self.gpu_ok,
+                from_queue=from_queue,
             )  # Use gpu_ok status
             # Pass the displayed file path to the log_updated signal handler in ConversionThread
             self.conversion_thread.display_path = display_path
@@ -1408,7 +1767,56 @@ class abogen(QWidget):
             load_thread = LoadPipelineThread(pipeline_loaded_callback)
             load_thread.start()
 
-        Thread(target=gpu_and_load, daemon=True).start()
+        threading.Thread(target=gpu_and_load, daemon=True).start()
+
+    def show_queue_summary(self):
+        """Show a styled, resizable summary dialog after queue finishes."""
+        if not self.queued_items:
+            return
+
+        # Build HTML summary for better styling
+        summary_html = "<html><body>"
+        summary_html += (
+            f"<h2 style='color:{COLORS['LIGHT_BG']};'>Queue finished</h2>"
+            f"Processed {len(self.queued_items)} items:<br><br>"
+        )
+        
+        
+        for idx, item in enumerate(self.queued_items, 1):
+            output = getattr(item, "output_path", None)
+            if not output:
+                output = "Unknown"
+            summary_html += (
+                f"<span style='color:{COLORS['GREEN']}; font-weight:bold;'>{idx}) {os.path.basename(item.file_name)}</span><br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Language:</span> {item.lang_code}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Voice:</span> {item.voice}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Speed:</span> {item.speed * 100:.1f}%<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Characters:</span> {item.total_char_count}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Input:</span> {item.file_name}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Output:</span> {output}</span>"
+                f"<br><br>"
+            )
+        summary_html += "</body></html>"
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Queue Summary")
+        dialog.resize(550, 650)  # Make window resizable and larger
+
+        layout = QVBoxLayout(dialog)
+        text_edit = QTextEdit(dialog)
+        text_edit.setReadOnly(True)
+        text_edit.setHtml(summary_html)
+        layout.addWidget(text_edit)
+
+        close_btn = QPushButton("Close", dialog)
+        close_btn.setFixedHeight(36)
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+
+        dialog.setLayout(layout)
+        dialog.setMinimumSize(400, 300)
+        dialog.setSizeGripEnabled(True)  # Allow resizing
+        dialog.exec_()
 
     def on_conversion_finished(self, message, output_path):
         prevent_sleep_end()
@@ -1425,17 +1833,23 @@ class abogen(QWidget):
                 if self.displayed_file_path
                 else self.selected_file
             )
-            # Check if the file exists before trying to set file info
-            if display_path and os.path.exists(display_path):
-                self.input_box.set_file_info(display_path)
+            # Only repopulate if not cleared by queue
+            if not getattr(self, 'input_box_cleared_by_queue', False):
+                if display_path and os.path.exists(display_path):
+                    self.input_box.set_file_info(display_path)
+                else:
+                    self.input_box.clear_input()
             else:
-                # Clear the input if the file no longer exists
                 self.input_box.clear_input()
             return
 
         self.update_log(message)
         if output_path:
             self.last_output_path = output_path
+            # Store output_path in the current queued item if in queue mode
+            if self.queued_items and self.current_queue_index < len(self.queued_items):
+                self.queued_items[self.current_queue_index].output_path = output_path
+
         self.etr_label.hide()  # Hide ETR label
         self.progress_bar.setValue(100)
         self.progress_bar.hide()
@@ -1458,16 +1872,28 @@ class abogen(QWidget):
         if self.open_file_btn:
             self.open_file_btn.setVisible(show_open_file_button)
 
-        self.controls_widget.hide()
-        self.finish_widget.show()
-        self.log_text.moveCursor(QTextCursor.End)
-        self.log_text.ensureCursorVisible()
-        save_config(self.config)
+        # Only show finish_widget if queue is done
+        if self.current_queue_index + 1 >= len(self.queued_items) or not self.queued_items:
+            # Queue finished, show finish screen
+            self.controls_widget.hide()
+            self.finish_widget.show()
+            sb = self.log_text.verticalScrollBar()
+            sb.setValue(sb.maximum())
+            save_config(self.config)
+            # Show queue summary if more than one item
+            if len(self.queued_items) > 1:
+                self.show_queue_summary()
+        else:
+            # More items in queue: clear log and reload for next item
+            self.log_text.clear()
+            self._log_lines = []
+            QApplication.processEvents()
+
+        # Start new queued item, if we're using a queued conversion
+        self.queue_item_conversion_finished()
 
     def reset_ui(self):
         try:
-            self.restore_input_box()
-            self.input_box.clear_input()  # Reset text and style
             self.etr_label.hide()  # Hide ETR label
             self.progress_bar.setValue(0)
             self.progress_bar.hide()
@@ -1480,6 +1906,7 @@ class abogen(QWidget):
             if self.open_file_btn:
                 self.open_file_btn.show()
             self.controls_widget.show()
+            self.queue_row_widget.show()  # Show queue row on reset
             self.finish_widget.hide()
             self.btn_start.setText("Start")
             # Disconnect only if connected, then reconnect
@@ -1488,25 +1915,35 @@ class abogen(QWidget):
             except TypeError:
                 pass  # Ignore error if not connected
             self.btn_start.clicked.connect(self.start_conversion)
+            self.enable_disable_queue_buttons()
+            self.restore_input_box()
+            self.input_box.clear_input()  # Reset text and style
+            # Trigger the "Clear Queue" button (simulate user click)
+            self.btn_clear_queue.click()
         except Exception as e:
             self._show_error_message_box("Reset Error", f"Could not reset UI:\n{e}")
 
     def go_back_ui(self):
         self.finish_widget.hide()
         self.controls_widget.show()
+        self.queue_row_widget.show()  # Show queue row on go back
         self.progress_bar.hide()
         self.restore_input_box()
+        self.log_text.clear()
+        self._log_lines = []
 
         # Use displayed_file_path instead of selected_file for EPUBs or PDFs
         display_path = (
             self.displayed_file_path if self.displayed_file_path else self.selected_file
         )
 
-        # Check if the file exists before trying to set file info
-        if display_path and os.path.exists(display_path):
-            self.input_box.set_file_info(display_path)
+        # Only repopulate if not cleared by queue
+        if not getattr(self, 'input_box_cleared_by_queue', False):
+            if display_path and os.path.exists(display_path):
+                self.input_box.set_file_info(display_path)
+            else:
+                self.input_box.clear_input()
         else:
-            # Clear the input if the file no longer exists
             self.input_box.clear_input()
 
         # Ensure open file button is visible when going back
@@ -1524,7 +1961,7 @@ class abogen(QWidget):
                 if folder:
                     self.selected_output_folder = folder
                     self.save_path_label.setText(folder)
-                    self.save_path_label.show()
+                    self.save_path_row_widget.show()
                     self.config["selected_output_folder"] = folder
                 else:
                     self.save_option = "Save next to input file"
@@ -1538,7 +1975,7 @@ class abogen(QWidget):
                 self.save_combo.setCurrentText(self.save_option)
                 self.config["save_option"] = self.save_option
         else:
-            self.save_path_label.hide()
+            self.save_path_row_widget.hide()
             self.selected_output_folder = None
             self.config["selected_output_folder"] = None
         save_config(self.config)
@@ -1593,7 +2030,7 @@ class abogen(QWidget):
             voice_formula = " + ".join(filter(None, components))
             voice_to_cache = voice_formula
             if self.selected_profile_name:
-                from voice_profiles import load_profiles
+                from abogen.voice_profiles import load_profiles
                 entry = load_profiles().get(self.selected_profile_name, {})
                 lang_to_cache = entry.get("language")
             else:
@@ -1727,7 +2164,7 @@ class abogen(QWidget):
             voice = " + ".join(filter(None, components))
             # determine language: use profile setting, else explicit mixer selection, else fallback to first voice code
             if self.selected_profile_name:
-                from voice_profiles import load_profiles
+                from abogen.voice_profiles import load_profiles
 
                 entry = load_profiles().get(self.selected_profile_name, {})
                 lang = entry.get("language")
@@ -1762,7 +2199,7 @@ class abogen(QWidget):
             if cached_path and os.path.exists(cached_path):
                 temp_wav = cached_path
             else:  # Should not happen if cache check was done
-                self._show_error_message_box("Preview Error", "Cache file expected but not found.")
+                self._show_error_message_box("Preview Error", "Cache file expected but not found, please try again.")
                 self._preview_cleanup()
                 return
         else:  # Should have temp_wav from preview_thread or handled by cache check
@@ -1862,30 +2299,37 @@ class abogen(QWidget):
                 hasattr(self, "conversion_thread")
                 and self.conversion_thread.isRunning()
             ):
-                self.conversion_thread.cancel()
+                if not hasattr(self, "_conversion_lock"):
+                    self._conversion_lock = threading.Lock()
+                def _cancel():
+                    with self._conversion_lock:
+                        self.conversion_thread.cancel()  # <-- Use cancel() method
+                        self.conversion_thread.wait()
+                threading.Thread(target=_cancel, daemon=True).start()
+
             self.is_converting = False
             self.etr_label.hide()  # Hide ETR label
             self.progress_bar.hide()
             self.btn_cancel.hide()
             self.controls_widget.show()
+            self.queue_row_widget.show()  # Show queue row on cancel
             self.finish_widget.hide()
             self.restore_input_box()
+            self.log_text.clear()
+            self._log_lines = []
             display_path = (
                 self.displayed_file_path
                 if self.displayed_file_path
                 else self.selected_file
             )
-            # Check if the file exists before trying to set file info
-            if display_path and os.path.exists(display_path):
-                self.input_box.set_file_info(display_path)
+            # Only repopulate if not cleared by queue
+            if not getattr(self, 'input_box_cleared_by_queue', False):
+                if display_path and os.path.exists(display_path):
+                    self.input_box.set_file_info(display_path)
+                else:
+                    self.input_box.clear_input()
             else:
-                # Clear the input if the file no longer exists
                 self.input_box.clear_input()
-            if (
-                hasattr(self, "conversion_thread")
-                and self.conversion_thread.isRunning()
-            ):
-                self.conversion_thread.wait()
             prevent_sleep_end()
         except Exception as e:
             self._show_error_message_box(
@@ -1896,6 +2340,11 @@ class abogen(QWidget):
         self.subtitle_mode = mode
         self.config["subtitle_mode"] = mode
         save_config(self.config)
+        # Disable subtitle format combo if subtitles are disabled
+        if mode == "Disabled":
+            self.subtitle_format_combo.setEnabled(False)
+        else:
+            self.subtitle_format_combo.setEnabled(True)
 
     def on_format_changed(self, fmt):
         self.selected_format = fmt
@@ -1932,7 +2381,7 @@ class abogen(QWidget):
 
     def show_chapter_options_dialog(self, chapter_count):
         """Show dialog to ask user about chapter processing options when chapters are detected in a .txt file"""
-        from conversion import ChapterOptionsDialog
+        from abogen.conversion import ChapterOptionsDialog
 
         dialog = ChapterOptionsDialog(chapter_count, parent=self)
         dialog.setWindowModality(Qt.ApplicationModal)
@@ -2103,45 +2552,6 @@ class abogen(QWidget):
 
         menu.addMenu(theme_menu)
 
-        # Add replace single newlines option
-        newline_action = QAction("Replace single newlines with spaces", self)
-        newline_action.setCheckable(True)
-        newline_action.setChecked(self.replace_single_newlines)
-        newline_action.triggered.connect(self.toggle_replace_single_newlines)
-        menu.addAction(newline_action)
-
-        # Add max words per subtitle option
-        max_words_action = QAction("Configure max words per subtitle", self)
-        max_words_action.triggered.connect(self.set_max_subtitle_words)
-        menu.addAction(max_words_action)
-        
-        # Add subtitle format option
-        subtitle_format_menu = QMenu("Subtitle format", self)
-        subtitle_format_menu.setToolTip("Choose the format for generated subtitles")
-
-        subtitle_format_group = QActionGroup(self)
-        subtitle_format_group.setExclusive(True)
-
-        # Define mapping: (internal_value, display_text)
-        subtitle_formats = [
-            ("srt", "SRT (standard)"),
-            ("ass_wide", "ASS (wide)"),
-            ("ass_narrow", "ASS (narrow)"),
-            ("ass_centered_wide", "ASS (centered wide)"),
-            ("ass_centered_narrow", "ASS (centered narrow)"),
-        ]
-
-        subtitle_format = self.config.get("subtitle_format", "ass_centered_narrow")
-        for value, text in subtitle_formats:
-            format_action = QAction(text, self)
-            format_action.setCheckable(True)
-            format_action.setChecked(subtitle_format == value)
-            format_action.triggered.connect(lambda checked, fmt=value: self.set_subtitle_format(fmt))
-            subtitle_format_group.addAction(format_action)
-            subtitle_format_menu.addAction(format_action)
-
-        menu.addMenu(subtitle_format_menu)
-        
         # Add separate chapters format option
         separate_chapters_format_menu = QMenu("Separate chapters audio format", self)
         separate_chapters_format_menu.setToolTip("Choose the format for individual chapter files")
@@ -2158,6 +2568,15 @@ class abogen(QWidget):
             separate_chapters_format_menu.addAction(format_action)
             
         menu.addMenu(separate_chapters_format_menu)
+
+        # Add max words per subtitle option
+        max_words_action = QAction("Configure max words per subtitle", self)
+        max_words_action.triggered.connect(self.set_max_subtitle_words)
+        menu.addAction(max_words_action)
+        
+        max_lines_action = QAction("Configure max lines in log window", self)
+        max_lines_action.triggered.connect(self.set_max_log_lines)
+        menu.addAction(max_lines_action)
 
         # Add separator
         menu.addSeparator()
@@ -2202,14 +2621,14 @@ class abogen(QWidget):
 
         menu.exec_(self.settings_btn.mapToGlobal(QPoint(0, self.settings_btn.height())))
 
-    def toggle_replace_single_newlines(self, checked):
-        self.replace_single_newlines = checked
-        self.config["replace_single_newlines"] = checked
+    def toggle_replace_single_newlines(self, enabled):
+        self.replace_single_newlines = enabled
+        self.config["replace_single_newlines"] = enabled
         save_config(self.config)
 
     def reveal_config_in_explorer(self):
         """Open the configuration file location in file explorer."""
-        from utils import get_user_config_path
+        from abogen.utils import get_user_config_path
 
         try:
             config_path = get_user_config_path()
@@ -2241,7 +2660,7 @@ class abogen(QWidget):
         """Create a desktop shortcut to this program using PowerShell."""
         import sys
         from platformdirs import user_desktop_dir
-        from utils import create_process
+        from abogen.utils import create_process
 
         try:
             if platform.system() == "Windows":
@@ -2376,7 +2795,7 @@ Categories=AudioVideo;Audio;Utility;
         save_config(self.config)
 
     def show_voice_formula_dialog(self):
-        from voice_profiles import load_profiles
+        from abogen.voice_profiles import load_profiles
 
         profiles = load_profiles()
         initial_state = None
@@ -2401,8 +2820,6 @@ Categories=AudioVideo;Audio;Utility;
                     initial_state = entry
             else:
                 initial_state = []
-        else:
-            initial_state = []
         dialog = VoiceFormulaDialog(
             self, initial_state=initial_state, selected_profile=selected_profile
         )
@@ -2655,6 +3072,29 @@ Categories=AudioVideo;Audio;Utility;
         except Exception as e:
             QMessageBox.critical(
                 self, "Error", f"An error occurred while clearing temporary files:\n{e}"
+            )
+
+    def set_max_log_lines(self):
+        """Open a dialog to set the maximum lines in the log window."""
+        from PyQt5.QtWidgets import QInputDialog
+
+        value, ok = QInputDialog.getInt(
+            self,
+            "Max Lines in Log Window",
+            "Enter the maximum number of lines to display in the log window:",
+            self.log_window_max_lines,
+            10,  # min value
+            999999999,  # max value
+            1,  # step
+        )
+        if ok:
+            self.log_window_max_lines = value
+            self.config["log_window_max_lines"] = value
+            save_config(self.config)
+            QMessageBox.information(
+                self,
+                "Setting Saved",
+                f"Maximum lines in log window set to {value}.",
             )
 
     def set_max_subtitle_words(self):

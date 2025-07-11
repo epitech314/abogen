@@ -119,33 +119,57 @@ abogen
 
 Here’s Abogen in action: in this demo, it processes ∼3,000 characters of text in just 11 seconds and turns it into 3 minutes and 28 seconds of audio, and I have a low-end **RTX 2060 Mobile laptop GPU**. Your results may vary depending on your hardware.
 
-## `Key Features`
-- **Supported formats**: `ePub`, `PDF`, or `.TXT` files (or use built-in text editor)
-- **Speed**: Adjust speech rate from `0.1x` to `2.0x`
-- **Voices**: First letter of the language code (e.g., `a` for American English, `b` for British English, etc.), second letter is for `m` for male and `f` for female.
-- **Voice mixer**: Create custom voices by mixing different voice models with a profile system.
-- **Generate subtitles**: `Disabled`, `Sentence`, `Sentence + Comma`, `1 word`, `2 words`, `3 words`, etc. (Represents the number of words in each subtitle entry)
-- **Output formats**: `.WAV`, `.FLAC`, `.MP3`, `.OPUS` and `M4B (with chapters)` (Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10))
-- **Save location**: `Save next to input file`, `Save to desktop`, or `Choose output folder`
-- **Chapter Control**: Select specific `chapters` from ePUBs or `chapters + pages` from PDFs.
-- **Save each chapter separately**: Save each chapter in e-books as a separate audio file.
-- **Project folder**: Save the converted items in a project folder with available metadata files.
-- **Options**:
-    - **Replace single newlines with spaces**: Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks.
-    - **Configure max words per subtitle**: Configures the maximum number of words per subtitle entry.
-    - **Subtitle format**: Configures the subtitle format as `srt`, `ass (wide)`, `ass (narrow)`, `ass (centered wide)`, or `ass (centered narrow)`.
-    - **Separate chapters audio format**: Configures the audio format for separate chapters as `wav`, `flac`, `mp3`, or `opus`.
-    - **Create desktop shortcut**: Creates a shortcut on your desktop for easy access.
-    - **Open config.json directory**: Opens the directory where the configuration file is stored.
-    - **Open temp directory**: Opens the temporary directory where converted text files are stored.
-    - **Clear temporary files**: Deletes temporary files created during the conversion or preview.
-    - **Check for updates at startup**: Automatically checks for updates when the program starts.
-- **After conversion**: `Open file`, `Go to folder`, `New conversion`, or `Go back`.
+## `Configuration`
+
+| Options | Description |
+|---------|-------------|
+| **Input Box** | Drag and drop `ePub`, `PDF`, or `.TXT` files (or use built-in text editor) |
+| **Queue options** | Add multiple files to a queue and process them in batch, with individual settings for each file. See [Queue mode](#queue-mode) for more details. |
+| **Speed** | Adjust speech rate from `0.1x` to `2.0x` |
+| **Select Voice** | First letter of the language code (e.g., `a` for American English, `b` for British English, etc.), second letter is for `m` for male and `f` for female. |
+| **Voice mixer** | Create custom voices by mixing different voice models with a profile system. See [Voice Mixer](#voice-mixer) for more details. |
+| **Voice preview** | Listen to the selected voice before processing. |
+| **Generate subtitles** | `Disabled`, `Sentence`, `Sentence + Comma`, `1 word`, `2 words`, `3 words`, etc. (Represents the number of words in each subtitle entry) |
+| **Output voice format** | `.WAV`, `.FLAC`, `.MP3`, `.OPUS (best compression)` and `M4B (with chapters)` (Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10)) |
+| **Output subtitle format** | Configures the subtitle format as `SRT (standard)`, `ASS (wide)`, `ASS (narrow)`, `ASS (centered wide)`, or `ASS (centered narrow)`. |
+| **Replace single newlines with spaces** | Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks. |
+| **Save location** | `Save next to input file`, `Save to desktop`, or `Choose output folder` |
+
+| Book handler options | Description |
+|---------|-------------|
+| **Chapter Control** | Select specific `chapters` from ePUBs or `chapters + pages` from PDFs. |
+| **Save each chapter separately** | Save each chapter in e-books as a separate audio file. |
+| **Create a merged version** | Create a single audio file that combines all chapters. (If `Save each chapter separately` is disabled, this option will be the default behavior.) |
+| **Save in a project folder with metadata** | Save the converted items in a project folder with available metadata files. |
+
+| Menu options | Description |
+|---------|-------------|
+| **Theme** | Change the application's theme using `System`, `Light`, or `Dark` options. |
+| **Configure max words per subtitle** | Configures the maximum number of words per subtitle entry. |
+| **Configure max lines in log window** | Configures the maximum number of lines to display in the log window. |
+| **Separate chapters audio format** | Configures the audio format for separate chapters as `wav`, `flac`, `mp3`, or `opus`. |
+| **Create desktop shortcut** | Creates a shortcut on your desktop for easy access. |
+| **Open config.json directory** | Opens the directory where the configuration file is stored. |
+| **Open temp directory** | Opens the temporary directory where converted text files are stored. |
+| **Clear temporary files** | Deletes temporary files created during the conversion or preview. |
+| **Check for updates at startup** | Automatically checks for updates when the program starts. |
 
 ## `Voice Mixer`
 <img title="Abogen Voice Mixer" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/voice_mixer.png'>
 
 With voice mixer, you can create custom voices by mixing different voice models. You can adjust the weight of each voice and save your custom voice as a profile for future use. The voice mixer allows you to create unique and personalized voices. (Huge thanks to [@jborza](https://github.com/jborza) for making this possible through his contributions in [#5](https://github.com/denizsafak/abogen/pull/5))
+
+## `Queue Mode`
+<img title="Abogen queue mode" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/queue.png'>
+
+Abogen supports **queue mode**, allowing you to add multiple files to a processing queue. This is useful if you want to convert several files in one batch.
+
+- You can add text files (`.txt`) directly using the **Add files** button in the Queue Manager. To add PDF or EPUB files, use the input box in the main window and click the **Add to Queue** button.
+- Each file in the queue keeps the configuration settings that were active when it was added. Changing the main window configuration afterward does **not** affect files already in the queue.
+- You can view each file's configuration by hovering over them.
+
+Abogen will process each item in the queue automatically, saving outputs as configured.
+> Special thanks to [@jborza](https://github.com/jborza) for adding queue mode in PR [#35](https://github.com/denizsafak/abogen/pull/35)
 
 ## `About Chapter Markers`
 When you process ePUB or PDF files, Abogen converts them into text files stored in your temporary directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
@@ -257,12 +281,12 @@ Abogen is a standalone project, but it is inspired by and shares some similariti
 - [ebook2audiobook](https://github.com/DrewThomasson/ebook2audiobook): Convert ebooks to audiobooks with chapters and metadata using dynamic AI models and voice cloning
 
 ## `Roadmap`
-- [ ] Add OCR scan feature for PDF files using docling.
+- [ ] Add OCR scan feature for PDF files using docling/teserract.
 - [x] Add chapter metadata for .m4a files. (Issue [#9](https://github.com/denizsafak/abogen/issues/9), PR [#10](https://github.com/denizsafak/abogen/pull/10))
 - [ ] Add support for different languages in GUI.
 - [x] Add voice formula feature that enables mixing different voice models. (Issue [#1](https://github.com/denizsafak/abogen/issues/1), PR [#5](https://github.com/denizsafak/abogen/pull/5))
 - [ ] Add support for kokoro-onnx (If it's necessary).
-- [ ] Add dark mode.
+- [x] Add dark mode.
 
 ## `Troubleshooting`
 If you encounter any issues while running Abogen, try launching it from the command line with:

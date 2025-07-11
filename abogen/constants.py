@@ -1,4 +1,4 @@
-from utils import get_version
+from abogen.utils import get_version
 
 # Program Information
 PROGRAM_NAME = "abogen"
@@ -7,6 +7,9 @@ PROGRAM_DESCRIPTION = (
 )
 GITHUB_URL = "https://github.com/denizsafak/abogen"
 VERSION = get_version()
+
+# Settings
+CHAPTER_OPTIONS_COUNTDOWN = 30  # Countdown seconds for chapter options
 
 # Language description mapping
 LANGUAGE_DESCRIPTIONS = {
@@ -106,9 +109,18 @@ SAMPLE_VOICE_TEXTS = {
 COLORS = {
     "BLUE": "#007dff",
     "RED": "#c0392b",
+    "GREEN": "#42ad4a",
+    "GREEN_BG": "rgba(66, 173, 73, 0.1)",
+    "GREEN_BG_HOVER": "rgba(66, 173, 73, 0.15)",
+    "GREEN_BORDER": "#42ad4a",
+    "BLUE_BG": "rgba(0, 102, 255, 0.05)",
+    "BLUE_BG_HOVER": "rgba(0, 102, 255, 0.1)",
+    "BLUE_BORDER_HOVER": "#6ab0de",
     "YELLOW_BACKGROUND": "rgba(255, 221, 51, 0.40)",
     "GREY_BACKGROUND": "rgba(128, 128, 128, 0.15)",
     "RED_BACKGROUND": "rgba(232, 78, 60, 0.15)",
+    "RED_BG": "rgba(232, 78, 60, 0.10)",
+    "RED_BG_HOVER": "rgba(232, 78, 60, 0.15)",
     # Theme palette colors
     "DARK_BG": "#202326",
     "DARK_BASE": "#141618",

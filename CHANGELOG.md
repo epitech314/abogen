@@ -1,6 +1,10 @@
-# v1.1.0 (pre-release)
+# v1.1.0
+- Added queue system for processing multiple items, allowing users to add multiple files and process them in a queue, mentioned by @jborza in #30 (Special thanks to @jborza for implementing this feature in PR #35)
 - Added a feature that allows selecting multiple items in book handler (in right click menu) by @jborza in #31, that fixes #28
 - Added dark theme support, allowing users to switch between light and dark themes in the settings.
+- Added auto-accept system to the chapter options dialog in conversion process, allowing the dialog to auto-accept after a certain time if no action is taken.
+- Added new option: `Configure max lines in log window` that allows configuring the maximum number of lines to display in the log window.
+- Improvements in documentation and code.
 
 # v1.0.9
 - Added chunking/segmenting system that fixes memory outage issues when processing large audio files.

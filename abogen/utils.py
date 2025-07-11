@@ -217,14 +217,22 @@ def calculate_text_length(text):
 
 
 def get_gpu_acceleration(enabled):
-    from torch.cuda import is_available
-
-    if not enabled:
-        return "CUDA GPU available but using CPU.", False
-
-    if is_available():
-        return "CUDA GPU available and enabled.", True
-    return "CUDA GPU is not available. Using CPU.", False
+    try:
+        import torch
+        from torch.cuda import is_available
+        if not enabled:
+            return "CUDA GPU available but using CPU.", False
+        if is_available():
+            return "CUDA GPU available and enabled.", True
+        # Gather more diagnostic info if CUDA is not available
+        try:
+            cuda_devices = torch.cuda.device_count()
+            cuda_error = torch.cuda.get_device_name(0) if cuda_devices > 0 else "No devices found"
+        except Exception as e:
+            cuda_error = str(e)
+        return f"CUDA GPU is not available. Using CPU. ({cuda_error})", False
+    except Exception as e:
+        return f"Error checking CUDA GPU: {e}", False
 
 
 def prevent_sleep_start():
