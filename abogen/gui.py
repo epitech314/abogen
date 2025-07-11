@@ -76,7 +76,7 @@ from abogen.constants import (
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
     COLORS
 )
-from threading import Thread
+import threading
 from abogen.voice_formula_gui import VoiceFormulaDialog
 from abogen.voice_profiles import load_profiles
 
@@ -687,10 +687,7 @@ class abogen(QWidget):
                     self.selected_lang = entry[0][0] if entry and entry[0] else None
         if self.save_option == "Choose output folder" and self.selected_output_folder:
             self.save_path_label.setText(self.selected_output_folder)
-            self.save_path_label.setStyleSheet(
-                f"QLabel {{ color: {COLORS['GREEN']}; }}"
-            )
-            self.save_path_label.show()
+            self.save_path_row_widget.show()
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
         # Enable/disable subtitle options based on selected language (profile or voice)
         enable = self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
@@ -946,7 +943,7 @@ class abogen(QWidget):
         # Save location
         save_layout = QHBoxLayout()
         save_layout.setSpacing(7)
-        save_label = QLabel("Save Location:", self)
+        save_label = QLabel("Save location:", self)
         save_layout.addWidget(save_label)
         self.save_combo = QComboBox(self)
         save_options = [
@@ -962,10 +959,24 @@ class abogen(QWidget):
         self.save_combo.setCurrentText(self.save_option)
         self.save_combo.currentTextChanged.connect(self.on_save_option_changed)
         save_layout.addWidget(self.save_combo)
-        self.save_path_label = QLabel("", self)
-        self.save_path_label.hide()
-        save_layout.addWidget(self.save_path_label)
         controls_layout.addLayout(save_layout)
+
+        # Save path label
+        self.save_path_row_widget = QWidget(self)
+        save_path_row = QHBoxLayout(self.save_path_row_widget)
+        save_path_row.setSpacing(7)
+        save_path_row.setContentsMargins(0, 0, 0, 0)
+        selected_folder_label = QLabel("Selected folder:", self.save_path_row_widget)
+        save_path_row.addWidget(selected_folder_label)
+        self.save_path_label = QLabel("", self.save_path_row_widget)
+        self.save_path_label.setStyleSheet(
+            f"QLabel {{ color: {COLORS['GREEN']}; }}"
+        )
+        self.save_path_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        save_path_row.addWidget(self.save_path_label)
+        self.save_path_row_widget.hide()  # Hide the whole row by default
+        controls_layout.addWidget(self.save_path_row_widget)
+
         # GPU Acceleration Checkbox with Settings button
         gpu_layout = QHBoxLayout()
         gpu_checkbox_layout = QVBoxLayout()
@@ -1393,35 +1404,36 @@ class abogen(QWidget):
         self._update_log_main_thread(message)
 
     def _update_log_main_thread(self, message):
-        # Efficient log: keep only last 10 lines in a Python list
         if not hasattr(self, '_log_lines'):
             self._log_lines = []
 
-        # Prepare the new log line as HTML
+        # Always produce a single HTML line (with color if tuple)
         if isinstance(message, tuple):
             text, spec = message
             color = "green" if spec is True else ("red" if spec is False else spec)
-            html = self.color_text(text, color)
+            html_line = self.color_text(text, color)
         else:
-            html = str(message).replace("\n", "<br>") + "<br>"
+            html_line = f"{str(message).replace(chr(10), '<br>')}<br>"
 
-        # Split incoming html into lines (preserving blank lines)
-        new_lines = html.split("<br>")
-        # Remove the last empty string if html ends with <br>
-        if new_lines and new_lines[-1] == "":
-            new_lines = new_lines[:-1]
+        self._log_lines.append(html_line)
 
-        # Append new lines to the buffer
-        self._log_lines.extend(new_lines)
-        # Keep only the last log_window_max_lines lines
-        self._log_lines = self._log_lines[-self.log_window_max_lines:]
-
-        # Join and set as HTML
-        self.log_text.setHtml("<br>".join(self._log_lines))
-
-        # Scroll to bottom if needed
+        # Check if user is at bottom BEFORE inserting
         sb = self.log_text.verticalScrollBar()
-        sb.setValue(sb.maximum())
+        at_bottom = sb.value() >= sb.maximum() - 2
+
+        # Trim buffer if needed
+        if len(self._log_lines) > self.log_window_max_lines:
+            self._log_lines = self._log_lines[-self.log_window_max_lines:]
+            self.log_text.clear()
+            for line in self._log_lines:
+                self.log_text.insertHtml(line)
+        else:
+            self.log_text.insertHtml(html_line)
+
+        # If user was at bottom before, scroll to new bottom
+        if at_bottom:
+            sb.setValue(sb.maximum())
+
         QApplication.processEvents()
 
     def _get_queue_progress_format(self, value=None):
@@ -1755,7 +1767,7 @@ class abogen(QWidget):
             load_thread = LoadPipelineThread(pipeline_loaded_callback)
             load_thread.start()
 
-        Thread(target=gpu_and_load, daemon=True).start()
+        threading.Thread(target=gpu_and_load, daemon=True).start()
 
     def show_queue_summary(self):
         """Show a styled, resizable summary dialog after queue finishes."""
@@ -1764,17 +1776,24 @@ class abogen(QWidget):
 
         # Build HTML summary for better styling
         summary_html = "<html><body>"
+        summary_html += (
+            f"<h2 style='color:{COLORS['LIGHT_BG']};'>Queue completed</h2>"
+            f"Processed {len(self.queued_items)} items:<br><br>"
+        )
+        
+        
         for idx, item in enumerate(self.queued_items, 1):
-            status = "<span style='color:green;'>Completed</span>"
             output = getattr(item, "output_path", None)
             if not output:
                 output = "Unknown"
             summary_html += (
-                f"<b>{idx}) {os.path.basename(item.file_name)}</b><br>"
-                f"<span style='color:#555;'>Language:</span> {item.lang_code}<br>"
-                f"<span style='color:#555;'>Voice:</span> {item.voice}<br>"
-                f"<span style='color:#555;'>Output:</span> <span style='color:#007acc;'>{output}</span><br>"
-                f"<span style='color:#555;'>Status:</span> {status}"
+                f"<span style='color:{COLORS['GREEN']}; font-weight:bold;'>{idx}) {os.path.basename(item.file_name)}</span><br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Language:</span> {item.lang_code}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Voice:</span> {item.voice}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Speed:</span> {item.speed * 100:.1f}%<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Characters:</span> {item.total_char_count}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Input:</span> {item.file_name}<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Output:</span> {output}</span>"
                 f"<br><br>"
             )
         summary_html += "</body></html>"
@@ -1858,8 +1877,8 @@ class abogen(QWidget):
             # Queue finished, show finish screen
             self.controls_widget.hide()
             self.finish_widget.show()
-            self.log_text.moveCursor(QTextCursor.End)
-            self.log_text.ensureCursorVisible()
+            sb = self.log_text.verticalScrollBar()
+            sb.setValue(sb.maximum())
             save_config(self.config)
             # Show queue summary if more than one item
             if len(self.queued_items) > 1:
@@ -1942,7 +1961,7 @@ class abogen(QWidget):
                 if folder:
                     self.selected_output_folder = folder
                     self.save_path_label.setText(folder)
-                    self.save_path_label.show()
+                    self.save_path_row_widget.show()
                     self.config["selected_output_folder"] = folder
                 else:
                     self.save_option = "Save next to input file"
@@ -1956,7 +1975,7 @@ class abogen(QWidget):
                 self.save_combo.setCurrentText(self.save_option)
                 self.config["save_option"] = self.save_option
         else:
-            self.save_path_label.hide()
+            self.save_path_row_widget.hide()
             self.selected_output_folder = None
             self.config["selected_output_folder"] = None
         save_config(self.config)
@@ -2280,7 +2299,14 @@ class abogen(QWidget):
                 hasattr(self, "conversion_thread")
                 and self.conversion_thread.isRunning()
             ):
-                self.conversion_thread.cancel()
+                if not hasattr(self, "_conversion_lock"):
+                    self._conversion_lock = threading.Lock()
+                def _cancel():
+                    with self._conversion_lock:
+                        self.conversion_thread.cancel()  # <-- Use cancel() method
+                        self.conversion_thread.wait()
+                threading.Thread(target=_cancel, daemon=True).start()
+
             self.is_converting = False
             self.etr_label.hide()  # Hide ETR label
             self.progress_bar.hide()
@@ -2304,11 +2330,6 @@ class abogen(QWidget):
                     self.input_box.clear_input()
             else:
                 self.input_box.clear_input()
-            if (
-                hasattr(self, "conversion_thread")
-                and self.conversion_thread.isRunning()
-            ):
-                self.conversion_thread.wait()
             prevent_sleep_end()
         except Exception as e:
             self._show_error_message_box(

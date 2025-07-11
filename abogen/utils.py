@@ -230,7 +230,7 @@ def get_gpu_acceleration(enabled):
             cuda_error = torch.cuda.get_device_name(0) if cuda_devices > 0 else "No devices found"
         except Exception as e:
             cuda_error = str(e)
-        return f"CUDA GPU is not available. Using CPU.\nDetails: {cuda_error}", False
+        return f"CUDA GPU is not available. Using CPU. ({cuda_error})", False
     except Exception as e:
         return f"Error checking CUDA GPU: {e}", False
 

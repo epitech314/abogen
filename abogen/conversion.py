@@ -166,6 +166,8 @@ class ConversionThread(QThread):
         self.output_folder = output_folder
         self.subtitle_mode = subtitle_mode
         self.cancel_requested = False
+        self.should_cancel = False
+        self.process = None
         self.output_format = output_format
         self.from_queue = from_queue
         self.start_time = start_time  # Store start_time
@@ -1163,9 +1165,14 @@ class ConversionThread(QThread):
 
     def cancel(self):
         self.cancel_requested = True
-        self.waiting_for_user_input = (
-            False  # Also release the wait if we're waiting for input
-        )
+        self.should_cancel = True
+        self.waiting_for_user_input = False
+        # Terminate subprocess if running
+        if self.process:
+            try:
+                self.process.terminate()
+            except Exception:
+                pass
 
 
 class VoicePreviewThread(QThread):
