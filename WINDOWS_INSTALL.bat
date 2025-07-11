@@ -230,7 +230,7 @@ if errorlevel 1 (
 
 :: Install setup requirements
 echo Installing setup requirements...
-%PYTHON_CONSOLE_PATH% -m pip install --upgrade setuptools setuptools-scm wheel sphinx hatchling --no-warn-script-location
+%PYTHON_CONSOLE_PATH% -m pip install --upgrade setuptools setuptools-scm wheel sphinx hatchling editables --no-warn-script-location
 if errorlevel 1 (
     echo Failed to install setup requirements.
     pause
@@ -250,7 +250,7 @@ if errorlevel 1 (
 echo Checking and installing project dependencies...
 if exist %PYPROJECT_FILE% (
     echo Installing project from pyproject.toml...
-    %PYTHON_CONSOLE_PATH% -m pip install . --no-warn-script-location
+    %PYTHON_CONSOLE_PATH% -m pip install -e . --no-warn-script-location
     if errorlevel 1 (
         echo Failed to install from pyproject.toml.
         pause
