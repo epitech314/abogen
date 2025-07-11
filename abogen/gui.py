@@ -577,7 +577,7 @@ class TextboxDialog(QDialog):
     def insert_chapter_marker(self):
         # Insert a fixed chapter marker without prompting
         cursor = self.text_edit.textCursor()
-        cursor.insertText("<<CHAPTER_MARKER:Title>>")
+        cursor.insertText("\n<<CHAPTER_MARKER:Title>>\n")
         self.text_edit.setTextCursor(cursor)
         self.update_char_count()
         self.text_edit.setFocus()
