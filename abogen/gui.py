@@ -261,7 +261,7 @@ class InputBox(QLabel):
             self.window().char_count = 0
         # embed icon at native size with word-wrap for the filename
         self.setText(
-            f'<img src="data:image/png;base64,{img_data}"><br><span style="display: inline-block; max-width: 100%; word-break: break-all;"><b>{name}</b></span><br>Size: {format_num(size_str)}<br>Characters: {format_num(char_count)}'
+            f'<img src="data:image/png;base64,{img_data}"><br><span style="display: inline-block; max-width: 100%; word-break: break-all;"><b>{name}</b></span><br>Size: {size_str}<br>Characters: {format_num(char_count)}'
         )
         # Set fixed width to force wrapping
         self.setWordWrap(True)
@@ -609,6 +609,8 @@ class abogen(QWidget):
         self.displayed_file_path = (
             None  # Add new variable to track the displayed file path
         )
+        # Max log lines
+        self.log_window_max_lines = self.config.get("log_window_max_lines", 5000)
         self.selected_chapters = set()
         self.last_opened_book_path = None  # Track the last opened book path
         self.last_output_path = None
@@ -657,6 +659,9 @@ class abogen(QWidget):
         # Queued items list
         self.queued_items = []
         self.current_queue_index = 0
+
+        # Log lines
+        self._log_lines = []
 
         self.initUI()
         self.speed_slider.setValue(int(self.config.get("speed", 1.00) * 100))
@@ -1367,6 +1372,7 @@ class abogen(QWidget):
         self.input_box.hide()
         self.log_text.show()
         self.log_text.clear()
+        self._log_lines = []
         QApplication.processEvents()
 
     def restore_input_box(self):
@@ -1387,35 +1393,60 @@ class abogen(QWidget):
         self._update_log_main_thread(message)
 
     def _update_log_main_thread(self, message):
-        sb = self.log_text.verticalScrollBar()
-        prev_val = sb.value()
-        at_bottom = prev_val == sb.maximum()
-        # save current text cursor to preserve selection
-        old_cursor = self.log_text.textCursor()
-        # prepare html
+        # Efficient log: keep only last 10 lines in a Python list
+        if not hasattr(self, '_log_lines'):
+            self._log_lines = []
+
+        # Prepare the new log line as HTML
         if isinstance(message, tuple):
             text, spec = message
             color = "green" if spec is True else ("red" if spec is False else spec)
             html = self.color_text(text, color)
         else:
             html = str(message).replace("\n", "<br>") + "<br>"
-        # move cursor to end for insertion
-        insert_cursor = self.log_text.textCursor()
-        insert_cursor.movePosition(QTextCursor.End)
-        self.log_text.setTextCursor(insert_cursor)
-        self.log_text.insertHtml(html)
-        # restore original cursor/selection
-        self.log_text.setTextCursor(old_cursor)
-        # restore scroll position
-        sb.setValue(sb.maximum() if at_bottom else prev_val)
+
+        # Split incoming html into lines (preserving blank lines)
+        new_lines = html.split("<br>")
+        # Remove the last empty string if html ends with <br>
+        if new_lines and new_lines[-1] == "":
+            new_lines = new_lines[:-1]
+
+        # Append new lines to the buffer
+        self._log_lines.extend(new_lines)
+        # Keep only the last log_window_max_lines lines
+        self._log_lines = self._log_lines[-self.log_window_max_lines:]
+
+        # Join and set as HTML
+        self.log_text.setHtml("<br>".join(self._log_lines))
+
+        # Scroll to bottom if needed
+        sb = self.log_text.verticalScrollBar()
+        sb.setValue(sb.maximum())
         QApplication.processEvents()
+
+    def _get_queue_progress_format(self, value=None):
+        """Return the progress bar format string for queue mode."""
+        if hasattr(self, 'queued_items') and self.queued_items and hasattr(self, 'current_queue_index'):
+            N = self.current_queue_index + 1
+            M = len(self.queued_items)
+            percent = value if value is not None else self.progress_bar.value()
+            return f"{percent}% ({N}/{M})"
+        else:
+            percent = value if value is not None else self.progress_bar.value()
+            return f"{percent}%"
 
     def update_progress(self, value, etr_str):  # Add etr_str parameter
         # Ensure progress doesn't exceed 99%
         if value >= 100:
             value = 99
         self.progress_bar.setValue(value)
-        self.progress_bar.setFormat("%p%")  # Keep format as percentage only
+        # Show queue progress if in queue mode
+        if hasattr(self, 'queued_items') and self.queued_items and hasattr(self, 'current_queue_index'):
+            N = self.current_queue_index + 1
+            M = len(self.queued_items)
+            self.progress_bar.setFormat(f"{value}% ({N}/{M})")
+        else:
+            self.progress_bar.setFormat(f"{value}%")
         self.etr_label.setText(
             f"Estimated time remaining: {etr_str}"
         )  # Update ETR label
@@ -1442,7 +1473,7 @@ class abogen(QWidget):
             self.btn_manage_queue.setStyleSheet("")
         # Change main Start button to 'Start queue' if queue has items
         if enabled:
-            self.btn_start.setText("Start queue")
+            self.btn_start.setText(f"Start queue ({len(self.queued_items)})")
             try:
                 self.btn_start.clicked.disconnect()
             except Exception:
@@ -1537,6 +1568,11 @@ class abogen(QWidget):
 
     def start_queue(self):
         self.current_queue_index = 0  # Start from the first item
+        # Set progress bar to 0% (1/M) immediately
+        if self.queued_items:
+            self.progress_bar.setValue(0)
+            self.progress_bar.setFormat(f"0% (1/{len(self.queued_items)})")
+            self.progress_bar.show()
         self.start_next_queued_item()
 
     def start_next_queued_item(self):
@@ -1561,7 +1597,6 @@ class abogen(QWidget):
         # Called after each conversion finishes
         self.current_queue_index += 1
         if self.current_queue_index < len(self.queued_items):
-            self.go_back_ui()
             self.start_next_queued_item()
         else:
             self.current_queue_index = 0  # Reset for next time
@@ -1604,7 +1639,13 @@ class abogen(QWidget):
         self.is_converting = True
         self.convert_input_box_to_log()
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("%p%")  # Reset format initially
+        # Show queue progress if in queue mode
+        if from_queue and hasattr(self, 'queued_items') and self.queued_items and hasattr(self, 'current_queue_index'):
+            N = self.current_queue_index + 1
+            M = len(self.queued_items)
+            self.progress_bar.setFormat(f"0% ({N}/{M})")
+        else:
+            self.progress_bar.setFormat("%p%")  # Reset format initially
         self.etr_label.hide()  # Hide ETR label initially
         self.controls_widget.hide()
         self.queue_row_widget.hide()  # Hide queue row when process starts
@@ -1767,11 +1808,20 @@ class abogen(QWidget):
         if self.open_file_btn:
             self.open_file_btn.setVisible(show_open_file_button)
 
-        self.controls_widget.hide()
-        self.finish_widget.show()
-        self.log_text.moveCursor(QTextCursor.End)
-        self.log_text.ensureCursorVisible()
-        save_config(self.config)
+        # Only show finish_widget if queue is done ---
+        if self.current_queue_index + 1 >= len(self.queued_items) or not self.queued_items:
+            # Queue finished, show finish screen
+            self.controls_widget.hide()
+            self.finish_widget.show()
+            self.log_text.moveCursor(QTextCursor.End)
+            self.log_text.ensureCursorVisible()
+            save_config(self.config)
+        else:
+            # More items in queue: clear log and reload for next item
+            self.log_text.clear()
+            self._log_lines = []
+            QApplication.processEvents()
+
         # Start new queued item, if we're using a queued conversion
         self.queue_item_conversion_finished()
 
@@ -1801,6 +1851,8 @@ class abogen(QWidget):
             self.enable_disable_queue_buttons()
             self.restore_input_box()
             self.input_box.clear_input()  # Reset text and style
+            # Trigger the "Clear Queue" button (simulate user click)
+            self.btn_clear_queue.click()
         except Exception as e:
             self._show_error_message_box("Reset Error", f"Could not reset UI:\n{e}")
 
@@ -1810,6 +1862,8 @@ class abogen(QWidget):
         self.queue_row_widget.show()  # Show queue row on go back
         self.progress_bar.hide()
         self.restore_input_box()
+        self.log_text.clear()
+        self._log_lines = []
 
         # Use displayed_file_path instead of selected_file for EPUBs or PDFs
         display_path = (
@@ -2187,6 +2241,8 @@ class abogen(QWidget):
             self.queue_row_widget.show()  # Show queue row on cancel
             self.finish_widget.hide()
             self.restore_input_box()
+            self.log_text.clear()
+            self._log_lines = []
             display_path = (
                 self.displayed_file_path
                 if self.displayed_file_path
@@ -2449,7 +2505,9 @@ class abogen(QWidget):
         max_words_action.triggered.connect(self.set_max_subtitle_words)
         menu.addAction(max_words_action)
         
-
+        max_lines_action = QAction("Configure max lines in log window", self)
+        max_lines_action.triggered.connect(self.set_max_log_lines)
+        menu.addAction(max_lines_action)
 
         # Add separator
         menu.addSeparator()
@@ -2945,6 +3003,29 @@ Categories=AudioVideo;Audio;Utility;
         except Exception as e:
             QMessageBox.critical(
                 self, "Error", f"An error occurred while clearing temporary files:\n{e}"
+            )
+
+    def set_max_log_lines(self):
+        """Open a dialog to set the maximum lines in the log window."""
+        from PyQt5.QtWidgets import QInputDialog
+
+        value, ok = QInputDialog.getInt(
+            self,
+            "Max Lines in Log Window",
+            "Enter the maximum number of lines to display in the log window:",
+            self.log_window_max_lines,
+            10,  # min value
+            999999999,  # max value
+            1,  # step
+        )
+        if ok:
+            self.log_window_max_lines = value
+            self.config["log_window_max_lines"] = value
+            save_config(self.config)
+            QMessageBox.information(
+                self,
+                "Setting Saved",
+                f"Maximum lines in log window set to {value}.",
             )
 
     def set_max_subtitle_words(self):

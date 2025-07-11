@@ -9,14 +9,13 @@ from platformdirs import user_desktop_dir
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
-from utils import clean_text, create_process
-from constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS, COLORS
-from voice_formulas import get_new_voice
-import hf_tracker
+from abogen.utils import clean_text, create_process
+from abogen.constants import PROGRAM_NAME, LANGUAGE_DESCRIPTIONS, SAMPLE_VOICE_TEXTS, COLORS, CHAPTER_OPTIONS_COUNTDOWN
+from abogen.voice_formulas import get_new_voice
+import abogen.hf_tracker as hf_tracker
 import static_ffmpeg
 import threading  # for efficient waiting
 import subprocess
-
 
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
@@ -73,7 +72,7 @@ class ChapterOptionsDialog(QDialog):
         layout.addWidget(self.merge_at_end_checkbox)
 
         # Countdown label
-        self.countdown_seconds = 30
+        self.countdown_seconds = CHAPTER_OPTIONS_COUNTDOWN
         self.countdown_label = QLabel(f"Auto-accepting in {self.countdown_seconds} seconds...")
         self.countdown_label.setStyleSheet(f"color: {COLORS['GREEN']};")
         layout.addWidget(self.countdown_label)

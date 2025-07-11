@@ -8,6 +8,9 @@ PROGRAM_DESCRIPTION = (
 GITHUB_URL = "https://github.com/denizsafak/abogen"
 VERSION = get_version()
 
+# Settings
+CHAPTER_OPTIONS_COUNTDOWN = 30  # Countdown seconds for chapter options
+
 # Language description mapping
 LANGUAGE_DESCRIPTIONS = {
     "a": "American English",
