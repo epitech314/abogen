@@ -1777,7 +1777,7 @@ class abogen(QWidget):
         # Build HTML summary for better styling
         summary_html = "<html><body>"
         summary_html += (
-            f"<h2 style='color:{COLORS['LIGHT_BG']};'>Queue completed</h2>"
+            f"<h2 style='color:{COLORS['LIGHT_BG']};'>Queue finished</h2>"
             f"Processed {len(self.queued_items)} items:<br><br>"
         )
         
@@ -1800,7 +1800,7 @@ class abogen(QWidget):
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Queue Summary")
-        dialog.resize(600, 500)  # Make window resizable and larger
+        dialog.resize(550, 650)  # Make window resizable and larger
 
         layout = QVBoxLayout(dialog)
         text_edit = QTextEdit(dialog)
