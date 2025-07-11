@@ -1536,7 +1536,6 @@ class abogen(QWidget):
                 QMessageBox.warning(self, "Duplicate Item", "This item is already in the queue.")
                 return
 
-        print("Adding:", item_queue)
         self.enqueue(item_queue)
         # Clear input after adding to queue
         self.input_box.clear_input()
@@ -1758,6 +1757,48 @@ class abogen(QWidget):
 
         Thread(target=gpu_and_load, daemon=True).start()
 
+    def show_queue_summary(self):
+        """Show a styled, resizable summary dialog after queue finishes."""
+        if not self.queued_items:
+            return
+
+        # Build HTML summary for better styling
+        summary_html = "<html><body>"
+        for idx, item in enumerate(self.queued_items, 1):
+            status = "<span style='color:green;'>Completed</span>"
+            output = getattr(item, "output_path", None)
+            if not output:
+                output = "Unknown"
+            summary_html += (
+                f"<b>{idx}) {os.path.basename(item.file_name)}</b><br>"
+                f"<span style='color:#555;'>Language:</span> {item.lang_code}<br>"
+                f"<span style='color:#555;'>Voice:</span> {item.voice}<br>"
+                f"<span style='color:#555;'>Output:</span> <span style='color:#007acc;'>{output}</span><br>"
+                f"<span style='color:#555;'>Status:</span> {status}"
+                f"<br><br>"
+            )
+        summary_html += "</body></html>"
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Queue Summary")
+        dialog.resize(600, 500)  # Make window resizable and larger
+
+        layout = QVBoxLayout(dialog)
+        text_edit = QTextEdit(dialog)
+        text_edit.setReadOnly(True)
+        text_edit.setHtml(summary_html)
+        layout.addWidget(text_edit)
+
+        close_btn = QPushButton("Close", dialog)
+        close_btn.setFixedHeight(36)
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+
+        dialog.setLayout(layout)
+        dialog.setMinimumSize(400, 300)
+        dialog.setSizeGripEnabled(True)  # Allow resizing
+        dialog.exec_()
+
     def on_conversion_finished(self, message, output_path):
         prevent_sleep_end()
         if message == "Cancelled":
@@ -1786,6 +1827,10 @@ class abogen(QWidget):
         self.update_log(message)
         if output_path:
             self.last_output_path = output_path
+            # Store output_path in the current queued item if in queue mode
+            if self.queued_items and self.current_queue_index < len(self.queued_items):
+                self.queued_items[self.current_queue_index].output_path = output_path
+
         self.etr_label.hide()  # Hide ETR label
         self.progress_bar.setValue(100)
         self.progress_bar.hide()
@@ -1808,7 +1853,7 @@ class abogen(QWidget):
         if self.open_file_btn:
             self.open_file_btn.setVisible(show_open_file_button)
 
-        # Only show finish_widget if queue is done ---
+        # Only show finish_widget if queue is done
         if self.current_queue_index + 1 >= len(self.queued_items) or not self.queued_items:
             # Queue finished, show finish screen
             self.controls_widget.hide()
@@ -1816,6 +1861,9 @@ class abogen(QWidget):
             self.log_text.moveCursor(QTextCursor.End)
             self.log_text.ensureCursorVisible()
             save_config(self.config)
+            # Show queue summary if more than one item
+            if len(self.queued_items) > 1:
+                self.show_queue_summary()
         else:
             # More items in queue: clear log and reload for next item
             self.log_text.clear()
