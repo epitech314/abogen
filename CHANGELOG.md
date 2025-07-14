@@ -1,3 +1,6 @@
+# v1.1.2 (pre-release)
+- Fixed `Open folder` and `Open file` buttons in the queue manager GUI.
+
 # v1.1.1
 - Fixed adding wrong file in queue for EPUB and PDF files, ensuring the correct file is added to the queue.
 - Reformatted the code using Black.

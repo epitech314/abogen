@@ -246,6 +246,7 @@ class QueueManager(QDialog):
             )
             list_item.setToolTip(tooltip)
             list_item.setIcon(icon)
+            list_item.setData(Qt.UserRole, file_name)
             # Use custom widget for display
             char_count = getattr(item, "total_char_count", 0)
             widget = QueueListItemWidget(file_name, char_count)
@@ -472,9 +473,9 @@ class QueueManager(QDialog):
                 from PyQt5.QtWidgets import QMessageBox
 
                 item = selected_items[0]
-                display_name = item.text()
+                file_path = item.data(Qt.UserRole)
                 for q in self.queue:
-                    if os.path.basename(q.file_name) == display_name:
+                    if q.file_name == file_path:
                         if not os.path.exists(q.file_name):
                             QMessageBox.warning(
                                 self, "File Not Found", f"The file does not exist."
@@ -493,9 +494,9 @@ class QueueManager(QDialog):
                 from PyQt5.QtWidgets import QMessageBox
 
                 item = selected_items[0]
-                display_name = item.text()
+                file_path = item.data(Qt.UserRole)
                 for q in self.queue:
-                    if os.path.basename(q.file_name) == display_name:
+                    if q.file_name == file_path:
                         if not os.path.exists(q.file_name):
                             QMessageBox.warning(
                                 self, "File Not Found", f"The file does not exist."
