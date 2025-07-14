@@ -109,6 +109,7 @@ SAMPLE_VOICE_TEXTS = {
 COLORS = {
     "BLUE": "#007dff",
     "RED": "#c0392b",
+    "ORANGE": "#FFA500",
     "GREEN": "#42ad4a",
     "GREEN_BG": "rgba(66, 173, 73, 0.1)",
     "GREEN_BG_HOVER": "rgba(66, 173, 73, 0.15)",

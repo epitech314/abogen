@@ -1,4 +1,5 @@
 # v1.1.2 (pre-release)
+- Potential fix for #37 and #38, where the program was becoming slow while processing large files.
 - Fixed `Open folder` and `Open file` buttons in the queue manager GUI.
 
 # v1.1.1

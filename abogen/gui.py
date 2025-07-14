@@ -52,6 +52,8 @@ from PyQt5.QtGui import (
     QPolygon,
     QColor,
     QMovie,
+    QFont,
+    QTextCharFormat,
 )
 from abogen.utils import (
     load_config,
@@ -123,6 +125,15 @@ class IconProvider(QFileIconProvider):
     def icon(self, fileInfo):
         return super().icon(fileInfo)
 
+LOG_COLOR_MAP = {
+    True: COLORS["GREEN"],
+    False: COLORS["RED"],
+    "red": COLORS["RED"],
+    "green": COLORS["GREEN"],
+    "orange": COLORS["ORANGE"],
+    "blue": COLORS["BLUE"],
+    None: COLORS["LIGHT_DISABLED"],
+}
 
 class InputBox(QLabel):
     # Define CSS styles as class constants
@@ -646,7 +657,7 @@ class abogen(QWidget):
             None  # Add new variable to track the displayed file path
         )
         # Max log lines
-        self.log_window_max_lines = self.config.get("log_window_max_lines", 5000)
+        self.log_window_max_lines = self.config.get("log_window_max_lines", 2000)
         self.selected_chapters = set()
         self.last_opened_book_path = None  # Track the last opened book path
         self.last_output_path = None
@@ -699,9 +710,6 @@ class abogen(QWidget):
         # Queued items list
         self.queued_items = []
         self.current_queue_index = 0
-
-        # Log lines
-        self._log_lines = []
 
         self.initUI()
         self.speed_slider.setValue(int(self.config.get("speed", 1.00) * 100))
@@ -785,6 +793,7 @@ class abogen(QWidget):
         container_layout.addWidget(self.queue_row_widget)
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
+        self.log_text.setUndoRedoEnabled(False)
         self.log_text.setFrameStyle(QTextEdit.NoFrame)
         self.log_text.setStyleSheet("QTextEdit { border: none; }")
         self.log_text.hide()
@@ -1458,15 +1467,11 @@ class abogen(QWidget):
         self.input_box.hide()
         self.log_text.show()
         self.log_text.clear()
-        self._log_lines = []
         QApplication.processEvents()
 
     def restore_input_box(self):
         self.log_text.hide()
         self.input_box.show()
-
-    def color_text(self, message, color):
-        return f'<span style="color:{color};">{message.replace(chr(10), "<br>")}</span><br>'
 
     def update_log(self, message):
         # Use signal-based approach for thread-safe logging
@@ -1479,37 +1484,35 @@ class abogen(QWidget):
         self._update_log_main_thread(message)
 
     def _update_log_main_thread(self, message):
-        if not hasattr(self, "_log_lines"):
-            self._log_lines = []
+        txt = self.log_text
+        sb = txt.verticalScrollBar()
+        at_bottom = sb.value() == sb.maximum()
 
-        # Always produce a single HTML line (with color if tuple)
+        cursor = txt.textCursor()
+        cursor.movePosition(QTextCursor.End)
+
+        fmt = cursor.charFormat()
         if isinstance(message, tuple):
             text, spec = message
-            color = "green" if spec is True else ("red" if spec is False else spec)
-            html_line = self.color_text(text, color)
+            fmt.setForeground(QColor(LOG_COLOR_MAP.get(spec, COLORS["LIGHT_DISABLED"])))
         else:
-            html_line = f"{str(message).replace(chr(10), '<br>')}<br>"
+            text = str(message)
+            fmt.clearForeground()
+        cursor.setCharFormat(fmt)
+        cursor.insertText(text + "\n")
 
-        self._log_lines.append(html_line)
+        doc = txt.document()
+        excess = doc.blockCount() - self.log_window_max_lines
+        if excess > 0:
+            start = doc.findBlockByNumber(0).position()
+            end = doc.findBlockByNumber(excess).position()
+            trim_cursor = QTextCursor(doc)
+            trim_cursor.setPosition(start)
+            trim_cursor.setPosition(end, QTextCursor.KeepAnchor)
+            trim_cursor.removeSelectedText()
 
-        # Check if user is at bottom BEFORE inserting
-        sb = self.log_text.verticalScrollBar()
-        at_bottom = sb.value() >= sb.maximum() - 2
-
-        # Trim buffer if needed
-        if len(self._log_lines) > self.log_window_max_lines:
-            self._log_lines = self._log_lines[-self.log_window_max_lines :]
-            self.log_text.clear()
-            for line in self._log_lines:
-                self.log_text.insertHtml(line)
-        else:
-            self.log_text.insertHtml(html_line)
-
-        # If user was at bottom before, scroll to new bottom
         if at_bottom:
             sb.setValue(sb.maximum())
-
-        QApplication.processEvents()
 
     def _get_queue_progress_format(self, value=None):
         """Return the progress bar format string for queue mode."""
@@ -1988,7 +1991,6 @@ class abogen(QWidget):
         else:
             # More items in queue: clear log and reload for next item
             self.log_text.clear()
-            self._log_lines = []
             QApplication.processEvents()
 
         # Start new queued item, if we're using a queued conversion
@@ -2032,7 +2034,6 @@ class abogen(QWidget):
         self.progress_bar.hide()
         self.restore_input_box()
         self.log_text.clear()
-        self._log_lines = []
 
         # Use displayed_file_path instead of selected_file for EPUBs or PDFs
         display_path = (
@@ -2444,7 +2445,6 @@ class abogen(QWidget):
             self.finish_widget.hide()
             self.restore_input_box()
             self.log_text.clear()
-            self._log_lines = []
             display_path = (
                 self.displayed_file_path
                 if self.displayed_file_path
@@ -2484,6 +2484,12 @@ class abogen(QWidget):
         self.config["use_gpu"] = self.use_gpu
         save_config(self.config)
 
+    def cleanup_conversion_thread(self):
+        # Stop conversion thread
+        if hasattr(self, "conversion_thread") and self.conversion_thread is not None and self.conversion_thread.isRunning():
+            self.conversion_thread.cancel()
+            self.conversion_thread.wait()
+
     def closeEvent(self, event):
         if self.is_converting:
             box = QMessageBox(self)
@@ -2495,16 +2501,12 @@ class abogen(QWidget):
             box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             box.setDefaultButton(QMessageBox.No)
             if box.exec_() == QMessageBox.Yes:
-                if (
-                    hasattr(self, "conversion_thread")
-                    and self.conversion_thread.isRunning()
-                ):
-                    self.conversion_thread.cancel()
-                    self.conversion_thread.wait()
+                self.cleanup_conversion_thread()
                 event.accept()
             else:
                 event.ignore()
         else:
+            self.cleanup_conversion_thread()
             event.accept()
 
     def show_chapter_options_dialog(self, chapter_count):
