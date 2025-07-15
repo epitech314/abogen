@@ -2,6 +2,9 @@
 - Now you can play the audio files while they are processing.
 - While generating audio files, now it directly writes to audio file instead of RAM, which significantly reduces memory usage and prevents memory outage issues.
 - Added a better logic for detecting chapters from the epub, mentioned by @jefro108 in #33
+- Added a new option: `Reset to default settings`, allowing users to reset all settings to their default values.
+- Added a new option: `Disable Kokoro's internet access`. This lets you prevent Kokoro from downloading models or voices from HuggingFace Hub, which can help avoid long waiting times if your computer is offline.
+- HuggingFace Hub telemetry is now disabled by default for improved privacy. (HuggingFace Hub is used by Kokoro to download its models)
 - Potential fix for #37 and #38, where the program was becoming slow while processing large files.
 - Fixed `Open folder` and `Open file` buttons in the queue manager GUI.
 - Improvements in code structure.

@@ -474,7 +474,7 @@ class ConversionThread(QThread):
                     merged_out_file = sf.SoundFile(merged_out_path, "w", samplerate=24000, channels=1, format=self.output_format)
                     ffmpeg_proc = None
                 elif self.output_format == "m4b":
-                    temp_wav_path = f"{base_filepath_no_ext}_temp.wav"
+                    temp_wav_path = os.path.join(out_dir, f"temp_{base_name}{suffix}.wav")
                     merged_out_file = sf.SoundFile(temp_wav_path, "w", samplerate=24000, channels=1, format="wav")
                     ffmpeg_proc = None
                 elif self.output_format == "opus":

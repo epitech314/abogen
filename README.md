@@ -153,6 +153,8 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 | **Open temp directory** | Opens the temporary directory where converted text files are stored. |
 | **Clear temporary files** | Deletes temporary files created during the conversion or preview. |
 | **Check for updates at startup** | Automatically checks for updates when the program starts. |
+| **Disable Kokoro's internet access** | Prevents Kokoro from downloading models or voices from HuggingFace Hub, useful for offline use. |
+| **Reset to default settings** | Resets all settings to their default values. |
 
 ## `Voice Mixer`
 <img title="Abogen Voice Mixer" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/voice_mixer.png'>

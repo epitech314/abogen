@@ -2774,12 +2774,26 @@ class abogen(QWidget):
         # Add seperator"
         menu.addSeparator()
 
+        # Add "Disable Kokoro's internet access" option
+        disable_kokoro_action = QAction("Disable Kokoro's internet access", self)
+        disable_kokoro_action.setCheckable(True)
+        disable_kokoro_action.setChecked(self.config.get("disable_kokoro_internet", False))
+        disable_kokoro_action.triggered.connect(
+            lambda checked: self.toggle_kokoro_internet_access(checked)
+        )
+        menu.addAction(disable_kokoro_action)
+
         # Add check for updates option
         check_updates_action = QAction("Check for updates at startup", self)
         check_updates_action.setCheckable(True)
         check_updates_action.setChecked(self.config.get("check_updates", True))
         check_updates_action.triggered.connect(self.toggle_check_updates)
         menu.addAction(check_updates_action)
+
+        # Add "Reset to default settings" option
+        reset_defaults_action = QAction("Reset to default settings", self)
+        reset_defaults_action.triggered.connect(self.reset_to_default_settings)
+        menu.addAction(reset_defaults_action)
 
         # Add about action
         about_action = QAction("About", self)
@@ -2792,6 +2806,50 @@ class abogen(QWidget):
         self.replace_single_newlines = enabled
         self.config["replace_single_newlines"] = enabled
         save_config(self.config)
+
+    def toggle_kokoro_internet_access(self, disabled):
+        reply = QMessageBox.question(
+            self,
+            "Restart Required",
+            "Changing Kokoro's internet access requires restarting the application.\nDo you want to continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.config["disable_kokoro_internet"] = disabled
+            save_config(self.config)
+            try:
+                from PyQt5.QtCore import QProcess
+                import sys
+                QProcess.startDetached(sys.executable, sys.argv)
+                QApplication.quit()
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Restart Failed",
+                    f"Failed to restart the application:\n{e}"
+                )
+
+    def reset_to_default_settings(self):
+        reply = QMessageBox.question(
+            self,
+            "Reset Settings",
+            "This will reset all settings to their default values and restart the application.\nDo you want to continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            from abogen.utils import get_user_config_path
+            import sys
+            config_path = get_user_config_path()
+            try:
+                if os.path.exists(config_path):
+                    os.remove(config_path)
+                from PyQt5.QtCore import QProcess
+                QProcess.startDetached(sys.executable, sys.argv)
+                QApplication.quit()
+            except Exception as e:
+                QMessageBox.critical(self, "Reset Error", f"Could not reset settings:\n{e}")
 
     def reveal_config_in_explorer(self):
         """Open the configuration file location in file explorer."""

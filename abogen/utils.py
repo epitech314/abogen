@@ -7,10 +7,7 @@ import subprocess
 import re
 from threading import Thread
 
-# suppress warnings and disable HF hub symlink warnings
-os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 warnings.filterwarnings("ignore")
-
 
 def get_resource_path(package, resource):
     """
