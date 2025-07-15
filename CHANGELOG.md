@@ -1,3 +1,7 @@
+# 1.1.3
+- Fixed issue where the app would not restart properly on Windows.
+- Fixed last sentence/subtitle entry timing in generated subtitles, the end time of the final subtitle entry now correctly matches the end of the audio chunk, preventing zero or invalid timings at the end.
+
 # v1.1.2
 - Now you can play the audio files while they are processing.
 - Audio and subtitle files are now written directly to disk during generation, which significantly reduces memory usage.
