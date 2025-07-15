@@ -1908,5 +1908,13 @@ class HandlerDialog(QDialog):
 
     def closeEvent(self, event):
         if self.pdf_doc is not None:
-            self.pdf_doc.close()
+            try:
+                if hasattr(self.pdf_doc, "is_closed"):
+                    if not self.pdf_doc.is_closed:
+                        self.pdf_doc.close()
+                else:
+                    # Fallback: try/except close
+                    self.pdf_doc.close()
+            except Exception:
+                pass
         event.accept()

@@ -2808,10 +2808,22 @@ class abogen(QWidget):
         save_config(self.config)
 
     def toggle_kokoro_internet_access(self, disabled):
+        if disabled:
+            message = (
+                "Disabling Kokoro's internet access will block downloads of models and voices from Hugging Face Hub. "
+                "This can make processing faster when there is no internet connection, since no requests will be made. "
+                "The app needs to restart to apply this change.\n\nDo you want to continue?"
+            )
+        else:
+            message = (
+                "Enabling Kokoro's internet access will allow it to download models and voices from Hugging Face Hub. "
+                "The app needs to restart to apply this change.\n\nDo you want to continue?"
+            )
         reply = QMessageBox.question(
             self,
             "Restart Required",
-            "Changing Kokoro's internet access requires restarting the application.\nDo you want to continue?",
+
+            message,
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -2834,7 +2846,7 @@ class abogen(QWidget):
         reply = QMessageBox.question(
             self,
             "Reset Settings",
-            "This will reset all settings to their default values and restart the application.\nDo you want to continue?",
+            "This will reset all settings to their default values and restart the application.\n\nDo you want to continue?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )

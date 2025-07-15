@@ -1,6 +1,6 @@
 # v1.1.2 (pre-release)
 - Now you can play the audio files while they are processing.
-- While generating audio files, now it directly writes to audio file instead of RAM, which significantly reduces memory usage and prevents memory outage issues.
+- Audio and subtitle files are now written directly to disk during generation, which significantly reduces memory usage.
 - Added a better logic for detecting chapters from the epub, mentioned by @jefro108 in #33
 - Added a new option: `Reset to default settings`, allowing users to reset all settings to their default values.
 - Added a new option: `Disable Kokoro's internet access`. This lets you prevent Kokoro from downloading models or voices from HuggingFace Hub, which can help avoid long waiting times if your computer is offline.
