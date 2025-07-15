@@ -22,7 +22,7 @@ from PyQt5.QtWidgets import (
     QLabel,
 )
 from PyQt5.QtCore import Qt
-from utils import clean_text, calculate_text_length
+from abogen.utils import clean_text, calculate_text_length
 import os
 import logging  # Add logging
 import urllib.parse
@@ -240,20 +240,17 @@ class HandlerDialog(QDialog):
                     tag.decompose()
                 text = clean_text(soup.get_text()).strip()
                 if text:
-                    # Use doc_href as the identifier
                     self.content_texts[doc_href] = text
                     self.content_lengths[doc_href] = len(text)
-                    # Create a synthetic TOC entry
-                    title = f"Chapter {i+1}: {doc_href}"
-                    # Try to get a better title from <h1> or <title>
-                    h1 = soup.find("h1")
-                    if h1 and h1.get_text(strip=True):
+                    
+                    title = None
+                    if soup.title and soup.title.string:
+                        title = soup.title.string.strip()
+                    elif (h1 := soup.find("h1")) and h1.get_text(strip=True):
                         title = h1.get_text(strip=True)
-                    else:
-                        title_tag = soup.find("title")
-                        if title_tag and title_tag.get_text(strip=True):
-                            title = title_tag.get_text(strip=True)
 
+                    if not title:
+                        title = f"Untitled Chapter {i+1}"
                     synthetic_toc.append(
                         (epub.Link(doc_href, title, doc_href), [])
                     )  # Wrap in tuple and empty list for compatibility
