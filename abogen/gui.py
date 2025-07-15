@@ -2815,6 +2815,23 @@ class abogen(QWidget):
         self.config["replace_single_newlines"] = enabled
         save_config(self.config)
 
+    def restart_app(self):
+        from PyQt5.QtCore import QProcess
+        import sys
+        exe = sys.executable
+        args = sys.argv
+
+        # On Windows, use .exe if available
+        if platform.system() == "Windows":
+            script_path = args[0]
+            if not script_path.lower().endswith('.exe'):
+                exe_path = os.path.splitext(script_path)[0] + '.exe'
+                if os.path.exists(exe_path):
+                    args[0] = exe_path
+
+        QProcess.startDetached(exe, args)
+        QApplication.quit()
+
     def toggle_kokoro_internet_access(self, disabled):
         if disabled:
             message = (
@@ -2838,11 +2855,7 @@ class abogen(QWidget):
             self.config["disable_kokoro_internet"] = disabled
             save_config(self.config)
             try:
-                from PyQt5.QtCore import QProcess
-                import sys
-
-                QProcess.startDetached(sys.executable, sys.argv)
-                QApplication.quit()
+                self.restart_app()
             except Exception as e:
                 QMessageBox.critical(
                     self, "Restart Failed", f"Failed to restart the application:\n{e}"
@@ -2864,10 +2877,7 @@ class abogen(QWidget):
             try:
                 if os.path.exists(config_path):
                     os.remove(config_path)
-                from PyQt5.QtCore import QProcess
-
-                QProcess.startDetached(sys.executable, sys.argv)
-                QApplication.quit()
+                self.restart_app()
             except Exception as e:
                 QMessageBox.critical(
                     self, "Reset Error", f"Could not reset settings:\n{e}"
