@@ -2,6 +2,7 @@ from json import load
 import os
 import sys
 import platform
+import atexit
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
@@ -9,7 +10,7 @@ from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
 # Add the directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
-from abogen.utils import get_resource_path, load_config
+from abogen.utils import get_resource_path, load_config, prevent_sleep_end
 
 # Set Hugging Face Hub environment variables
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"  # Disable Hugging Face telemetry
@@ -26,6 +27,9 @@ from abogen.constants import PROGRAM_NAME, VERSION
 # Set environment variables for AMD ROCm
 os.environ["MIOPEN_FIND_MODE"] = "FAST"
 os.environ["MIOPEN_CONV_PRECISE_ROCM_TUNING"] = "0"
+
+# Reset sleep states
+atexit.register(prevent_sleep_end)
 
 # Ensure sys.stdout and sys.stderr are valid in GUI mode
 if sys.stdout is None:

@@ -244,6 +244,7 @@ def get_gpu_acceleration(enabled):
 
 
 def prevent_sleep_start():
+    from abogen.constants import PROGRAM_NAME
     system = platform.system()
     if system == "Windows":
         import ctypes
@@ -254,11 +255,15 @@ def prevent_sleep_start():
     elif system == "Darwin":
         _sleep_procs["Darwin"] = create_process(["caffeinate"])
     elif system == "Linux":
-        # use a sleep that never exits so inhibition stays active
+        # Add program name and reason for inhibition
+        program_name = PROGRAM_NAME
+        reason = "Prevent sleep during abogen process"
         _sleep_procs["Linux"] = create_process(
             [
                 "systemd-inhibit",
-                "--what=handle-lid-switch:sleep",
+                f"--who={program_name}",
+                f"--why={reason}",
+                "--what=sleep",
                 "--mode=block",
                 "sleep",
                 "infinity",
