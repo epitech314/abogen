@@ -52,8 +52,6 @@ from PyQt5.QtGui import (
     QPolygon,
     QColor,
     QMovie,
-    QFont,
-    QTextCharFormat,
 )
 from abogen.utils import (
     load_config,
@@ -77,6 +75,7 @@ from abogen.constants import (
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
     COLORS,
+    SUBTITLE_FORMATS,
 )
 import threading
 from abogen.voice_formula_gui import VoiceFormulaDialog
@@ -132,6 +131,7 @@ LOG_COLOR_MAP = {
     "green": COLORS["GREEN"],
     "orange": COLORS["ORANGE"],
     "blue": COLORS["BLUE"],
+    "grey": COLORS["LIGHT_DISABLED"],
     None: COLORS["LIGHT_DISABLED"],
 }
 
@@ -953,14 +953,7 @@ class abogen(QWidget):
         self.subtitle_format_combo.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Fixed
         )
-        subtitle_formats = [
-            ("srt", "SRT (standard)"),
-            ("ass_wide", "ASS (wide)"),
-            ("ass_narrow", "ASS (narrow)"),
-            ("ass_centered_wide", "ASS (centered wide)"),
-            ("ass_centered_narrow", "ASS (centered narrow)"),
-        ]
-        for value, text in subtitle_formats:
+        for value, text in SUBTITLE_FORMATS:
             self.subtitle_format_combo.addItem(text, value)
         subtitle_format = self.config.get("subtitle_format", "ass_centered_narrow")
         idx = self.subtitle_format_combo.findData(subtitle_format)
@@ -1892,7 +1885,7 @@ class abogen(QWidget):
                 f"<span style='color:{COLORS['GREEN']}; font-weight:bold;'>{idx}) {os.path.basename(item.file_name)}</span><br>"
                 f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Language:</span> {item.lang_code}<br>"
                 f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Voice:</span> {item.voice}<br>"
-                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Speed:</span> {item.speed * 100:.1f}%<br>"
+                f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Speed:</span> {item.speed}<br>"
                 f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Characters:</span> {item.total_char_count}<br>"
                 f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Input:</span> {item.file_name}<br>"
                 f"<span style='color:{COLORS['LIGHT_DISABLED']};'>Output:</span> {output}</span>"

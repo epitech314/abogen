@@ -10,6 +10,13 @@ VERSION = get_version()
 
 # Settings
 CHAPTER_OPTIONS_COUNTDOWN = 30  # Countdown seconds for chapter options
+SUBTITLE_FORMATS = [
+    ("srt", "SRT (standard)"),
+    ("ass_wide", "ASS (wide)"),
+    ("ass_narrow", "ASS (narrow)"),
+    ("ass_centered_wide", "ASS (centered wide)"),
+    ("ass_centered_narrow", "ASS (centered narrow)"),
+]
 
 # Language description mapping
 LANGUAGE_DESCRIPTIONS = {

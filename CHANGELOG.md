@@ -1,6 +1,9 @@
 # v1.1.2 (pre-release)
+- Now you can play the audio files while they are processing.
+- While generating audio files, now it directly writes to audio file instead of RAM, which significantly reduces memory usage and prevents memory outage issues.
 - Potential fix for #37 and #38, where the program was becoming slow while processing large files.
 - Fixed `Open folder` and `Open file` buttons in the queue manager GUI.
+- Improvements in code structure.
 
 # v1.1.1
 - Fixed adding wrong file in queue for EPUB and PDF files, ensuring the correct file is added to the queue.
