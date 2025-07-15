@@ -12,9 +12,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from abogen.utils import get_resource_path, load_config
 
 # Set Hugging Face Hub environment variables
-os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"    # Disable Hugging Face telemetry
-os.environ["HF_HUB_ETAG_TIMEOUT"] = "10"        # Metadata request timeout (seconds)
-os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "10"    # File download timeout (seconds)
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"  # Disable Hugging Face telemetry
+os.environ["HF_HUB_ETAG_TIMEOUT"] = "10"  # Metadata request timeout (seconds)
+os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "10"  # File download timeout (seconds)
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"  # Disable symlinks warning
 if load_config().get("disable_kokoro_internet", False):
     print("INFO: Kokoro's internet access is disabled.")

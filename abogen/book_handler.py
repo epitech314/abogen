@@ -242,7 +242,7 @@ class HandlerDialog(QDialog):
                 if text:
                     self.content_texts[doc_href] = text
                     self.content_lengths[doc_href] = len(text)
-                    
+
                     title = None
                     if soup.title and soup.title.string:
                         title = soup.title.string.strip()

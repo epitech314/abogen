@@ -9,6 +9,7 @@ from threading import Thread
 
 warnings.filterwarnings("ignore")
 
+
 def get_resource_path(package, resource):
     """
     Get the path to a resource file, with fallback to local file system.

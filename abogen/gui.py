@@ -124,6 +124,7 @@ class IconProvider(QFileIconProvider):
     def icon(self, fileInfo):
         return super().icon(fileInfo)
 
+
 LOG_COLOR_MAP = {
     True: COLORS["GREEN"],
     False: COLORS["RED"],
@@ -134,6 +135,7 @@ LOG_COLOR_MAP = {
     "grey": COLORS["LIGHT_DISABLED"],
     None: COLORS["LIGHT_DISABLED"],
 }
+
 
 class InputBox(QLabel):
     # Define CSS styles as class constants
@@ -2479,7 +2481,11 @@ class abogen(QWidget):
 
     def cleanup_conversion_thread(self):
         # Stop conversion thread
-        if hasattr(self, "conversion_thread") and self.conversion_thread is not None and self.conversion_thread.isRunning():
+        if (
+            hasattr(self, "conversion_thread")
+            and self.conversion_thread is not None
+            and self.conversion_thread.isRunning()
+        ):
             self.conversion_thread.cancel()
             self.conversion_thread.wait()
 
@@ -2777,7 +2783,9 @@ class abogen(QWidget):
         # Add "Disable Kokoro's internet access" option
         disable_kokoro_action = QAction("Disable Kokoro's internet access", self)
         disable_kokoro_action.setCheckable(True)
-        disable_kokoro_action.setChecked(self.config.get("disable_kokoro_internet", False))
+        disable_kokoro_action.setChecked(
+            self.config.get("disable_kokoro_internet", False)
+        )
         disable_kokoro_action.triggered.connect(
             lambda checked: self.toggle_kokoro_internet_access(checked)
         )
@@ -2822,7 +2830,6 @@ class abogen(QWidget):
         reply = QMessageBox.question(
             self,
             "Restart Required",
-
             message,
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -2833,13 +2840,12 @@ class abogen(QWidget):
             try:
                 from PyQt5.QtCore import QProcess
                 import sys
+
                 QProcess.startDetached(sys.executable, sys.argv)
                 QApplication.quit()
             except Exception as e:
                 QMessageBox.critical(
-                    self,
-                    "Restart Failed",
-                    f"Failed to restart the application:\n{e}"
+                    self, "Restart Failed", f"Failed to restart the application:\n{e}"
                 )
 
     def reset_to_default_settings(self):
@@ -2853,15 +2859,19 @@ class abogen(QWidget):
         if reply == QMessageBox.Yes:
             from abogen.utils import get_user_config_path
             import sys
+
             config_path = get_user_config_path()
             try:
                 if os.path.exists(config_path):
                     os.remove(config_path)
                 from PyQt5.QtCore import QProcess
+
                 QProcess.startDetached(sys.executable, sys.argv)
                 QApplication.quit()
             except Exception as e:
-                QMessageBox.critical(self, "Reset Error", f"Could not reset settings:\n{e}")
+                QMessageBox.critical(
+                    self, "Reset Error", f"Could not reset settings:\n{e}"
+                )
 
     def reveal_config_in_explorer(self):
         """Open the configuration file location in file explorer."""

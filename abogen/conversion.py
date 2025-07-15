@@ -307,7 +307,7 @@ class ConversionThread(QThread):
                 self.log_updated.emit(
                     f"- Output folder: {self.output_folder or os.getcwd()}"
                 )
-                
+
             self.log_updated.emit("\nInitializing TTS pipeline...")
 
             # Set device based on use_gpu setting
@@ -399,7 +399,7 @@ class ConversionThread(QThread):
             # Ensure merge_chapters_at_end is True if not saving chapters separately
             if not save_chapters_separately:
                 merge_chapters_at_end = True
-                
+
             chapters_out_dir = None
             suffix = ""
 
@@ -439,7 +439,10 @@ class ConversionThread(QThread):
                 )
                 if (
                     not os.path.exists(chapters_out_dir_candidate)
-                    and (not merge_chapters_at_end or not os.path.exists(merged_file_candidate))
+                    and (
+                        not merge_chapters_at_end
+                        or not os.path.exists(merged_file_candidate)
+                    )
                     and (
                         self.subtitle_mode == "Disabled"
                         or not merge_chapters_at_end
@@ -449,10 +452,14 @@ class ConversionThread(QThread):
                     break
                 counter += 1
             if save_chapters_separately and total_chapters > 1:
-                separate_chapters_format = getattr(self, "separate_chapters_format", "wav")
+                separate_chapters_format = getattr(
+                    self, "separate_chapters_format", "wav"
+                )
                 chapters_out_dir = chapters_out_dir_candidate
                 os.makedirs(chapters_out_dir, exist_ok=True)
-                self.log_updated.emit((f"\nChapters output folder: {chapters_out_dir}", "grey"))
+                self.log_updated.emit(
+                    (f"\nChapters output folder: {chapters_out_dir}", "grey")
+                )
 
             # Prepare merged output file for incremental writing ONLY if merge_chapters_at_end is True
             if merge_chapters_at_end:
@@ -472,46 +479,93 @@ class ConversionThread(QThread):
                 ]
                 # Prepare output file/ffmpeg process for merged output
                 if self.output_format in ["wav", "mp3", "flac"]:
-                    merged_out_file = sf.SoundFile(merged_out_path, "w", samplerate=24000, channels=1, format=self.output_format)
+                    merged_out_file = sf.SoundFile(
+                        merged_out_path,
+                        "w",
+                        samplerate=24000,
+                        channels=1,
+                        format=self.output_format,
+                    )
                     ffmpeg_proc = None
                 elif self.output_format == "m4b":
-                    temp_wav_path = os.path.join(out_dir, f"temp_{base_name}{suffix}.wav")
-                    merged_out_file = sf.SoundFile(temp_wav_path, "w", samplerate=24000, channels=1, format="wav")
+                    temp_wav_path = os.path.join(
+                        out_dir, f"temp_{base_name}{suffix}.wav"
+                    )
+                    merged_out_file = sf.SoundFile(
+                        temp_wav_path, "w", samplerate=24000, channels=1, format="wav"
+                    )
                     ffmpeg_proc = None
                 elif self.output_format == "opus":
                     static_ffmpeg.add_paths()
                     cmd = [
-                        "ffmpeg", "-y", "-thread_queue_size", "32768", "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:0"
+                        "ffmpeg",
+                        "-y",
+                        "-thread_queue_size",
+                        "32768",
+                        "-f",
+                        "f32le",
+                        "-ar",
+                        "24000",
+                        "-ac",
+                        "1",
+                        "-i",
+                        "pipe:0",
                     ]
                     cmd.extend(["-c:a", "libopus", "-b:a", "24000"])
                     cmd.append(merged_out_path)
                     ffmpeg_proc = create_process(cmd, stdin=subprocess.PIPE, text=False)
                     merged_out_file = None
                 else:
-                    self.log_updated.emit((f"Unsupported output format: {self.output_format}", "red"))
-                    self.conversion_finished.emit(("Audio generation failed.", "red"), None)
+                    self.log_updated.emit(
+                        (f"Unsupported output format: {self.output_format}", "red")
+                    )
+                    self.conversion_finished.emit(
+                        ("Audio generation failed.", "red"), None
+                    )
                     return
                 # Open merged subtitle file for incremental writing if needed
                 merged_subtitle_file = None
                 if self.subtitle_mode != "Disabled":
                     subtitle_format = getattr(self, "subtitle_format", "srt")
                     file_extension = "ass" if "ass" in subtitle_format else "srt"
-                    merged_subtitle_path = os.path.splitext(merged_out_path)[0] + f".{file_extension}"
+                    merged_subtitle_path = (
+                        os.path.splitext(merged_out_path)[0] + f".{file_extension}"
+                    )
                     if "ass" in subtitle_format:
-                        merged_subtitle_file = open(merged_subtitle_path, "w", encoding="utf-8", errors="replace")
+                        merged_subtitle_file = open(
+                            merged_subtitle_path,
+                            "w",
+                            encoding="utf-8",
+                            errors="replace",
+                        )
                         # Minimal ASS header
                         merged_subtitle_file.write("[Script Info]\n")
                         merged_subtitle_file.write("Title: Generated by Abogen\n")
                         merged_subtitle_file.write("ScriptType: v4.00+\n\n")
                         merged_subtitle_file.write("[Events]\n")
-                        merged_subtitle_file.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
+                        merged_subtitle_file.write(
+                            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+                        )
                         # Set margin/alignment for ASS
-                        is_centered = subtitle_format in ("ass_centered_wide", "ass_centered_narrow")
-                        is_narrow = subtitle_format in ("ass_narrow", "ass_centered_narrow")
+                        is_centered = subtitle_format in (
+                            "ass_centered_wide",
+                            "ass_centered_narrow",
+                        )
+                        is_narrow = subtitle_format in (
+                            "ass_narrow",
+                            "ass_centered_narrow",
+                        )
                         merged_subtitle_margin = "90" if is_narrow else ""
-                        merged_subtitle_alignment_tag = f"{{\\an5}}" if is_centered else ""
+                        merged_subtitle_alignment_tag = (
+                            f"{{\\an5}}" if is_centered else ""
+                        )
                     else:
-                        merged_subtitle_file = open(merged_subtitle_path, "w", encoding="utf-8", errors="replace")
+                        merged_subtitle_file = open(
+                            merged_subtitle_path,
+                            "w",
+                            encoding="utf-8",
+                            errors="replace",
+                        )
                 else:
                     merged_subtitle_path = None
                     merged_subtitle_file = None
@@ -565,22 +619,47 @@ class ConversionThread(QThread):
                         sanitized = sanitized[: pos if pos > 0 else MAX_LEN].rstrip("_")
                     chapter_filename = f"{chapter_idx:02d}_{sanitized}"
                     chapter_out_path = os.path.join(
-                        chapters_out_dir, f"{chapter_filename}.{separate_chapters_format}"
+                        chapters_out_dir,
+                        f"{chapter_filename}.{separate_chapters_format}",
                     )
                     if separate_chapters_format in ["wav", "mp3", "flac"]:
-                        chapter_out_file = sf.SoundFile(chapter_out_path, "w", samplerate=24000, channels=1, format=separate_chapters_format)
+                        chapter_out_file = sf.SoundFile(
+                            chapter_out_path,
+                            "w",
+                            samplerate=24000,
+                            channels=1,
+                            format=separate_chapters_format,
+                        )
                         chapter_ffmpeg_proc = None
                     elif separate_chapters_format == "opus":
                         static_ffmpeg.add_paths()
                         cmd = [
-                            "ffmpeg", "-y", "-thread_queue_size", "32768", "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "pipe:0"
+                            "ffmpeg",
+                            "-y",
+                            "-thread_queue_size",
+                            "32768",
+                            "-f",
+                            "f32le",
+                            "-ar",
+                            "24000",
+                            "-ac",
+                            "1",
+                            "-i",
+                            "pipe:0",
                         ]
                         cmd.extend(["-c:a", "libopus", "-b:a", "24000"])
                         cmd.append(chapter_out_path)
-                        chapter_ffmpeg_proc = create_process(cmd, stdin=subprocess.PIPE, text=False)
+                        chapter_ffmpeg_proc = create_process(
+                            cmd, stdin=subprocess.PIPE, text=False
+                        )
                         chapter_out_file = None
                     else:
-                        self.log_updated.emit((f"Unsupported chapter format: {separate_chapters_format}", "red"))
+                        self.log_updated.emit(
+                            (
+                                f"Unsupported chapter format: {separate_chapters_format}",
+                                "red",
+                            )
+                        )
                         continue
                     # Open chapter subtitle file for incremental writing if needed
                     chapter_subtitle_file = None
@@ -591,19 +670,39 @@ class ConversionThread(QThread):
                             chapters_out_dir, f"{chapter_filename}.{file_extension}"
                         )
                         if "ass" in subtitle_format:
-                            chapter_subtitle_file = open(chapter_subtitle_path, "w", encoding="utf-8", errors="replace")
+                            chapter_subtitle_file = open(
+                                chapter_subtitle_path,
+                                "w",
+                                encoding="utf-8",
+                                errors="replace",
+                            )
                             # Minimal ASS header
                             chapter_subtitle_file.write("[Script Info]\n")
                             chapter_subtitle_file.write("Title: Generated by Abogen\n")
                             chapter_subtitle_file.write("ScriptType: v4.00+\n\n")
                             chapter_subtitle_file.write("[Events]\n")
-                            chapter_subtitle_file.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
-                            is_centered = subtitle_format in ("ass_centered_wide", "ass_centered_narrow")
-                            is_narrow = subtitle_format in ("ass_narrow", "ass_centered_narrow")
+                            chapter_subtitle_file.write(
+                                "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+                            )
+                            is_centered = subtitle_format in (
+                                "ass_centered_wide",
+                                "ass_centered_narrow",
+                            )
+                            is_narrow = subtitle_format in (
+                                "ass_narrow",
+                                "ass_centered_narrow",
+                            )
                             chapter_subtitle_margin = "90" if is_narrow else ""
-                            chapter_subtitle_alignment_tag = f"{{\\an5}}" if is_centered else ""
+                            chapter_subtitle_alignment_tag = (
+                                f"{{\\an5}}" if is_centered else ""
+                            )
                         else:
-                            chapter_subtitle_file = open(chapter_subtitle_path, "w", encoding="utf-8", errors="replace")
+                            chapter_subtitle_file = open(
+                                chapter_subtitle_path,
+                                "w",
+                                encoding="utf-8",
+                                errors="replace",
+                            )
                     else:
                         chapter_subtitle_path = None
                         chapter_subtitle_file = None
@@ -643,7 +742,9 @@ class ConversionThread(QThread):
                         merged_out_file.write(result.audio)
                     elif merge_chapters_at_end and ffmpeg_proc:
                         if hasattr(result.audio, "numpy"):
-                            audio_bytes = result.audio.numpy().astype("float32").tobytes()
+                            audio_bytes = (
+                                result.audio.numpy().astype("float32").tobytes()
+                            )
                         else:
                             audio_bytes = result.audio.astype("float32").tobytes()
                         ffmpeg_proc.stdin.write(audio_bytes)
@@ -651,7 +752,9 @@ class ConversionThread(QThread):
                         chapter_out_file.write(result.audio)
                     elif chapter_ffmpeg_proc:
                         if hasattr(result.audio, "numpy"):
-                            audio_bytes = result.audio.numpy().astype("float32").tobytes()
+                            audio_bytes = (
+                                result.audio.numpy().astype("float32").tobytes()
+                            )
                         else:
                             audio_bytes = result.audio.astype("float32").tobytes()
                         chapter_ffmpeg_proc.stdin.write(audio_bytes)
@@ -674,7 +777,8 @@ class ConversionThread(QThread):
                             if chapter_out_file or chapter_ffmpeg_proc:
                                 chapter_tokens_with_timestamps.append(
                                     {
-                                        "start": chapter_current_time + (tok.start_ts or 0),
+                                        "start": chapter_current_time
+                                        + (tok.start_ts or 0),
                                         "end": chapter_current_time + (tok.end_ts or 0),
                                         "text": tok.text,
                                         "whitespace": tok.whitespace,
@@ -691,16 +795,20 @@ class ConversionThread(QThread):
                                 self.max_subtitle_words,
                             )
                             if merged_subtitle_file:
-                                subtitle_format = getattr(self, "subtitle_format", "srt")
+                                subtitle_format = getattr(
+                                    self, "subtitle_format", "srt"
+                                )
                                 if "ass" in subtitle_format:
-                                    for (start, end, text) in new_entries:
+                                    for start, end, text in new_entries:
                                         start_time = self._ass_time(start)
                                         end_time = self._ass_time(end)
                                         merged_subtitle_file.write(
                                             f"Dialogue: 0,{start_time},{end_time},Default,,{merged_subtitle_margin},{merged_subtitle_margin},0,,{merged_subtitle_alignment_tag}{text}\n"
                                         )
                                 else:
-                                    for i, (start, end, text) in enumerate(new_entries, 1):
+                                    for i, (start, end, text) in enumerate(
+                                        new_entries, 1
+                                    ):
                                         merged_subtitle_file.write(
                                             f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
                                         )
@@ -713,16 +821,20 @@ class ConversionThread(QThread):
                                 self.max_subtitle_words,
                             )
                             if chapter_subtitle_file:
-                                subtitle_format = getattr(self, "subtitle_format", "srt")
+                                subtitle_format = getattr(
+                                    self, "subtitle_format", "srt"
+                                )
                                 if "ass" in subtitle_format:
-                                    for (start, end, text) in new_chapter_entries:
+                                    for start, end, text in new_chapter_entries:
                                         start_time = self._ass_time(start)
                                         end_time = self._ass_time(end)
                                         chapter_subtitle_file.write(
                                             f"Dialogue: 0,{start_time},{end_time},Default,,{chapter_subtitle_margin},{chapter_subtitle_margin},0,,{chapter_subtitle_alignment_tag}{text}\n"
                                         )
                                 else:
-                                    for i, (start, end, text) in enumerate(new_chapter_entries, 1):
+                                    for i, (start, end, text) in enumerate(
+                                        new_chapter_entries, 1
+                                    ):
                                         chapter_subtitle_file.write(
                                             f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
                                         )
@@ -773,7 +885,12 @@ class ConversionThread(QThread):
                 # Close chapter subtitle file if open
                 if chapter_subtitle_file:
                     chapter_subtitle_file.close()
-                if save_chapters_separately and total_chapters > 1 and self.subtitle_mode != "Disabled" and chapter_subtitle_path:
+                if (
+                    save_chapters_separately
+                    and total_chapters > 1
+                    and self.subtitle_mode != "Disabled"
+                    and chapter_subtitle_path
+                ):
                     self.log_updated.emit(
                         (
                             f"\nChapter {chapter_idx} saved to: {chapter_out_path}\n\nChapter subtitle saved to: {chapter_subtitle_path}",
@@ -789,7 +906,7 @@ class ConversionThread(QThread):
                     )
             # Finalize merged output file ONLY if merging
             if merge_chapters_at_end:
-                self.log_updated.emit(("\nFinalizing audio...", "grey"))
+                self.log_updated.emit(("\nFinalizing audio. Please wait...", "grey"))
                 if self.output_format in ["wav", "mp3", "flac"]:
                     merged_out_file.close()
                 elif self.output_format == "m4b":
@@ -806,29 +923,58 @@ class ConversionThread(QThread):
                                 f.write(f"START={int(chapter['start']*1000)}\n")
                                 f.write(f"END={int(chapter['end']*1000)}\n")
                                 f.write(f"title={chapter_title}\n\n")
-                        metadata_options = self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                        metadata_options = (
+                            self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                        )
                         static_ffmpeg.add_paths()
                         cmd = [
-                            "ffmpeg", "-y", "-i", temp_wav_path, "-i", chapters_info_path,
-                            "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1",
+                            "ffmpeg",
+                            "-y",
+                            "-i",
+                            temp_wav_path,
+                            "-i",
+                            chapters_info_path,
+                            "-map",
+                            "0:a",
+                            "-map_metadata",
+                            "1",
+                            "-map_chapters",
+                            "1",
                             *metadata_options,
-                            "-c:a", "aac", "-q:a", "2", "-movflags", "+faststart+use_metadata_tags",
-                            merged_out_path
+                            "-c:a",
+                            "aac",
+                            "-q:a",
+                            "2",
+                            "-movflags",
+                            "+faststart+use_metadata_tags",
+                            merged_out_path,
                         ]
                         proc = create_process(cmd)
                         proc.wait()
-                        self.log_updated.emit(("\nCleaning up temporary files...", "grey"))
+                        self.log_updated.emit(
+                            ("\nCleaning up temporary files...", "grey")
+                        )
                         if os.path.exists(chapters_info_path):
                             os.remove(chapters_info_path)
                     else:
                         # No chapters: skip chapters info and related ffmpeg args
-                        metadata_options = self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                        metadata_options = (
+                            self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                        )
                         static_ffmpeg.add_paths()
                         cmd = [
-                            "ffmpeg", "-y", "-i", temp_wav_path,
+                            "ffmpeg",
+                            "-y",
+                            "-i",
+                            temp_wav_path,
                             *metadata_options,
-                            "-c:a", "aac", "-q:a", "2", "-movflags", "+faststart+use_metadata_tags",
-                            merged_out_path
+                            "-c:a",
+                            "aac",
+                            "-q:a",
+                            "2",
+                            "-movflags",
+                            "+faststart+use_metadata_tags",
+                            merged_out_path,
                         ]
                         proc = create_process(cmd)
                         proc.wait()
@@ -866,14 +1012,14 @@ class ConversionThread(QThread):
         except Exception as e:
             # Cleanup ffmpeg subprocesses on error
             try:
-                if 'ffmpeg_proc' in locals() and ffmpeg_proc:
+                if "ffmpeg_proc" in locals() and ffmpeg_proc:
                     ffmpeg_proc.stdin.close()
                     ffmpeg_proc.terminate()
                     ffmpeg_proc.wait()
             except Exception:
                 pass
             try:
-                if 'chapter_ffmpeg_proc' in locals() and chapter_ffmpeg_proc:
+                if "chapter_ffmpeg_proc" in locals() and chapter_ffmpeg_proc:
                     chapter_ffmpeg_proc.stdin.close()
                     chapter_ffmpeg_proc.terminate()
                     chapter_ffmpeg_proc.wait()
@@ -1017,7 +1163,9 @@ class ConversionThread(QThread):
                 word_count += 1
 
                 # Split sentences based on separator or word count
-                if (re.search(separator, token["text"]) and token["whitespace"] == " ") or word_count >= max_subtitle_words:
+                if (
+                    re.search(separator, token["text"]) and token["whitespace"] == " "
+                ) or word_count >= max_subtitle_words:
                     if current_sentence:
                         # Create subtitle entry for this sentence
                         start_time = current_sentence[0]["start"]
@@ -1125,14 +1273,14 @@ class ConversionThread(QThread):
                 pass
         # Terminate ffmpeg subprocesses if running
         try:
-            if hasattr(self, 'ffmpeg_proc') and self.ffmpeg_proc:
+            if hasattr(self, "ffmpeg_proc") and self.ffmpeg_proc:
                 self.ffmpeg_proc.stdin.close()
                 self.ffmpeg_proc.terminate()
                 self.ffmpeg_proc.wait()
         except Exception:
             pass
         try:
-            if hasattr(self, 'chapter_ffmpeg_proc') and self.chapter_ffmpeg_proc:
+            if hasattr(self, "chapter_ffmpeg_proc") and self.chapter_ffmpeg_proc:
                 self.chapter_ffmpeg_proc.stdin.close()
                 self.chapter_ffmpeg_proc.terminate()
                 self.chapter_ffmpeg_proc.wait()
