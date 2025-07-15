@@ -1,4 +1,4 @@
-# v1.1.2 (pre-release)
+# v1.1.2
 - Now you can play the audio files while they are processing.
 - Audio and subtitle files are now written directly to disk during generation, which significantly reduces memory usage.
 - Added a better logic for detecting chapters from the epub, mentioned by @jefro108 in #33
