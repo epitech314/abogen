@@ -492,6 +492,9 @@ class ConversionThread(QThread):
                     static_ffmpeg.add_paths()
                     merged_out_file = None
                     ffmpeg_proc = None
+                    metadata_options = (
+                            self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                        )
                     # Prepare ffmpeg command for m4b output
                     cmd = [
                         "ffmpeg",
@@ -513,6 +516,7 @@ class ConversionThread(QThread):
                         "-movflags",
                         "+faststart+use_metadata_tags",
                     ]
+                    cmd += metadata_options
                     cmd.append(merged_out_path)
                     ffmpeg_proc = create_process(cmd, stdin=subprocess.PIPE, text=False)
                 elif self.output_format == "opus":
