@@ -488,13 +488,27 @@ class ConversionThread(QThread):
                     )
                     ffmpeg_proc = None
                 elif self.output_format == "m4b":
-                    temp_wav_path = os.path.join(
-                        out_dir, f"temp_{base_name}{suffix}.wav"
-                    )
-                    merged_out_file = sf.SoundFile(
-                        temp_wav_path, "w", samplerate=24000, channels=1, format="wav"
-                    )
+                    # Real-time M4B generation using FFmpeg pipe
+                    static_ffmpeg.add_paths()
+                    merged_out_file = None
                     ffmpeg_proc = None
+                    # Prepare ffmpeg command for m4b output
+                    metadata_options = self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                    cmd = [
+                        "ffmpeg",
+                        "-y",
+                        "-thread_queue_size", "32768",
+                        "-f", "f32le",
+                        "-ar", "24000",
+                        "-ac", "1",
+                        "-i", "pipe:0",
+                        "-c:a", "aac",
+                        "-q:a", "2",
+                        "-movflags", "+faststart+use_metadata_tags",
+                    ]
+                    cmd += metadata_options
+                    cmd.append(merged_out_path)
+                    ffmpeg_proc = create_process(cmd, stdin=subprocess.PIPE, text=False)
                 elif self.output_format == "opus":
                     static_ffmpeg.add_paths()
                     cmd = [
@@ -912,8 +926,9 @@ class ConversionThread(QThread):
                 if self.output_format in ["wav", "mp3", "flac"]:
                     merged_out_file.close()
                 elif self.output_format == "m4b":
-                    merged_out_file.close()
-                    # Only generate chapters info if there are chapters
+                    ffmpeg_proc.stdin.close()
+                    ffmpeg_proc.wait()
+                    # Add chapters via fast post-processing
                     if total_chapters > 1:
                         chapters_info_path = f"{base_filepath_no_ext}_chapters.txt"
                         with open(chapters_info_path, "w", encoding="utf-8") as f:
@@ -925,63 +940,26 @@ class ConversionThread(QThread):
                                 f.write(f"START={int(chapter['start']*1000)}\n")
                                 f.write(f"END={int(chapter['end']*1000)}\n")
                                 f.write(f"title={chapter_title}\n\n")
-                        metadata_options = (
-                            self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
-                        )
+                        # Fast mux chapters into m4b (write to temp file, then replace original)
                         static_ffmpeg.add_paths()
+                        orig_path = merged_out_path
+                        root, ext = os.path.splitext(orig_path)
+                        tmp_path = root + ".tmp" + ext
                         cmd = [
                             "ffmpeg",
                             "-y",
-                            "-i",
-                            temp_wav_path,
-                            "-i",
-                            chapters_info_path,
-                            "-map",
-                            "0:a",
-                            "-map_metadata",
-                            "1",
-                            "-map_chapters",
-                            "1",
-                            *metadata_options,
-                            "-c:a",
-                            "aac",
-                            "-q:a",
-                            "2",
-                            "-movflags",
-                            "+faststart+use_metadata_tags",
-                            merged_out_path,
+                            "-i", orig_path,
+                            "-i", chapters_info_path,
+                            "-map", "0:a",
+                            "-map_metadata", "1",
+                            "-map_chapters", "1",
+                            "-c:a", "copy",
+                            tmp_path
                         ]
                         proc = create_process(cmd)
                         proc.wait()
-                        self.log_updated.emit(
-                            ("\nCleaning up temporary files...", "grey")
-                        )
-                        if os.path.exists(chapters_info_path):
-                            os.remove(chapters_info_path)
-                    else:
-                        # No chapters: skip chapters info and related ffmpeg args
-                        metadata_options = (
-                            self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
-                        )
-                        static_ffmpeg.add_paths()
-                        cmd = [
-                            "ffmpeg",
-                            "-y",
-                            "-i",
-                            temp_wav_path,
-                            *metadata_options,
-                            "-c:a",
-                            "aac",
-                            "-q:a",
-                            "2",
-                            "-movflags",
-                            "+faststart+use_metadata_tags",
-                            merged_out_path,
-                        ]
-                        proc = create_process(cmd)
-                        proc.wait()
-                    if os.path.exists(temp_wav_path):
-                        os.remove(temp_wav_path)
+                        os.replace(tmp_path, orig_path)
+                        os.remove(chapters_info_path)
                 elif self.output_format in ["opus"]:
                     ffmpeg_proc.stdin.close()
                     ffmpeg_proc.wait()
