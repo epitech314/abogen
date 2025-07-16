@@ -1,5 +1,9 @@
+# 1.1.4
+- Fixed extra metadata information not being saved to M4B files, ensuring that all metadata is correctly written to the output file.
+- Reformatted the code using Black for better readability and consistency.
+
 # 1.1.3
-- `M4B (with chapters)` generation is faster now, as it directly generates `m4b` files instead of converting from `wav`, which significantly reduces processing time.
+- `M4B (with chapters)` generation is faster now, as it directly generates `m4b` files instead of converting from `wav`, which significantly reduces processing time, fixes the issue mentioned by @Milor123 in #39 
 - Better sleep state handling for Linux.
 - The app window now tries to fit the screen if its height would exceed the available display area.
 - Fixed issue where the app would not restart properly on Windows.

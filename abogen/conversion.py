@@ -493,20 +493,26 @@ class ConversionThread(QThread):
                     merged_out_file = None
                     ffmpeg_proc = None
                     # Prepare ffmpeg command for m4b output
-                    metadata_options = self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
                     cmd = [
                         "ffmpeg",
                         "-y",
-                        "-thread_queue_size", "32768",
-                        "-f", "f32le",
-                        "-ar", "24000",
-                        "-ac", "1",
-                        "-i", "pipe:0",
-                        "-c:a", "aac",
-                        "-q:a", "2",
-                        "-movflags", "+faststart+use_metadata_tags",
+                        "-thread_queue_size",
+                        "32768",
+                        "-f",
+                        "f32le",
+                        "-ar",
+                        "24000",
+                        "-ac",
+                        "1",
+                        "-i",
+                        "pipe:0",
+                        "-c:a",
+                        "aac",
+                        "-q:a",
+                        "2",
+                        "-movflags",
+                        "+faststart+use_metadata_tags",
                     ]
-                    cmd += metadata_options
                     cmd.append(merged_out_path)
                     ffmpeg_proc = create_process(cmd, stdin=subprocess.PIPE, text=False)
                 elif self.output_format == "opus":
@@ -807,7 +813,7 @@ class ConversionThread(QThread):
                                 tokens_with_timestamps,
                                 new_entries,
                                 self.max_subtitle_words,
-                                fallback_end_time=chunk_start + chunk_dur
+                                fallback_end_time=chunk_start + chunk_dur,
                             )
                             if merged_subtitle_file:
                                 subtitle_format = getattr(
@@ -945,17 +951,27 @@ class ConversionThread(QThread):
                         orig_path = merged_out_path
                         root, ext = os.path.splitext(orig_path)
                         tmp_path = root + ".tmp" + ext
+                        metadata_options = (
+                            self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                        )
                         cmd = [
                             "ffmpeg",
                             "-y",
-                            "-i", orig_path,
-                            "-i", chapters_info_path,
-                            "-map", "0:a",
-                            "-map_metadata", "1",
-                            "-map_chapters", "1",
-                            "-c:a", "copy",
-                            tmp_path
+                            "-i",
+                            orig_path,
+                            "-i",
+                            chapters_info_path,
+                            "-map",
+                            "0:a",
+                            "-map_metadata",
+                            "1",
+                            "-map_chapters",
+                            "1",
+                            "-c:a",
+                            "copy",
                         ]
+                        cmd += metadata_options
+                        cmd.append(tmp_path)
                         proc = create_process(cmd)
                         proc.wait()
                         os.replace(tmp_path, orig_path)
@@ -1126,7 +1142,11 @@ class ConversionThread(QThread):
         return f"{h}:{m:02}:{s:02}.{cs:02}"
 
     def _process_subtitle_tokens(
-        self, tokens_with_timestamps, subtitle_entries, max_subtitle_words, fallback_end_time=None
+        self,
+        tokens_with_timestamps,
+        subtitle_entries,
+        max_subtitle_words,
+        fallback_end_time=None,
     ):
         """Helper function to process subtitle tokens according to the subtitle mode"""
         if not tokens_with_timestamps:
@@ -1222,6 +1242,7 @@ class ConversionThread(QThread):
                 start, end, text = last_entry
                 if end is None or end <= start or end <= 0:
                     subtitle_entries[-1] = (start, fallback_end_time, text)
+
     def cancel(self):
         self.cancel_requested = True
         self.should_cancel = True

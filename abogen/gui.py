@@ -2822,14 +2822,15 @@ class abogen(QWidget):
     def restart_app(self):
         from PyQt5.QtCore import QProcess
         import sys
+
         exe = sys.executable
         args = sys.argv
 
         # On Windows, use .exe if available
         if platform.system() == "Windows":
             script_path = args[0]
-            if not script_path.lower().endswith('.exe'):
-                exe_path = os.path.splitext(script_path)[0] + '.exe'
+            if not script_path.lower().endswith(".exe"):
+                exe_path = os.path.splitext(script_path)[0] + ".exe"
                 if os.path.exists(exe_path):
                     args[0] = exe_path
 

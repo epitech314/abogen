@@ -245,6 +245,7 @@ def get_gpu_acceleration(enabled):
 
 def prevent_sleep_start():
     from abogen.constants import PROGRAM_NAME
+
     system = platform.system()
     if system == "Windows":
         import ctypes
