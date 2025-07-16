@@ -2,6 +2,8 @@
 - Changed the temporary directory path to user's cache directory, which is more appropriate for storing cache files and avoids issues with unintended cleanup.
 - Fixed the isssue where extra metadata information was not being saved to M4B files when they have no chapters, ensuring that all metadata is correctly written to the output file.
 - Fixed sleep prevention process not ending if program exited using Ctrl+C or kill.
+- Improved automatic filename suffixing to better prevent overwriting files with the same name, even if they have different extensions.
+- Improvements in code and documentation.
 
 # 1.1.4
 - Fixed extra metadata information not being saved to M4B files, ensuring that all metadata is correctly written to the output file.

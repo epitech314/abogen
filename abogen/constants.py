@@ -31,6 +31,28 @@ LANGUAGE_DESCRIPTIONS = {
     "z": "Mandarin Chinese",
 }
 
+# Supported sound formats
+SUPPORTED_SOUND_FORMATS = [
+    "wav",
+    "mp3",
+    "opus",
+    "m4b",
+    "flac",
+]
+
+# Supported subtitle formats
+SUPPORTED_SUBTITLE_FORMATS = [
+    "srt",
+    "ass",
+]
+
+# Supported input formats
+SUPPORTED_INPUT_FORMATS = [
+    "epub",
+    "pdf",
+    "txt",
+]
+
 # Supported languages for subtitle generation
 # Currently, only 'a (American English)' and 'b (British English)' are supported for subtitle generation.
 # This is because tokens that contain timestamps are not generated for other languages in the Kokoro pipeline.

@@ -10,12 +10,13 @@ from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButt
 import soundfile as sf
 from abogen.utils import clean_text, create_process, get_user_cache_path
 from abogen.constants import (
-    PROGRAM_NAME,
     LANGUAGE_DESCRIPTIONS,
     SAMPLE_VOICE_TEXTS,
     COLORS,
     CHAPTER_OPTIONS_COUNTDOWN,
     SUBTITLE_FORMATS,
+    SUPPORTED_SOUND_FORMATS,
+    SUPPORTED_SUBTITLE_FORMATS,
 )
 from abogen.voice_formulas import get_new_voice
 import abogen.hf_tracker as hf_tracker
@@ -425,29 +426,19 @@ class ConversionThread(QThread):
                 )
             # Find a unique suffix for both folder and merged file, always
             counter = 1
+            allowed_exts = set(SUPPORTED_SOUND_FORMATS + SUPPORTED_SUBTITLE_FORMATS)
             while True:
                 suffix = f"_{counter}" if counter > 1 else ""
                 chapters_out_dir_candidate = os.path.join(
                     parent_dir, f"{base_name}{suffix}_chapters"
                 )
-                merged_file_candidate = os.path.join(
-                    parent_dir, f"{base_name}{suffix}.{self.output_format}"
+                # Only check for files with allowed extensions (extension without dot, case-insensitive)
+                clash = any(
+                    os.path.splitext(fname)[0] == f"{base_name}{suffix}" and
+                    os.path.splitext(fname)[1][1:].lower() in allowed_exts
+                    for fname in os.listdir(parent_dir)
                 )
-                merged_srt_candidate = (
-                    os.path.splitext(merged_file_candidate)[0] + ".srt"
-                )
-                if (
-                    not os.path.exists(chapters_out_dir_candidate)
-                    and (
-                        not merge_chapters_at_end
-                        or not os.path.exists(merged_file_candidate)
-                    )
-                    and (
-                        self.subtitle_mode == "Disabled"
-                        or not merge_chapters_at_end
-                        or not os.path.exists(merged_srt_candidate)
-                    )
-                ):
+                if not os.path.exists(chapters_out_dir_candidate) and not clash:
                     break
                 counter += 1
             if save_chapters_separately and total_chapters > 1:
