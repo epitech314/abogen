@@ -1,6 +1,7 @@
-# 1.1.3 (pre-release)
-- `M4B (with chapters)` generation is not faster now, as it directly generates `m4b` files instead of converting from `wav`, which significantly reduces processing time.
+# 1.1.3
+- `M4B (with chapters)` generation is faster now, as it directly generates `m4b` files instead of converting from `wav`, which significantly reduces processing time.
 - Better sleep state handling for Linux.
+- The app window now tries to fit the screen if its height would exceed the available display area.
 - Fixed issue where the app would not restart properly on Windows.
 - Fixed last sentence/subtitle entry timing in generated subtitles, the end time of the final subtitle entry now correctly matches the end of the audio chunk, preventing zero or invalid timings at the end.
 

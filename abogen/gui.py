@@ -763,7 +763,11 @@ class abogen(QWidget):
         self.setWindowTitle(f"{PROGRAM_NAME} v{VERSION}")
         screen = QApplication.primaryScreen().geometry()
         width, height = 500, 800
-        x, y = (screen.width() - width) // 2, (screen.height() - height) // 2
+        x = (screen.width() - width) // 2
+        # If desired height is larger than screen, fit to screen height
+        if height > screen.height() - 65:
+            height = screen.height() - 100  # Leave a margin for window borders
+        y = max((screen.height() - height) // 2, 0)
         self.setGeometry(x, y, width, height)
         outer_layout = QVBoxLayout()
         outer_layout.setContentsMargins(15, 15, 15, 15)
@@ -2871,7 +2875,6 @@ class abogen(QWidget):
         )
         if reply == QMessageBox.Yes:
             from abogen.utils import get_user_config_path
-            import sys
 
             config_path = get_user_config_path()
             try:
