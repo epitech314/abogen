@@ -1,4 +1,4 @@
-# 1.1.5 (pre-release)
+# 1.1.5
 - Changed the temporary directory path to user's cache directory, which is more appropriate for storing cache files and avoids issues with unintended cleanup.
 - Fixed the isssue where extra metadata information was not being saved to M4B files when they have no chapters, ensuring that all metadata is correctly written to the output file.
 - Fixed sleep prevention process not ending if program exited using Ctrl+C or kill.
