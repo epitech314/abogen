@@ -149,9 +149,9 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 | **Configure max lines in log window** | Configures the maximum number of lines to display in the log window. |
 | **Separate chapters audio format** | Configures the audio format for separate chapters as `wav`, `flac`, `mp3`, or `opus`. |
 | **Create desktop shortcut** | Creates a shortcut on your desktop for easy access. |
-| **Open config.json directory** | Opens the directory where the configuration file is stored. |
-| **Open temp directory** | Opens the temporary directory where converted text files are stored. |
-| **Clear temporary files** | Deletes temporary files created during the conversion or preview. |
+| **Open config directory** | Opens the directory where the configuration file is stored. |
+| **Open cache directory** | Opens the cache directory where converted text files are stored. |
+| **Clear cache files** | Deletes cache files created during the conversion or preview. |
 | **Check for updates at startup** | Automatically checks for updates when the program starts. |
 | **Disable Kokoro's internet access** | Prevents Kokoro from downloading models or voices from HuggingFace Hub, useful for offline use. |
 | **Reset to default settings** | Resets all settings to their default values. |
@@ -174,7 +174,7 @@ Abogen will process each item in the queue automatically, saving outputs as conf
 > Special thanks to [@jborza](https://github.com/jborza) for adding queue mode in PR [#35](https://github.com/denizsafak/abogen/pull/35)
 
 ## `About Chapter Markers`
-When you process ePUB or PDF files, Abogen converts them into text files stored in your temporary directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
+When you process ePUB or PDF files, Abogen converts them into text files stored in your cache directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
 
 ```
 <<CHAPTER_MARKER:Chapter Title>>
@@ -270,7 +270,7 @@ Abogen launches automatically inside the container.
 
 Known issues:
 - Audio preview is not working inside container (ALSA error).
-- `Open temp directory` and `Open configuration directory` options in settings not working. (Tried pcmanfm, did not work with Abogen).
+- `Open cache directory` and `Open configuration directory` options in settings not working. (Tried pcmanfm, did not work with Abogen).
 
 (Special thanks to [@geo38](https://www.reddit.com/user/geo38/) from Reddit, who provided the Dockerfile and instructions in [this comment](https://www.reddit.com/r/selfhosted/comments/1k8x1yo/comment/mpe0bz8/).)
 

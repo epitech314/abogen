@@ -1,6 +1,5 @@
 import os
 import re
-import tempfile
 import time
 import chardet
 import charset_normalizer
@@ -9,7 +8,7 @@ from platformdirs import user_desktop_dir
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
-from abogen.utils import clean_text, create_process
+from abogen.utils import clean_text, create_process, get_user_cache_path
 from abogen.constants import (
     PROGRAM_NAME,
     LANGUAGE_DESCRIPTIONS,
@@ -1297,10 +1296,7 @@ class VoicePreviewThread(QThread):
         self.use_gpu = use_gpu
 
         # Cache location for preview audio
-        self.cache_dir = os.path.join(
-            tempfile.gettempdir(), PROGRAM_NAME, "preview_cache"
-        )
-        os.makedirs(self.cache_dir, exist_ok=True)
+        self.cache_dir = get_user_cache_path("preview_cache")
 
         # Calculate cache path
         self.cache_path = self._get_cache_path()

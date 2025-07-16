@@ -62,6 +62,7 @@ from abogen.utils import (
     prevent_sleep_end,
     calculate_text_length,
     get_resource_path,
+    get_user_cache_path,
     LoadPipelineThread,
 )
 from abogen.conversion import ConversionThread, VoicePreviewThread, PlayAudioThread
@@ -564,12 +565,12 @@ class TextboxDialog(QDialog):
             self.reject()
         else:
             # Check if we need to warn about overwriting a non-temporary file
-            if hasattr(self, "is_non_temp_file") and self.is_non_temp_file:
+            if hasattr(self, "is_non_cache_file") and self.is_non_cache_file:
                 msg_box = QMessageBox(self)
                 msg_box.setIcon(QMessageBox.Warning)
                 msg_box.setWindowTitle("File Overwrite Warning")
                 msg_box.setText(
-                    f"You are about to overwrite the original file:\n{self.non_temp_file_path}"
+                    f"You are about to overwrite the original file:\n{self.non_cache_file_path}"
                 )
                 msg_box.setInformativeText("Do you want to continue?")
                 msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
@@ -591,11 +592,11 @@ class TextboxDialog(QDialog):
 
             # Get default filename from original file if editing
             initial_path = ""
-            if hasattr(self, "non_temp_file_path") and self.non_temp_file_path:
-                initial_path = self.non_temp_file_path
+            if hasattr(self, "non_cache_file_path") and self.non_cache_file_path:
+                initial_path = self.non_cache_file_path
 
             # For EPUB and PDF files, use the displayed_file_path from the main window
-            # This gives a better filename instead of the temporary file path
+            # This gives a better filename instead of the cache file path
             main_window = self.parent()
             if (
                 hasattr(main_window, "displayed_file_path")
@@ -1195,7 +1196,7 @@ class abogen(QWidget):
             if book_path.lower().endswith(".pdf"):
                 self.pdf_has_bookmarks = getattr(dialog, "has_pdf_bookmarks", False)
 
-            # Use "abogen" prefix for temporary files
+            # Use "abogen" prefix for cache files
             # Extract base name without extension
             base_name = os.path.splitext(os.path.basename(book_path))[0]
 
@@ -1205,15 +1206,15 @@ class abogen(QWidget):
                     self, "Select Project Folder", "", QFileDialog.ShowDirsOnly
                 )
                 if not project_dir:
-                    # User cancelled, fallback to temp
+                    # User cancelled, fallback to cache
                     self.save_as_project = False
-                    temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
+                    cache_dir = get_user_cache_path()
                 else:
                     # Create project folder structure
                     project_name = f"{base_name}_project"
                     project_dir = os.path.join(project_dir, project_name)
-                    temp_dir = os.path.join(project_dir, "text")
-                    os.makedirs(temp_dir, exist_ok=True)
+                    cache_dir = os.path.join(project_dir, "text")
+                    os.makedirs(cache_dir, exist_ok=True)
 
                     # Save metadata if available
                     meta_dir = os.path.join(project_dir, "metadata")
@@ -1268,11 +1269,10 @@ class abogen(QWidget):
                         with open(cover_path, "wb") as f:
                             f.write(dialog.book_metadata["cover_image"])
             else:
-                temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
-                os.makedirs(temp_dir, exist_ok=True)
+                cache_dir = get_user_cache_path()
 
             fd, tmp = tempfile.mkstemp(
-                prefix=f"{base_name}_", suffix=".txt", dir=temp_dir
+                prefix=f"{base_name}_", suffix=".txt", dir=cache_dir
             )
             os.close(fd)
             with open(tmp, "w", encoding="utf-8") as f:
@@ -1293,13 +1293,13 @@ class abogen(QWidget):
             return
 
         editing = False
-        is_temp_file = False
+        is_cache_file = False
         # If path is explicitly provided, use it
         if file_path and os.path.exists(file_path):
             editing = True
             edit_file = file_path
-            # Check if this is a temporary file
-            is_temp_file = tempfile.gettempdir() in file_path
+            # Check if this is a cache file
+            is_cache_file = get_user_cache_path() in file_path
         # Otherwise use selected_file if it's a txt file
         elif (
             self.selected_file_type == "txt"
@@ -1308,8 +1308,8 @@ class abogen(QWidget):
         ):
             editing = True
             edit_file = self.selected_file
-            # Check if this is a temporary file
-            is_temp_file = tempfile.gettempdir() in self.selected_file
+            # Check if this is a cache file
+            is_cache_file = get_user_cache_path() in self.selected_file
 
         dialog = TextboxDialog(self)
         if editing:
@@ -1321,10 +1321,10 @@ class abogen(QWidget):
                     dialog.text_edit.toPlainText()
                 )  # Store original text
 
-                # If editing a non-temporary file, alert the user
-                if not is_temp_file:
-                    dialog.is_non_temp_file = True
-                    dialog.non_temp_file_path = edit_file
+                # If editing a non-cache file, alert the user
+                if not is_cache_file:
+                    dialog.is_non_cache_file = True
+                    dialog.non_cache_file_path = edit_file
             except Exception:
                 pass
         if dialog.exec_() == QDialog.Accepted:
@@ -1342,10 +1342,9 @@ class abogen(QWidget):
                     # Hide chapters button since we're using custom text now
                     self.input_box.chapters_btn.hide()
                 else:
-                    temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
-                    os.makedirs(temp_dir, exist_ok=True)
+                    cache_dir = get_user_cache_path()
                     fd, tmp = tempfile.mkstemp(
-                        prefix="abogen_", suffix=".txt", dir=temp_dir
+                        prefix="abogen_", suffix=".txt", dir=cache_dir
                     )
                     os.close(fd)
                     with open(tmp, "w", encoding="utf-8") as f:
@@ -2153,7 +2152,7 @@ class abogen(QWidget):
         if not lang_to_cache or not voice_to_cache:  # Not enough info
             return None
 
-        cache_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME, "preview_cache")
+        cache_dir = get_user_cache_path("preview_cache")
 
         if "*" in voice_to_cache:  # Voice formula
             voice_id = (
@@ -2771,17 +2770,17 @@ class abogen(QWidget):
         reveal_config_action.triggered.connect(self.reveal_config_in_explorer)
         menu.addAction(reveal_config_action)
 
-        # Add open temp directory option
-        open_temp_action = QAction("Open temp directory", self)
-        open_temp_action.triggered.connect(self.open_temp_directory)
-        menu.addAction(open_temp_action)
+        # Add open cache directory option
+        open_cache_action = QAction("Open cache directory", self)
+        open_cache_action.triggered.connect(self.open_cache_directory)
+        menu.addAction(open_cache_action)
 
-        # Add clear temporary files option
-        clear_temp_action = QAction("Clear temporary files", self)
-        clear_temp_action.triggered.connect(self.clear_temp_files)
-        menu.addAction(clear_temp_action)
+        # Add clear cache files option
+        clear_cache_action = QAction("Clear cache files", self)
+        clear_cache_action.triggered.connect(self.clear_cache_files)
+        menu.addAction(clear_cache_action)
 
-        # Add seperator"
+        # Add separator
         menu.addSeparator()
 
         # Add "Disable Kokoro's internet access" option
@@ -2900,21 +2899,21 @@ class abogen(QWidget):
                 self, "Config Error", f"Could not open config location:\n{e}"
             )
 
-    def open_temp_directory(self):
-        """Open the temporary directory used by the program."""
+    def open_cache_directory(self):
+        """Open the cache directory used by the program."""
         try:
-            # Get the temp directory path
-            temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
+            # Get the cache directory path
+            cache_dir = get_user_cache_path()
 
             # Create the directory if it doesn't exist
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
 
             # Open the directory in file explorer
-            QDesktopServices.openUrl(QUrl.fromLocalFile(temp_dir))
+            QDesktopServices.openUrl(QUrl.fromLocalFile(cache_dir))
         except Exception as e:
             QMessageBox.critical(
-                self, "Temp Directory Error", f"Could not open temp directory:\n{e}"
+                self, "Cache Directory Error", f"Could not open cache directory:\n{e}"
             )
 
     def add_shortcut_to_desktop(self):
@@ -3254,23 +3253,23 @@ Categories=AudioVideo;Audio;Utility;
                 )
             pass
 
-    def clear_temp_files(self):
-        """Clear temporary files created by the program."""
+    def clear_cache_files(self):
+        """Clear cache files created by the program."""
         import glob
 
         try:
-            # Get the abogen temp directory
-            temp_dir = os.path.join(tempfile.gettempdir(), PROGRAM_NAME)
+            # Get the abogen cache directory
+            cache_dir = get_user_cache_path()
 
-            # Find all .txt files in the abogen temp directory
-            pattern = os.path.join(temp_dir, "*.txt")
-            temp_files = glob.glob(pattern)
+            # Find all .txt files in the abogen cache directory
+            pattern = os.path.join(cache_dir, "*.txt")
+            cache_files = glob.glob(pattern)
 
             # Count the files
-            file_count = len(temp_files)
+            file_count = len(cache_files)
 
             # Check for preview cache files
-            preview_cache_dir = os.path.join(temp_dir, "preview_cache")
+            preview_cache_dir = os.path.join(cache_dir, "preview_cache")
             preview_files = []
             if os.path.exists(preview_cache_dir):
                 preview_pattern = os.path.join(preview_cache_dir, "*.wav")
@@ -3280,16 +3279,16 @@ Categories=AudioVideo;Audio;Utility;
 
             if file_count == 0 and preview_count == 0:
                 QMessageBox.information(
-                    self, "No Temporary Files", "No temporary files were found."
+                    self, "No Cache Files", "No cache files were found."
                 )
                 return
 
             # Create a custom message box with checkbox
             msg_box = QMessageBox(self)
             msg_box.setIcon(QMessageBox.Question)
-            msg_box.setWindowTitle("Clear Temporary Files")
+            msg_box.setWindowTitle("Clear Cache Files")
 
-            msg_text = f"Found {file_count} temporary file{'s' if file_count != 1 else ''} in the {PROGRAM_NAME} temp folder."
+            msg_text = f"Found {file_count} cache file{'s' if file_count != 1 else ''} in the {PROGRAM_NAME} cache folder."
             if preview_count > 0:
                 msg_text += f"\nAlso found {preview_count} preview cache file{'s' if preview_count != 1 else ''}."
 
@@ -3313,7 +3312,7 @@ Categories=AudioVideo;Audio;Utility;
 
             # Delete the text files
             deleted_count = 0
-            for file_path in temp_files:
+            for file_path in cache_files:
                 try:
                     os.remove(file_path)
                     deleted_count += 1
@@ -3336,12 +3335,12 @@ Categories=AudioVideo;Audio;Utility;
                 result_msg += f"\nAlso deleted {deleted_preview_count} preview cache file{'s' if deleted_preview_count != 1 else ''}."
 
             # Show results
-            QMessageBox.information(self, "Temporary Files Cleared", result_msg)
+            QMessageBox.information(self, "Cache Files Cleared", result_msg)
 
-            # If currently selected file is in the temp directory, clear the UI
+            # If currently selected file is in the cache directory, clear the UI
             if (
                 self.selected_file
-                and os.path.dirname(self.selected_file) == temp_dir
+                and os.path.dirname(self.selected_file) == cache_dir
                 and self.selected_file.endswith(".txt")
             ):
                 self.input_box.clear_input()

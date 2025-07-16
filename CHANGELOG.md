@@ -1,3 +1,7 @@
+# 1.1.5 (pre-release)
+- Changed the temporary directory path to user's cache directory, which is more appropriate for storing cache files and avoids issues with unintended cleanup.
+- Fixed the isssue where extra metadata information was not being saved to M4B files when they have no chapters, ensuring that all metadata is correctly written to the output file.
+
 # 1.1.4
 - Fixed extra metadata information not being saved to M4B files, ensuring that all metadata is correctly written to the output file.
 - Reformatted the code using Black for better readability and consistency.
