@@ -1,5 +1,6 @@
 # 1.1.6 (pre-release)
 - Fixed SRT subtitle numbering issue, mentioned by @page-muncher in #41
+- Improved EPUB chapter detection: Now reliably detects chapters from NAV HTML (TOC) files, even in non-standard EPUBs, fixes the issue mentioned by @jefro108 in #33
 - Windows installer script now prompts the user to install the CUDA version of PyTorch even if no NVIDIA GPU is detected.
 - Abogen now includes Mandarin Chinese (misaki[zh]) by default; manual installation is no longer required.
 

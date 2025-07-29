@@ -324,14 +324,29 @@ class HandlerDialog(QDialog):
                     f"Found NCX item via ITEM_NAVIGATION: {ncx_in_nav.get_name()}"
                 )
 
-        # 3. If still no nav_item, check for ITEM_NCX directly
-        if not nav_item:
-            ncx_items = list(self.book.get_items_of_type(ebooklib.ITEM_NCX))
+        # 3. If still no nav_item, check for NCX or fallback to NAV HTML in all ITEM_DOCUMENTs
+        ncx_constant = getattr(epub, 'ITEM_NCX', None)
+        if not nav_item and ncx_constant is not None:
+            ncx_items = list(self.book.get_items_of_type(ncx_constant))
             if ncx_items:
-                nav_item = ncx_items[0]  # Take the first one
+                nav_item = ncx_items[0]
                 nav_type = "ncx"
-                logging.info(f"Found NCX item via ITEM_NCX: {ncx_items[0].get_name()}")
-
+                logging.info(f"Found NCX item via ITEM_NCX: {nav_item.get_name()}")
+        # Fallback: search all ITEM_DOCUMENTs for a NAV HTML with <nav epub:type="toc">
+        if not nav_item:
+            for item in self.book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+                try:
+                    html_content = item.get_content().decode("utf-8", errors="ignore")
+                    if '<nav' in html_content and 'epub:type="toc"' in html_content:
+                        soup = BeautifulSoup(html_content, "html.parser")
+                        nav_tag = soup.find("nav", attrs={"epub:type": "toc"})
+                        if nav_tag:
+                            nav_item = item
+                            nav_type = "html"
+                            logging.info(f"Found NAV HTML with TOC in: {item.get_name()}")
+                            break
+                except Exception as e:
+                    continue
         # 4. If no navigation item found by any method, trigger fallback
         if not nav_item or not nav_type:
             logging.warning(
@@ -516,10 +531,12 @@ class HandlerDialog(QDialog):
                         slice_html += self.doc_content.get(intermediate_doc_href, "")
                 except Exception:
                     pass
-
+            # Fallback: if slice_html is empty, try to get the whole file's text
+            if not slice_html.strip() and current_doc_html:
+                logging.warning(f"No content found for src '{current_src}', using full file as fallback.")
+                slice_html = current_doc_html
             if slice_html.strip():
                 slice_soup = BeautifulSoup(slice_html, "html.parser")
-                # Add double newlines after <p> and <div> tags
                 for tag in slice_soup.find_all(["p", "div"]):
                     tag.append("\n\n")
                 for tag in slice_soup.find_all(["sup", "sub"]):
@@ -581,6 +598,23 @@ class HandlerDialog(QDialog):
             f"Finished processing EPUB navigation. Found {len(self.content_texts)} content sections linked to TOC."
         )
 
+    def _find_doc_key(self, base_href, doc_order, doc_order_decoded):
+        """Find the best matching doc_key for a given base_href using robust matching."""
+        candidates = [
+            base_href,
+            urllib.parse.unquote(base_href),
+        ]
+        base_name = os.path.basename(base_href).lower()
+        for k in list(doc_order.keys()) + list(doc_order_decoded.keys()):
+            if os.path.basename(k).lower() == base_name:
+                candidates.append(k)
+        for candidate in candidates:
+            if candidate in doc_order:
+                return candidate, doc_order[candidate]
+            elif candidate in doc_order_decoded:
+                return candidate, doc_order_decoded[candidate]
+        return None, None
+
     def _parse_ncx_navpoint(
         self,
         nav_point,
@@ -603,27 +637,13 @@ class HandlerDialog(QDialog):
 
         if src:
             base_href, fragment = src.split("#", 1) if "#" in src else (src, None)
-            # Try both original and decoded hrefs
-            doc_key = None
-            if base_href in doc_order:
-                doc_key = base_href
-                doc_idx = doc_order[base_href]
-            elif urllib.parse.unquote(base_href) in doc_order:
-                doc_key = urllib.parse.unquote(base_href)
-                doc_idx = doc_order[doc_key]
-            elif base_href in doc_order_decoded:
-                doc_key = base_href
-                doc_idx = doc_order_decoded[base_href]
-            elif urllib.parse.unquote(base_href) in doc_order_decoded:
-                doc_key = urllib.parse.unquote(base_href)
-                doc_idx = doc_order_decoded[doc_key]
-            else:
+            doc_key, doc_idx = self._find_doc_key(base_href, doc_order, doc_order_decoded)
+            if not doc_key:
                 logging.warning(
-                    f"Navigation entry '{title}' points to '{base_href}', which is not in the spine or document list."
+                    f"Navigation entry '{title}' points to '{base_href}', which is not in the spine or document list (even after basename fallback)."
                 )
                 current_entry_node["has_content"] = False
-                doc_key = None
-            if doc_key is not None:
+            else:
                 position = find_position_func(doc_key, fragment)
                 entry_data = {
                     "src": src,
@@ -698,28 +718,13 @@ class HandlerDialog(QDialog):
         current_entry_node["title"] = title
         current_entry_node["src"] = src
 
+        doc_key = None
+        doc_idx = None
+        position = 0
+        fragment = None
         if src:
             base_href, fragment = src.split("#", 1) if "#" in src else (src, None)
-            # Try both original and decoded hrefs
-            doc_key = None
-            if base_href in doc_order:
-                doc_key = base_href
-                doc_idx = doc_order[base_href]
-            elif urllib.parse.unquote(base_href) in doc_order:
-                doc_key = urllib.parse.unquote(base_href)
-                doc_idx = doc_order[doc_key]
-            elif base_href in doc_order_decoded:
-                doc_key = base_href
-                doc_idx = doc_order_decoded[base_href]
-            elif urllib.parse.unquote(base_href) in doc_order_decoded:
-                doc_key = urllib.parse.unquote(base_href)
-                doc_idx = doc_order_decoded[doc_key]
-            else:
-                logging.warning(
-                    f"Navigation entry '{title}' points to '{base_href}', which is not in the spine or document list."
-                )
-                current_entry_node["has_content"] = False
-                doc_key = None
+            doc_key, doc_idx = self._find_doc_key(base_href, doc_order, doc_order_decoded)
             if doc_key is not None:
                 position = find_position_func(doc_key, fragment)
                 entry_data = {
@@ -731,13 +736,16 @@ class HandlerDialog(QDialog):
                 }
                 ordered_entries.append(entry_data)
                 current_entry_node["has_content"] = True
+            else:
+                logging.warning(
+                    f"Navigation entry '{title}' points to '{base_href}', which is not in the spine or document list (even after basename fallback)."
+                )
+                current_entry_node["has_content"] = False
         else:
             current_entry_node["has_content"] = False
 
-        child_ol = li_element.find("ol", recursive=False)
-        if child_ol:
+        for child_ol in li_element.find_all("ol", recursive=False):
             for child_li in child_ol.find_all("li", recursive=False):
-                # Pass find_position_func down recursively
                 self._parse_html_nav_li(
                     child_li,
                     ordered_entries,
@@ -746,12 +754,7 @@ class HandlerDialog(QDialog):
                     current_entry_node["children"],
                     find_position_func,
                 )
-
-        if title and (
-            current_entry_node.get("has_content", False)
-            or current_entry_node["children"]
-        ):
-            tree_structure_list.append(current_entry_node)
+        tree_structure_list.append(current_entry_node)
 
     def _find_position_robust(self, doc_href, fragment_id):
         if doc_href not in self.doc_content:
