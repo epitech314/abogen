@@ -74,23 +74,31 @@ def get_user_config_path():
         if os.path.exists(custom_dir):
             config_dir = custom_dir
         else:
-            config_dir = user_config_dir("abogen", appauthor=False, roaming=True, ensure_exists=True)
+            config_dir = user_config_dir(
+                "abogen", appauthor=False, roaming=True, ensure_exists=True
+            )
     else:
         # Windows and fallback case
-        config_dir = user_config_dir("abogen", appauthor=False, roaming=True, ensure_exists=True)
+        config_dir = user_config_dir(
+            "abogen", appauthor=False, roaming=True, ensure_exists=True
+        )
 
     return os.path.join(config_dir, "config.json")
+
 
 # Define cache path
 def get_user_cache_path(folder=None):
     from platformdirs import user_cache_dir
 
-    cache_dir = user_cache_dir("abogen", appauthor=False, opinion=True, ensure_exists=True)
+    cache_dir = user_cache_dir(
+        "abogen", appauthor=False, opinion=True, ensure_exists=True
+    )
     if folder:
         cache_dir = os.path.join(cache_dir, folder)
         # Ensure the directory exists
         os.makedirs(cache_dir, exist_ok=True)
     return cache_dir
+
 
 _sleep_procs = {"Darwin": None, "Linux": None}  # Store sleep prevention processes
 

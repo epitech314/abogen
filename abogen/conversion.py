@@ -434,8 +434,8 @@ class ConversionThread(QThread):
                 )
                 # Only check for files with allowed extensions (extension without dot, case-insensitive)
                 clash = any(
-                    os.path.splitext(fname)[0] == f"{base_name}{suffix}" and
-                    os.path.splitext(fname)[1][1:].lower() in allowed_exts
+                    os.path.splitext(fname)[0] == f"{base_name}{suffix}"
+                    and os.path.splitext(fname)[1][1:].lower() in allowed_exts
                     for fname in os.listdir(parent_dir)
                 )
                 if not os.path.exists(chapters_out_dir_candidate) and not clash:
@@ -485,8 +485,8 @@ class ConversionThread(QThread):
                     merged_out_file = None
                     ffmpeg_proc = None
                     metadata_options = (
-                            self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
-                        )
+                        self._extract_and_add_metadata_tags_to_ffmpeg_cmd()
+                    )
                     # Prepare ffmpeg command for m4b output
                     cmd = [
                         "ffmpeg",
@@ -680,7 +680,9 @@ class ConversionThread(QThread):
                         continue
                     # Open chapter subtitle file for incremental writing if needed
                     chapter_subtitle_file = None
-                    chapter_srt_index = 1  # Initialize SRT numbering for this chapter file
+                    chapter_srt_index = (
+                        1  # Initialize SRT numbering for this chapter file
+                    )
                     if self.subtitle_mode != "Disabled":
                         subtitle_format = getattr(self, "subtitle_format", "srt")
                         file_extension = "ass" if "ass" in subtitle_format else "srt"

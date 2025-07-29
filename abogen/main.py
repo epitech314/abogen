@@ -32,10 +32,12 @@ os.environ["MIOPEN_CONV_PRECISE_ROCM_TUNING"] = "0"
 # Reset sleep states
 atexit.register(prevent_sleep_end)
 
+
 # Also handle signals (Ctrl+C, kill, etc.)
 def _cleanup_sleep(signum, frame):
     prevent_sleep_end()
     sys.exit(0)
+
 
 signal.signal(signal.SIGINT, _cleanup_sleep)
 signal.signal(signal.SIGTERM, _cleanup_sleep)
@@ -49,6 +51,7 @@ if sys.stderr is None:
 # Enable MPS GPU acceleration on Mac Apple Silicon
 if platform.system() == "Darwin" and platform.processor() == "arm":
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
 
 # Custom message handler to filter out specific Qt warnings
 def qt_message_handler(mode, context, message):

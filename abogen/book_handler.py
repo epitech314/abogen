@@ -325,7 +325,7 @@ class HandlerDialog(QDialog):
                 )
 
         # 3. If still no nav_item, check for NCX or fallback to NAV HTML in all ITEM_DOCUMENTs
-        ncx_constant = getattr(epub, 'ITEM_NCX', None)
+        ncx_constant = getattr(epub, "ITEM_NCX", None)
         if not nav_item and ncx_constant is not None:
             ncx_items = list(self.book.get_items_of_type(ncx_constant))
             if ncx_items:
@@ -337,13 +337,15 @@ class HandlerDialog(QDialog):
             for item in self.book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
                 try:
                     html_content = item.get_content().decode("utf-8", errors="ignore")
-                    if '<nav' in html_content and 'epub:type="toc"' in html_content:
+                    if "<nav" in html_content and 'epub:type="toc"' in html_content:
                         soup = BeautifulSoup(html_content, "html.parser")
                         nav_tag = soup.find("nav", attrs={"epub:type": "toc"})
                         if nav_tag:
                             nav_item = item
                             nav_type = "html"
-                            logging.info(f"Found NAV HTML with TOC in: {item.get_name()}")
+                            logging.info(
+                                f"Found NAV HTML with TOC in: {item.get_name()}"
+                            )
                             break
                 except Exception as e:
                     continue
@@ -533,7 +535,9 @@ class HandlerDialog(QDialog):
                     pass
             # Fallback: if slice_html is empty, try to get the whole file's text
             if not slice_html.strip() and current_doc_html:
-                logging.warning(f"No content found for src '{current_src}', using full file as fallback.")
+                logging.warning(
+                    f"No content found for src '{current_src}', using full file as fallback."
+                )
                 slice_html = current_doc_html
             if slice_html.strip():
                 slice_soup = BeautifulSoup(slice_html, "html.parser")
@@ -637,7 +641,9 @@ class HandlerDialog(QDialog):
 
         if src:
             base_href, fragment = src.split("#", 1) if "#" in src else (src, None)
-            doc_key, doc_idx = self._find_doc_key(base_href, doc_order, doc_order_decoded)
+            doc_key, doc_idx = self._find_doc_key(
+                base_href, doc_order, doc_order_decoded
+            )
             if not doc_key:
                 logging.warning(
                     f"Navigation entry '{title}' points to '{base_href}', which is not in the spine or document list (even after basename fallback)."
@@ -724,7 +730,9 @@ class HandlerDialog(QDialog):
         fragment = None
         if src:
             base_href, fragment = src.split("#", 1) if "#" in src else (src, None)
-            doc_key, doc_idx = self._find_doc_key(base_href, doc_order, doc_order_decoded)
+            doc_key, doc_idx = self._find_doc_key(
+                base_href, doc_order, doc_order_decoded
+            )
             if doc_key is not None:
                 position = find_position_func(doc_key, fragment)
                 entry_data = {
