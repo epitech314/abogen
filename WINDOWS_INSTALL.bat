@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
 :: Set misaki language
@@ -23,7 +23,6 @@ set CUDA_VERSION=128
 for /f "delims=: tokens=*" %%A in ('findstr /b ::: "%~f0"') do @echo(%%A
 
 set CURRENT_DIR="%CD%"
-setlocal enabledelayedexpansion
 set NAME=abogen
 set PROJECTFOLDER=abogen
 set RUN=python_embedded\Scripts\abogen.exe
@@ -276,6 +275,7 @@ if "%MISAKI_LANG%" NEQ "en" (
 for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from abogen.is_nvidia import check; print(check())"') do set IS_NVIDIA=%%i
 
 :: Check if torch is installed with CUDA support
+echo.
 echo Checking CUDA availability...
 if /I "%IS_NVIDIA%"=="true" (
     for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from torch.cuda import is_available; print(is_available())"') do set cuda_available=%%i
@@ -293,7 +293,26 @@ if /I "%IS_NVIDIA%"=="true" (
         echo CUDA is available on NVIDIA GPU.
     )
 ) else (
-    echo GPU is not NVIDIA. Skipping PyTorch CUDA installation.
+    echo.
+    echo Unable to detect an NVIDIA GPU in your system.
+    echo.
+    echo Do you want to install PyTorch anyway?
+    echo.
+    echo If you DO have an NVIDIA GPU, please press Y.
+    echo If you DO NOT have an NVIDIA GPU, please press N.
+    echo.
+    choice /C YN /M "Y=Yes, N=No"
+    if errorlevel 2 (
+        echo Skipping PyTorch installation.
+    ) else (
+        echo Installing PyTorch with CUDA %CUDA_VERSION% support...
+        %PYTHON_CONSOLE_PATH% -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu%CUDA_VERSION% --no-warn-script-location
+        if errorlevel 1 (
+            echo Failed to install PyTorch.
+            pause
+            exit /b
+        )
+    )
 )
 
 :: Ask user if they want to create a desktop shortcut
