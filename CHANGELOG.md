@@ -1,3 +1,6 @@
+# 1.1.6 (pre-release)
+- Fixed SRT subtitle numbering issue, mentioned by @page-muncher in #41
+
 # 1.1.5
 - Changed the temporary directory path to user's cache directory, which is more appropriate for storing cache files and avoids issues with unintended cleanup.
 - Fixed the isssue where extra metadata information was not being saved to M4B files when they have no chapters, ensuring that all metadata is correctly written to the output file.
@@ -23,7 +26,7 @@
 - Added a new option: `Reset to default settings`, allowing users to reset all settings to their default values.
 - Added a new option: `Disable Kokoro's internet access`. This lets you prevent Kokoro from downloading models or voices from HuggingFace Hub, which can help avoid long waiting times if your computer is offline.
 - HuggingFace Hub telemetry is now disabled by default for improved privacy. (HuggingFace Hub is used by Kokoro to download its models)
-- Potential fix for #37 and #38, where the program was becoming slow while processing large files.
+- cPotential fix for #37 and #38, where the program was becoming slow while processing large files.
 - Fixed `Open folder` and `Open file` buttons in the queue manager GUI.
 - Improvements in code structure.
 

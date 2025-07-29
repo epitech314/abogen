@@ -467,6 +467,8 @@ class ConversionThread(QThread):
                     {"chapter": chapter[0], "start": 0.0, "end": 0.0}
                     for chapter in chapters
                 ]
+                # SRT numbering fix: use a global counter
+                merged_srt_index = 1  # SRT numbering for merged file
                 # Prepare output file/ffmpeg process for merged output
                 if self.output_format in ["wav", "mp3", "flac"]:
                     merged_out_file = sf.SoundFile(
@@ -599,6 +601,7 @@ class ConversionThread(QThread):
                     {"chapter": chapter[0], "start": 0.0, "end": 0.0}
                     for chapter in chapters
                 ]
+                srt_index = 1  # SRT numbering fix for chapter-only mode
             # Instead of processing the whole text, process by chapter
             for chapter_idx, (chapter_name, chapter_text) in enumerate(chapters, 1):
                 chapter_out_path = None
@@ -677,6 +680,7 @@ class ConversionThread(QThread):
                         continue
                     # Open chapter subtitle file for incremental writing if needed
                     chapter_subtitle_file = None
+                    chapter_srt_index = 1  # Initialize SRT numbering for this chapter file
                     if self.subtitle_mode != "Disabled":
                         subtitle_format = getattr(self, "subtitle_format", "srt")
                         file_extension = "ass" if "ass" in subtitle_format else "srt"
@@ -821,12 +825,12 @@ class ConversionThread(QThread):
                                             f"Dialogue: 0,{start_time},{end_time},Default,,{merged_subtitle_margin},{merged_subtitle_margin},0,,{merged_subtitle_alignment_tag}{text}\n"
                                         )
                                 else:
-                                    for i, (start, end, text) in enumerate(
-                                        new_entries, 1
-                                    ):
+                                    for entry in new_entries:
+                                        start, end, text = entry
                                         merged_subtitle_file.write(
-                                            f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
+                                            f"{merged_srt_index}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
                                         )
+                                        merged_srt_index += 1
                         # Per-chapter subtitle processing for both file and ffmpeg_proc
                         if chapter_out_file or chapter_ffmpeg_proc:
                             new_chapter_entries = []
@@ -848,12 +852,12 @@ class ConversionThread(QThread):
                                             f"Dialogue: 0,{start_time},{end_time},Default,,{chapter_subtitle_margin},{chapter_subtitle_margin},0,,{chapter_subtitle_alignment_tag}{text}\n"
                                         )
                                 else:
-                                    for i, (start, end, text) in enumerate(
-                                        new_chapter_entries, 1
-                                    ):
+                                    for entry in new_chapter_entries:
+                                        start, end, text = entry
                                         chapter_subtitle_file.write(
-                                            f"{i}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
+                                            f"{chapter_srt_index}\n{self._srt_time(start)} --> {self._srt_time(end)}\n{text}\n\n"
                                         )
+                                        chapter_srt_index += 1
                     if merge_chapters_at_end:
                         current_time += chunk_dur
                         if chapter_out_file or chapter_ffmpeg_proc:
