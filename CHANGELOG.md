@@ -1,6 +1,7 @@
 # 1.1.6 (pre-release)
 - Fixed SRT subtitle numbering issue, mentioned by @page-muncher in #41
 - Windows installer script now prompts the user to install the CUDA version of PyTorch even if no NVIDIA GPU is detected.
+- Abogen now includes Mandarin Chinese (misaki[zh]) by default; manual installation is no longer required.
 
 # 1.1.5
 - Changed the temporary directory path to user's cache directory, which is more appropriate for storing cache files and avoids issues with unintended cleanup.

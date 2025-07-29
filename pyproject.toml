@@ -15,6 +15,7 @@ keywords = ["audiobook", "epub", "pdf", "text-to-speech", "subtitle", "tts", "ko
 dependencies = [
     "PyQt5>=5.15.11",
     "kokoro>=0.9.4",
+    "misaki[zh]>=0.9.4",
     "ebooklib>=0.19",
     "beautifulsoup4>=4.13.4",
     "PyMuPDF>=1.25.5",
