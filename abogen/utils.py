@@ -239,13 +239,23 @@ def calculate_text_length(text):
 def get_gpu_acceleration(enabled):
     try:
         import torch
-        from torch.cuda import is_available
+        from torch.cuda import is_available as cuda_available
 
         if not enabled:
-            return "CUDA GPU available but using CPU.", False
-        if is_available():
+            return "GPU available but using CPU.", False
+        
+        # Check for Apple Silicon MPS
+        if platform.system() == "Darwin" and platform.processor() == "arm":
+            if torch.backends.mps.is_available():
+                return "MPS GPU available and enabled.", True
+            else:
+                return "MPS GPU not available on Apple Silicon. Using CPU.", False
+        
+        # Check for CUDA
+        if cuda_available():
             return "CUDA GPU available and enabled.", True
-        # Gather more diagnostic info if CUDA is not available
+        
+        # Gather CUDA diagnostic info if not available
         try:
             cuda_devices = torch.cuda.device_count()
             cuda_error = (
@@ -257,7 +267,7 @@ def get_gpu_acceleration(enabled):
             cuda_error = str(e)
         return f"CUDA GPU is not available. Using CPU. ({cuda_error})", False
     except Exception as e:
-        return f"Error checking CUDA GPU: {e}", False
+        return f"Error checking GPU: {e}", False
 
 
 def prevent_sleep_start():

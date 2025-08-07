@@ -23,6 +23,7 @@ import abogen.hf_tracker as hf_tracker
 import static_ffmpeg
 import threading  # for efficient waiting
 import subprocess
+import platform
 
 
 def get_sample_voice_text(lang_code):
@@ -310,8 +311,15 @@ class ConversionThread(QThread):
 
             self.log_updated.emit("\nInitializing TTS pipeline...")
 
-            # Set device based on use_gpu setting
-            device = "cuda" if self.use_gpu else "cpu"
+            # Set device based on use_gpu setting and platform
+            if self.use_gpu:
+                if platform.system() == "Darwin" and platform.processor() == "arm":
+                    device = "mps"  # Use MPS for Apple Silicon
+                else:
+                    device = "cuda"  # Use CUDA for other platforms
+            else:
+                device = "cpu"
+
             tts = self.KPipeline(
                 lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M", device=device
             )
@@ -1319,7 +1327,16 @@ class VoicePreviewThread(QThread):
 
         # Generate the preview and save to cache
         try:
-            device = "cuda" if self.use_gpu else "cpu"
+
+            # Set device based on use_gpu setting and platform
+            if self.use_gpu:
+                if platform.system() == "Darwin" and platform.processor() == "arm":
+                    device = "mps"  # Use MPS for Apple Silicon
+                else:
+                    device = "cuda"  # Use CUDA for other platforms
+            else:
+                device = "cpu"
+
             tts = self.kpipeline_class(
                 lang_code=self.lang_code, repo_id="hexgrad/Kokoro-82M", device=device
             )
