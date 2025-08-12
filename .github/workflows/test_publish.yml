@@ -54,9 +54,9 @@ jobs:
         # platforms: linux/amd64,linux/arm64
         platforms: linux/amd64 # using the solution mentioned in https://github.com/denizsafak/abogen/issues/46
         # Only push if we are publishing a release
-        push: ${{ github.event_name == 'release' && github.event.action == 'published' }}
+        # push: ${{ github.event_name == 'release' && github.event.action == 'published' }}
         # Use a 'temp' tag, that won't be pushed, for non-release builds
-        tags: ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name || 'temp' }}
+        tags: ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name || 'latest' }}
         # Use a cache to reduce build times
         cache-to: type=gha,mode=max
         cache-from: type=gha
