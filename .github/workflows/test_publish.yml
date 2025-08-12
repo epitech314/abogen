@@ -5,7 +5,7 @@ on:
   #release:
   #  types: [published]
   # Build only
-  #push:
+  #push: it 
   #  branches: [main]
   # TODO - enable build on pull requests if build times can be reduced
   # pull_request:
@@ -22,7 +22,7 @@ jobs:
 
     - name: Login to Github Container Registry
       # Only if we need to push an image
-      if: ${{ github.event_name == 'release' && github.event.action == 'published' }}
+      # if: ${{ github.event_name == 'release' && github.event.action == 'published' }}
       uses: docker/login-action@v3
       with:
           registry: ghcr.io
@@ -55,6 +55,7 @@ jobs:
         platforms: linux/amd64 # using the solution mentioned in https://github.com/denizsafak/abogen/issues/46
         # Only push if we are publishing a release
         # push: ${{ github.event_name == 'release' && github.event.action == 'published' }}
+        push: true
         # Use a 'temp' tag, that won't be pushed, for non-release builds
         tags: ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name || 'latest' }}
         # Use a cache to reduce build times
