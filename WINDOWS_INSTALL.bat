@@ -263,7 +263,7 @@ if exist %PYPROJECT_FILE% (
 :: Install misaki again if MISAKI_LANG is not set to "en"
 if "%MISAKI_LANG%" NEQ "en" (
     echo Configuring language pack: %MISAKI_LANG%
-    %PYTHON_CONSOLE_PATH% -m pip install misaki[lang] --upgrade --no-warn-script-location
+    %PYTHON_CONSOLE_PATH% -m pip install misaki[%MISAKI_LANG%] --upgrade --no-warn-script-location
     if errorlevel 1 (
         echo Failed to install misaki language pack.
         pause
