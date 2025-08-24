@@ -23,20 +23,22 @@ brew install ffmpeg
 sudo apt install ffmpeg
 ```
 
-## Create the Video (.webm)
+## Create the Video (.mp4) (Recommended)
 
-Run this FFmpeg command to create the tiny video:
-
-```
-ffmpeg -loop 1 -framerate 24 -i bg.jpg -i audio.wav -vf "ass=subtitle.ass" -c:v libvpx-vp9 -b:v 0 -crf 30 -c:a libopus -shortest demo.webm
-```
-
-## For Higher Quality (But Larger) Video (.mp4)
-
-If you need better quality for distribution, use this command instead:
+Run this FFmpeg command to create the video:
 
 ```
-ffmpeg -loop 1 -framerate 24 -i bg.jpg -i audio.wav -vf "ass=subtitle.ass" -c:v libx264 -preset slow -crf 18 -movflags +faststart -c:a copy -shortest demo.mp4
+ffmpeg -loop 1 -framerate 24 -i bg.jpg -i demo.wav -vf "ass=demo.ass" -c:v libx264 -pix_fmt yuv420p -preset slow -crf 18 -c:a aac -b:a 192k -movflags +faststart -shortest demo.mp4
 ```
 
-This creates an MP4 file that's compatible with more devices but larger in size.
+## For Smaller Filesize (.webm)
+
+If you need a smaller video file, use this command:
+
+```
+ffmpeg -loop 1 -framerate 24 -i bg.jpg -i demo.wav -vf "ass=demo.ass" -c:v libvpx-vp9 -b:v 0 -crf 30 -c:a libopus -shortest demo.webm
+```
+
+
+
+
