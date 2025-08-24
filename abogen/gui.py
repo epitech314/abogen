@@ -971,6 +971,25 @@ class abogen(QWidget):
             lambda i: self.set_subtitle_format(self.subtitle_format_combo.itemData(i))
         )
         subtitle_format_layout.addWidget(self.subtitle_format_combo)
+        # If subtitle mode requires highlighting, SRT is not supported. Disable SRT item
+        # and auto-switch to a compatible ASS format if SRT is currently selected.
+        try:
+            if hasattr(self, "subtitle_mode") and self.subtitle_mode == "Sentence + Highlighting":
+                idx_srt = self.subtitle_format_combo.findData("srt")
+                if idx_srt >= 0:
+                    item = self.subtitle_format_combo.model().item(idx_srt)
+                    if item is not None:
+                        item.setEnabled(False)
+                # If current selection is SRT, switch to centered narrow ASS
+                if self.subtitle_format_combo.currentData() == "srt":
+                    new_idx = self.subtitle_format_combo.findData("ass_centered_narrow")
+                    if new_idx >= 0:
+                        self.subtitle_format_combo.setCurrentIndex(new_idx)
+                        # Persist the change
+                        self.set_subtitle_format(self.subtitle_format_combo.itemData(new_idx))
+        except Exception:
+            # Fail-safe: don't crash UI if model manipulation isn't supported on some platforms
+            pass
         controls_layout.addLayout(subtitle_format_layout)
 
         # Replace single newlines dropdown (acts like checkbox)
@@ -2472,6 +2491,30 @@ class abogen(QWidget):
             self.subtitle_format_combo.setEnabled(False)
         else:
             self.subtitle_format_combo.setEnabled(True)
+        # If highlighting mode selected, SRT is not supported. Disable SRT option and
+        # switch away from it if currently selected.
+        try:
+            idx_srt = self.subtitle_format_combo.findData("srt")
+            if mode == "Sentence + Highlighting":
+                if idx_srt >= 0:
+                    item = self.subtitle_format_combo.model().item(idx_srt)
+                    if item is not None:
+                        item.setEnabled(False)
+                # If current format is SRT, switch to a compatible ASS format
+                if self.subtitle_format_combo.currentData() == "srt":
+                    new_idx = self.subtitle_format_combo.findData("ass_centered_narrow")
+                    if new_idx >= 0:
+                        self.subtitle_format_combo.setCurrentIndex(new_idx)
+                        self.set_subtitle_format(self.subtitle_format_combo.itemData(new_idx))
+            else:
+                # Re-enable SRT option when not in highlighting mode
+                if idx_srt >= 0:
+                    item = self.subtitle_format_combo.model().item(idx_srt)
+                    if item is not None:
+                        item.setEnabled(True)
+        except Exception:
+            # Ignore errors interacting with model (defensive)
+            pass
 
     def on_format_changed(self, fmt):
         self.selected_format = fmt
