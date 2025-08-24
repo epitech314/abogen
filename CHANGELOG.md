@@ -1,6 +1,8 @@
 # 1.1.7 (ğre-release)
 - Added MPS GPU acceleration support for Silicon Mac, mentioned in https://github.com/denizsafak/abogen/issues/32#issuecomment-3155902040 by @jefro108
 - Added word-by-word karaoke highlighting feature by @robmckinnon in PR #65
+- Fixed sleep inhibition error occurring on some Linux systems that do not use systemd, mentioned in #67 by @hendrack
+- Improvements in code and documentation.
 
 # 1.1.6
 - Improved EPUB chapter detection: Now reliably detects chapters from NAV HTML (TOC) files, even in non-standard EPUBs, fixes the issue mentioned by @jefro108 in #33

@@ -3,6 +3,7 @@ import sys
 import json
 import warnings
 import platform
+import shutil
 import subprocess
 import re
 from threading import Thread
@@ -286,17 +287,24 @@ def prevent_sleep_start():
         # Add program name and reason for inhibition
         program_name = PROGRAM_NAME
         reason = "Prevent sleep during abogen process"
-        _sleep_procs["Linux"] = create_process(
-            [
-                "systemd-inhibit",
-                f"--who={program_name}",
-                f"--why={reason}",
-                "--what=sleep",
-                "--mode=block",
-                "sleep",
-                "infinity",
-            ]
-        )
+        # Only attempt to use systemd-inhibit if it's available on the system.
+        if shutil.which("systemd-inhibit"):
+            _sleep_procs["Linux"] = create_process(
+                [
+                    "systemd-inhibit",
+                    f"--who={program_name}",
+                    f"--why={reason}",
+                    "--what=sleep",
+                    "--mode=block",
+                    "sleep",
+                    "infinity",
+                ]
+            )
+        else:
+            # Non-systemd distro or systemd tools not installed: skip inhibition rather than crash
+            print(
+                "systemd-inhibit not found: skipping sleep inhibition on this Linux system."
+            )
 
 
 def prevent_sleep_end():
