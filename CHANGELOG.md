@@ -1,3 +1,6 @@
+# 1.1.8 (pre-release)
+- Fixed `No Qt platform plugin could be initialized` error, mentioned in #59 by @sunrainxyz
+
 # 1.1.7
 - Added MPS GPU acceleration support for Silicon Mac, mentioned in https://github.com/denizsafak/abogen/issues/32#issuecomment-3155902040 by @jefro108. **Please read the [Mac](https://github.com/denizsafak/abogen?tab=readme-ov-file#mac) section in the documentation again, as it requires additional configuration.**
 - Added word-by-word karaoke highlighting feature by @robmckinnon in PR #65

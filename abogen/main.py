@@ -4,6 +4,20 @@ import sys
 import platform
 import atexit
 import signal
+
+# Qt platform plugin detection (fixes #59)
+try:
+    from PyQt5.QtCore import QLibraryInfo
+    plugins = QLibraryInfo.location(QLibraryInfo.PluginsPath)
+    platform_dir = os.path.join(plugins, "platforms")
+    if os.path.isdir(platform_dir):
+        os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = platform_dir
+        print("QT_QPA_PLATFORM_PLUGIN_PATH set to:", platform_dir)
+    else:
+        print("PyQt5 platform plugins not found at", platform_dir)
+except ImportError:
+    print("PyQt5 not installed.")
+
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
