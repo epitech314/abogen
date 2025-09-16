@@ -267,9 +267,10 @@ Abogen launches automatically inside the container.
 - You can access it via a web browser at [http://localhost:5800](http://localhost:5800) or connect to it using a VNC client at `localhost:5900`.
 - You can use `/shared` directory to share files between your host and the container.
 - For later use, start it with `docker start abogen` and stop it with `docker stop abogen`.
+- Pass in `-e WEB_AUDIO="1"` for `docker run` to enable audio.
 
 Known issues:
-- Audio preview is not working inside container (ALSA error).
+- Audio preview is not working inside container (ALSA error) if using a VNC client.
 - `Open cache directory` and `Open configuration directory` options in settings not working. (Tried pcmanfm, did not work with Abogen).
 
 (Special thanks to [@geo38](https://www.reddit.com/user/geo38/) from Reddit, who provided the Dockerfile and instructions in [this comment](https://www.reddit.com/r/selfhosted/comments/1k8x1yo/comment/mpe0bz8/).)
