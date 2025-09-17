@@ -1160,7 +1160,7 @@ class ConversionThread(QThread):
         m = int((t % 3600) // 60)
         s = int(t % 60)
         ms = int((t - int(t)) * 1000)
-        return f"{h:02}:{m:02}:{s:02},{ms:03}"
+        return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
     def _ass_time(self, t):
         """Helper function to format time for ASS files"""
@@ -1168,7 +1168,7 @@ class ConversionThread(QThread):
         m = int((t % 3600) // 60)
         s = int(t % 60)
         cs = int((t - int(t)) * 100)  # Centiseconds for ASS format
-        return f"{h}:{m:02}:{s:02}.{cs:02}"
+        return f"{h:01d}:{m:02d}:{s:02d}.{cs:02d}"
 
     def _process_subtitle_tokens(
         self,
