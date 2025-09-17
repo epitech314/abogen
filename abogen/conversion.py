@@ -1188,24 +1188,8 @@ class ConversionThread(QThread):
         """Helper function to process subtitle tokens according to the subtitle mode"""
         if not tokens_with_timestamps:
             return
-
-        # Always combine punctuation with preceding words for consistent handling across modes
-        processed_tokens = []
-        i = 0
-        while i < len(tokens_with_timestamps):
-            token = tokens_with_timestamps[i].copy()
-
-            # Look ahead for punctuation
-            while i + 1 < len(tokens_with_timestamps) and re.match(
-                r"^[^\w\s]+$", tokens_with_timestamps[i + 1]["text"]
-            ):
-                token["text"] += tokens_with_timestamps[i + 1]["text"]
-                token["end"] = tokens_with_timestamps[i + 1]["end"]
-                token["whitespace"] = tokens_with_timestamps[i + 1]["whitespace"]
-                i += 1
-
-            processed_tokens.append(token)
-            i += 1
+        
+        processed_tokens = tokens_with_timestamps  # Use tokens directly
 
         # Use processed_tokens instead of tokens_with_timestamps for the rest of the method
         if self.subtitle_mode == "Sentence + Highlighting":

@@ -1,3 +1,6 @@
+# 1.1.9
+- Fixed the issue where spaces were deleted before punctuation marks while generating subtitles.
+
 # 1.1.8
 - Added `.md` (Markdown) file extension support by @brianxiadong in PR #75
 - Added new option `Configure silence between chapters` that lets you configure the silence between chapters, mentioned by @lfperez1982 in #79

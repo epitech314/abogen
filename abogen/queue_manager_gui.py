@@ -140,7 +140,7 @@ class QueueManager(QDialog):
         instructions = QLabel(
             "<h2>How Queue Works?</h2>"
             "You can add text files (.txt) directly using the '<b>Add files</b>' button below. "
-            "To add PDF or EPUB files, use the input box in the main window and click the <b>'Add to Queue'</b> button. "
+            "To add PDF, EPUB or markdown files, use the input box in the main window and click the <b>'Add to Queue'</b> button. "
             "Each file in the queue keeps the configuration settings active when it was added. "
             "Changing the main window configuration afterward <b>does not</b> affect files already in the queue. "
             "You can view each file's configuration by hovering over them."
