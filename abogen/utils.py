@@ -11,6 +11,23 @@ from threading import Thread
 warnings.filterwarnings("ignore")
 
 
+def detect_encoding(file_path):
+    import chardet
+    import charset_normalizer
+    with open(file_path, "rb") as f:
+        raw_data = f.read()
+    detected_encoding = None
+    for detectors in (charset_normalizer, chardet):
+        try:
+            result = detectors.detect(raw_data)["encoding"]
+        except Exception:
+            continue
+        if result is not None:
+            detected_encoding = result
+            break
+    encoding = detected_encoding if detected_encoding else "utf-8"
+    return encoding.lower()
+
 def get_resource_path(package, resource):
     """
     Get the path to a resource file, with fallback to local file system.

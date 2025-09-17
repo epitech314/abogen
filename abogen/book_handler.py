@@ -22,10 +22,12 @@ from PyQt5.QtWidgets import (
     QLabel,
 )
 from PyQt5.QtCore import Qt
-from abogen.utils import clean_text, calculate_text_length
+from abogen.utils import clean_text, calculate_text_length, detect_encoding
 import os
 import logging  # Add logging
 import urllib.parse
+import markdown
+import textwrap
 
 # Setup logging
 logging.basicConfig(
@@ -112,12 +114,13 @@ class HandlerDialog(QDialog):
         self.markdown_text = None
         if self.file_type == "markdown":
             try:
-                encoding = self._detect_encoding(book_path)
+                encoding = detect_encoding(book_path)
                 with open(book_path, "r", encoding=encoding, errors="replace") as f:
                     self.markdown_text = f.read()
             except Exception as e:
                 logging.error(f"Error reading markdown file: {e}")
                 self.markdown_text = ""
+        self.markdown_toc = []  # For storing parsed markdown TOC
 
         # Extract book metadata
         self.book_metadata = self._extract_book_metadata()
@@ -184,17 +187,6 @@ class HandlerDialog(QDialog):
         # Update checkbox states
         self._update_checkbox_states()
 
-    def _detect_encoding(self, file_path):
-        """Detect encoding of a text file"""
-        with open(file_path, "rb") as f:
-            raw_data = f.read()
-        try:
-            import chardet
-            result = chardet.detect(raw_data)
-            return result.get("encoding", "utf-8")
-        except ImportError:
-            return "utf-8"
-
     def _preprocess_content(self):
         """Pre-process content from the document"""
         if self.file_type == "epub":
@@ -233,66 +225,69 @@ class HandlerDialog(QDialog):
             page_id = f"page_{page_num + 1}"
             self.content_texts[page_id] = text
             self.content_lengths[page_id] = calculate_text_length(text)
+    
 
     def _preprocess_markdown_content(self):
-        """Pre-process markdown content and extract chapters/sections"""
         if not self.markdown_text:
             return
 
-        # Split markdown by headers to create chapters
-        import re
-
-        # Clean the text first
         text = clean_text(self.markdown_text)
+        text = textwrap.dedent(text)
+        md = markdown.Markdown(extensions=['toc', 'fenced_code'])
+        html = md.convert(text)
+        self.markdown_toc = md.toc_tokens
 
-        # Find all markdown headers (# ## ### etc.)
-        header_pattern = r'^(#{1,6})\s+(.+)$'
-        headers = list(re.finditer(header_pattern, text, re.MULTILINE))
-
+        soup = BeautifulSoup(html, 'html.parser')
         self.content_texts = {}
         self.content_lengths = {}
 
-        if not headers:
-            # No headers found, treat entire content as single chapter
+        if not self.markdown_toc:
             chapter_id = "markdown_content"
             self.content_texts[chapter_id] = text
             self.content_lengths[chapter_id] = calculate_text_length(text)
             return
 
-        # Process headers and extract content between them
-        for i, header_match in enumerate(headers):
-            header_level = len(header_match.group(1))  # Number of # symbols
-            header_text = header_match.group(2).strip()
-            header_start = header_match.start()
+        all_headers = []
+        def flatten_toc(toc_list):
+            for header in toc_list:
+                all_headers.append(header)
+                if header.get('children'):
+                    flatten_toc(header['children'])
+        flatten_toc(self.markdown_toc)
 
-            # Find content between this header and the next one of same or higher level
-            content_start = header_match.end()
-            content_end = len(text)
+        header_positions = []
+        for header in all_headers:
+            header_id = header['id']
+            id_pattern = f'id="{header_id}"'
+            pos = html.find(id_pattern)
+            if pos != -1:
+                tag_start = html.rfind('<', 0, pos)
+                header_positions.append({
+                    'id': header_id,
+                    'start': tag_start,
+                    'name': header['name']
+                })
+        header_positions.sort(key=lambda x: x['start'])
 
-            # Look for next header of same or higher level (fewer # symbols)
-            for j in range(i + 1, len(headers)):
-                next_header = headers[j]
-                next_level = len(next_header.group(1))
-                if next_level <= header_level:
-                    content_end = next_header.start()
-                    break
-
-            # Extract content for this chapter
-            chapter_content = text[content_start:content_end].strip()
-
-            # Create unique identifier for this chapter
-            chapter_id = f"markdown_chapter_{i + 1}"
-
-            # Store the chapter content
-            if chapter_content:
-                # Include the header in the content
-                full_content = f"{header_text}\n\n{chapter_content}"
+        for i, header_pos in enumerate(header_positions):
+            header_id = header_pos['id']
+            header_name = header_pos['name']
+            content_start = header_pos['start']
+            content_end = header_positions[i + 1]['start'] if i + 1 < len(header_positions) else len(html)
+            section_html = html[content_start:content_end]
+            section_soup = BeautifulSoup(section_html, 'html.parser')
+            header_tag = section_soup.find(attrs={'id': header_id})
+            if header_tag:
+                header_tag.decompose()
+            section_text = clean_text(section_soup.get_text()).strip()
+            chapter_id = header_id
+            if section_text:
+                full_content = f"{header_name}\n\n{section_text}"
                 self.content_texts[chapter_id] = full_content
                 self.content_lengths[chapter_id] = calculate_text_length(full_content)
             else:
-                # Even if no content, store the header
-                self.content_texts[chapter_id] = header_text
-                self.content_lengths[chapter_id] = calculate_text_length(header_text)
+                self.content_texts[chapter_id] = header_name
+                self.content_lengths[chapter_id] = calculate_text_length(header_name)
 
     def _process_epub_content_spine_fallback(self):
         """Fallback EPUB processing based purely on spine order."""
@@ -1189,61 +1184,47 @@ class HandlerDialog(QDialog):
                 page_item.setFlags(page_item.flags() & ~Qt.ItemIsUserCheckable)
 
     def _build_markdown_tree(self):
-        """Build tree structure for markdown file based on headers"""
-        if not self.content_texts:
+        """Build tree structure for markdown file based on parsed TOC."""
+        if not self.markdown_text:
             return
 
-        # If only one content item (no headers), create simple structure
-        if len(self.content_texts) == 1:
-            chapter_id = list(self.content_texts.keys())[0]
-            title = "Content"
-
-            item = QTreeWidgetItem(self.treeWidget, [title])
-            item.setData(0, Qt.UserRole, chapter_id)
-
-            if self.content_lengths.get(chapter_id, 0) > 0:
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                is_checked = chapter_id in self.checked_chapters
-                item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
-            else:
-                item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+        if not self.markdown_toc:
+            # Handle case with no headers (single content block)
+            if self.content_texts:
+                chapter_id = list(self.content_texts.keys())[0]
+                title = "Content"
+                item = QTreeWidgetItem(self.treeWidget, [title])
+                item.setData(0, Qt.UserRole, chapter_id)
+                if self.content_lengths.get(chapter_id, 0) > 0:
+                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                    is_checked = chapter_id in self.checked_chapters
+                    item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
+                else:
+                    item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
             return
 
-        # Build hierarchical tree based on markdown headers
-        # First, parse the original markdown to get header structure
-        import re
-        header_pattern = r'^(#{1,6})\s+(.+)$'
-        headers = list(re.finditer(header_pattern, self.markdown_text, re.MULTILINE))
+        def build_from_toc(toc_list, parent_item):
+            for header in toc_list:
+                title = header['name']
+                chapter_id = header['id']
 
-        # Create tree items for each header
-        stack = []  # Stack to track parent items at different levels
+                item = QTreeWidgetItem(parent_item, [title])
+                item.setData(0, Qt.UserRole, chapter_id)
 
-        for i, header_match in enumerate(headers):
-            header_level = len(header_match.group(1))
-            header_text = header_match.group(2).strip()
-            chapter_id = f"markdown_chapter_{i + 1}"
+                has_content = self.content_lengths.get(chapter_id, 0) > 0
+                has_children = bool(header.get('children'))
 
-            # Pop stack until we find appropriate parent level
-            while stack and stack[-1][0] >= header_level:
-                stack.pop()
+                if has_content or has_children:
+                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                    is_checked = chapter_id in self.checked_chapters
+                    item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
+                else:
+                    item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
 
-            # Determine parent item
-            parent_item = stack[-1][1] if stack else self.treeWidget
+                if has_children:
+                    build_from_toc(header['children'], item)
 
-            # Create tree item
-            item = QTreeWidgetItem(parent_item, [header_text])
-            item.setData(0, Qt.UserRole, chapter_id)
-
-            # Set checkable state based on content
-            if self.content_lengths.get(chapter_id, 0) > 0:
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                is_checked = chapter_id in self.checked_chapters
-                item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
-            else:
-                item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
-
-            # Add to stack for potential children
-            stack.append((header_level, item))
+        build_from_toc(self.markdown_toc, self.treeWidget)
 
     def _build_pdf_pages_tree(self):
         pages_item = QTreeWidgetItem(self.treeWidget, ["Pages"])
@@ -1843,10 +1824,11 @@ class HandlerDialog(QDialog):
                         logging.warning(f"Error parsing markdown frontmatter: {e}")
 
                 # Fallback: use first H1 header as title if no frontmatter title
-                if not metadata["title"]:
-                    first_h1_match = re.search(r'^#\s+(.+)$', self.markdown_text, re.MULTILINE)
-                    if first_h1_match:
-                        metadata["title"] = first_h1_match.group(1).strip()
+                if not metadata["title"] and self.markdown_toc:
+                    # Find the first level 1 header
+                    first_h1 = next((h for h in self.markdown_toc if h['level'] == 1), None)
+                    if first_h1:
+                        metadata["title"] = first_h1['name']
         else:
             pdf_info = self.pdf_doc.metadata
             if pdf_info:
@@ -1949,6 +1931,7 @@ class HandlerDialog(QDialog):
             item_order_counter += 1
             if item.checkState(0) == Qt.Checked:
                 identifier = item.data(0, Qt.UserRole)
+
                 if identifier and identifier != "info:bookinfo":
                     all_checked_identifiers.add(identifier)
                     ordered_checked_items.append((item_order_counter, item, identifier))

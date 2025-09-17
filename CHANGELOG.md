@@ -1,4 +1,6 @@
 # 1.1.8 (pre-release)
+- Added `.md` (Markdown) file extension support by @brianxiadong in PR #75
+- Improved the markdown logic to better handle various markdown structures and edge cases.
 - Fixed `No Qt platform plugin could be initialized` error, mentioned in #59 by @sunrainxyz
 
 # 1.1.7

@@ -294,13 +294,13 @@ class InputBox(QLabel):
             f"QLabel {{ {self.STYLE_ACTIVE} }} QLabel:hover {{ {self.STYLE_ACTIVE_HOVER} }}"
         )
         self.clear_btn.show()
-        is_document = self.window().selected_file_type in ["epub", "pdf"]
+        is_document = self.window().selected_file_type in ["epub", "pdf", "md", "markdown"]
         self.chapters_btn.setVisible(is_document)
         if is_document:
             chapter_count = len(self.window().selected_chapters)
             file_type = self.window().selected_file_type
             # Adjust button text based on file type
-            if file_type == "epub":
+            if file_type == "epub" or file_type == "md" or file_type == "markdown":
                 self.chapters_btn.setText(f"Chapters ({chapter_count})")
             else:  # PDF - always use Pages
                 self.chapters_btn.setText(f"Pages ({chapter_count})")
@@ -313,7 +313,7 @@ class InputBox(QLabel):
 
         # For epub/pdf files, show edit if we have a selected_file (temp txt)
         if (
-                self.window().selected_file_type in ["epub", "pdf"]
+                self.window().selected_file_type in ["epub", "pdf", "md", "markdown", "md", "markdown"]
                 and self.window().selected_file
         ):
             should_show_edit = True
@@ -462,7 +462,7 @@ class InputBox(QLabel):
 
     def on_chapters_clicked(self):
         win = self.window()
-        if win.selected_file_type in ["epub", "pdf"] and win.selected_book_path:
+        if win.selected_file_type in ["epub", "pdf", "md", "markdown"] and win.selected_book_path:
             # Call open_book_file which shows the dialog and updates selected_chapters
             if win.open_book_file(win.selected_book_path):
                 # Refresh the info label and button text after dialog closes
@@ -474,7 +474,7 @@ class InputBox(QLabel):
     def on_edit_clicked(self):
         win = self.window()
         # For PDFs and EPUBs, use the temporary text file
-        if win.selected_file_type in ["epub", "pdf"] and win.selected_file:
+        if win.selected_file_type in ["epub", "pdf", "md", "markdown"] and win.selected_file:
             # Use the temporary .txt file that was generated
             win.open_textbox_dialog(win.selected_file)
         else:
@@ -611,7 +611,7 @@ class TextboxDialog(QDialog):
                     hasattr(main_window, "displayed_file_path")
                     and main_window.displayed_file_path
             ):
-                if main_window.selected_file_type in ["epub", "pdf"]:
+                if main_window.selected_file_type in ["epub", "pdf", "md", "markdown"]:
                     # Use the base name of the displayed file but change extension to .txt
                     base_name = os.path.splitext(main_window.displayed_file_path)[0]
                     initial_path = base_name + ".txt"
@@ -1639,7 +1639,7 @@ class abogen(QWidget):
 
     def add_to_queue(self):
         # For epub/pdf, always use the converted txt file (selected_file)
-        if self.selected_file_type in ["epub", "pdf"]:
+        if self.selected_file_type in ["epub", "pdf", "md", "markdown"]:
             file_to_queue = self.selected_file
         else:
             file_to_queue = (
@@ -1875,7 +1875,7 @@ class abogen(QWidget):
                 "subtitle_format", "ass_centered_narrow"
             )
             # Pass chapter count for EPUB or PDF files
-            if self.selected_file_type in ["epub", "pdf"] and hasattr(
+            if self.selected_file_type in ["epub", "pdf", "md", "markdown"] and hasattr(
                     self, "selected_chapters"
             ):
                 self.conversion_thread.chapter_count = len(self.selected_chapters)

@@ -1,14 +1,12 @@
 import os
 import re
 import time
-import chardet
-import charset_normalizer
 import hashlib  # For generating unique cache filenames
 from platformdirs import user_desktop_dir
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
-from abogen.utils import clean_text, create_process, get_user_cache_path
+from abogen.utils import clean_text, create_process, get_user_cache_path, detect_encoding
 from abogen.constants import (
     LANGUAGE_DESCRIPTIONS,
     SAMPLE_VOICE_TEXTS,
@@ -28,22 +26,6 @@ import platform
 
 def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
-
-
-def detect_encoding(file_path):
-    with open(file_path, "rb") as f:
-        raw_data = f.read()
-    detected_encoding = None
-    for detectors in (charset_normalizer, chardet):
-        try:
-            result = detectors.detect(raw_data)["encoding"]
-        except Exception:
-            continue
-        if result is not None:
-            detected_encoding = result
-            break
-    encoding = detected_encoding if detected_encoding else "utf-8"
-    return encoding.lower()
 
 
 class ChapterOptionsDialog(QDialog):
