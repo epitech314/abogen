@@ -14,3 +14,4 @@ class QueuedItem:
     output_format: str
     total_char_count: int
     replace_single_newlines: bool = False
+    save_base_path: str = None

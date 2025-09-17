@@ -217,20 +217,33 @@ class QueueManager(QDialog):
             self.empty_overlay.hide()
         icon_provider = QFileIconProvider()
         for item in self.queue:
+            # Determine display file path (prefer save_base_path for original file)
+            display_file_path = getattr(item, "save_base_path", None) or item.file_name
+            processing_file_path = item.file_name
+            
             # Only show the file name, not the full path
-            file_name = item.file_name
-            display_name = file_name
+            display_name = display_file_path
             import os
 
-            if os.path.sep in file_name:
-                display_name = os.path.basename(file_name)
-            # Get icon for the file
-            icon = icon_provider.icon(QFileInfo(file_name))
+            if os.path.sep in display_file_path:
+                display_name = os.path.basename(display_file_path)
+            # Get icon for the display file
+            icon = icon_provider.icon(QFileInfo(display_file_path))
             list_item = QListWidgetItem()
             # Set tooltip with detailed info
             output_folder = getattr(item, "output_folder", "")
-            tooltip = (
-                f"<b>Path:</b> {file_name}<br>"
+            # For plain .txt inputs we don't need to show a separate processing file
+            show_processing = True
+            try:
+                if isinstance(display_file_path, str) and display_file_path.lower().endswith('.txt'):
+                    show_processing = False
+            except Exception:
+                show_processing = True
+
+            tooltip = f"<b>Input File:</b> {display_file_path}<br>"
+            if show_processing and processing_file_path and processing_file_path != display_file_path:
+                tooltip += f"<b>Processing File:</b> {processing_file_path}<br>"
+            tooltip += (
                 f"<b>Language:</b> {getattr(item, 'lang_code', '')}<br>"
                 f"<b>Speed:</b> {getattr(item, 'speed', '')}<br>"
                 f"<b>Voice:</b> {getattr(item, 'voice', '')}<br>"
@@ -246,10 +259,14 @@ class QueueManager(QDialog):
             )
             list_item.setToolTip(tooltip)
             list_item.setIcon(icon)
-            list_item.setData(Qt.UserRole, file_name)
+            # Store both paths for context menu
+            list_item.setData(Qt.UserRole, {
+                'display_path': display_file_path,
+                'processing_path': processing_file_path
+            })
             # Use custom widget for display
             char_count = getattr(item, "total_char_count", 0)
-            widget = QueueListItemWidget(file_name, char_count)
+            widget = QueueListItemWidget(display_file_path, char_count)
             self.listwidget.addItem(list_item)
             self.listwidget.setItemWidget(list_item, widget)
         self.update_button_states()
@@ -372,6 +389,7 @@ class QueueManager(QDialog):
 
             item = QueueItem()
             item.file_name = file_path
+            item.save_base_path = file_path  # For .txt files, processing and save paths are the same
             for attr, value in current_attrs.items():
                 setattr(item, attr, value)
             # Read file content and calculate total_char_count using calculate_text_length
@@ -405,6 +423,8 @@ class QueueManager(QDialog):
                     == getattr(item, "total_char_count", None)
                     and getattr(queued_item, "replace_single_newlines", False)
                     == getattr(item, "replace_single_newlines", False)
+                    and getattr(queued_item, "save_base_path", None)
+                    == getattr(item, "save_base_path", None)
                 ):
                     is_duplicate = True
                     break
@@ -473,42 +493,117 @@ class QueueManager(QDialog):
                 from PyQt5.QtWidgets import QMessageBox
 
                 item = selected_items[0]
-                file_path = item.data(Qt.UserRole)
+                paths = item.data(Qt.UserRole)
+                if isinstance(paths, dict):
+                    file_path = paths.get('display_path', paths.get('processing_path', ''))
+                else:
+                    file_path = paths  # Fallback for old format
+                
+                # Find the queue item
                 for q in self.queue:
-                    if q.file_name == file_path:
-                        if not os.path.exists(q.file_name):
+                    if (getattr(q, "save_base_path", None) == file_path or 
+                        q.file_name == file_path):
+                        target_path = getattr(q, "save_base_path", None) or q.file_name
+                        if not os.path.exists(target_path):
                             QMessageBox.warning(
                                 self, "File Not Found", f"The file does not exist."
                             )
                             return
-                        QDesktopServices.openUrl(QUrl.fromLocalFile(q.file_name))
+                        QDesktopServices.openUrl(QUrl.fromLocalFile(target_path))
                         break
 
             open_file_action.triggered.connect(open_file)
             menu.addAction(open_file_action)
 
             # Add Go to folder action
-            go_to_folder_action = QAction("Go to folder", self)
+            # If the queued item represents a converted document (markdown, pdf, epub)
+            # show two actions: Go to processed file (the cached .txt) and Go to input file (original source)
+            item = selected_items[0]
+            paths = item.data(Qt.UserRole)
+            if isinstance(paths, dict):
+                display_path = paths.get('display_path', '')
+                processing_path = paths.get('processing_path', '')
+            else:
+                display_path = paths
+                processing_path = paths
 
-            def go_to_folder():
-                from PyQt5.QtWidgets import QMessageBox
+            doc_exts = ('.md', '.markdown', '.pdf', '.epub')
+            is_document_input = (
+                isinstance(display_path, str) and display_path.lower().endswith(doc_exts)
+            ) or (
+                isinstance(processing_path, str) and processing_path.lower().endswith(doc_exts)
+            )
 
-                item = selected_items[0]
-                file_path = item.data(Qt.UserRole)
+            from PyQt5.QtWidgets import QMessageBox
+
+            def open_folder_for(path_label: str):
+                # path_label should be either 'display' or 'processing'
+                p = display_path if path_label == 'display' else processing_path
+                if not p:
+                    QMessageBox.warning(self, "File Not Found", "Path is not available.")
+                    return
+                # If the stored path is the display path (original) but the actual file may be
+                # stored on the queue object differently, try to resolve via the queue entry.
+                target_path = None
                 for q in self.queue:
-                    if q.file_name == file_path:
-                        if not os.path.exists(q.file_name):
-                            QMessageBox.warning(
-                                self, "File Not Found", f"The file does not exist."
-                            )
-                            return
-                        folder = os.path.dirname(q.file_name)
-                        if os.path.exists(folder):
-                            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+                    if getattr(q, 'save_base_path', None) == display_path or q.file_name == display_path:
+                        if path_label == 'display':
+                            target_path = getattr(q, 'save_base_path', None) or q.file_name
+                        else:
+                            target_path = q.file_name
                         break
+                    if getattr(q, 'save_base_path', None) == processing_path or q.file_name == processing_path:
+                        if path_label == 'display':
+                            target_path = getattr(q, 'save_base_path', None) or q.file_name
+                        else:
+                            target_path = q.file_name
+                        break
+                # Fallback to the raw path if resolution failed
+                if not target_path:
+                    target_path = p
 
-            go_to_folder_action.triggered.connect(go_to_folder)
-            menu.addAction(go_to_folder_action)
+                if not os.path.exists(target_path):
+                    QMessageBox.warning(self, "File Not Found", f"The file does not exist: {target_path}")
+                    return
+                folder = os.path.dirname(target_path)
+                if os.path.exists(folder):
+                    QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
+            if is_document_input:
+                processed_action = QAction("Go to processed file", self)
+                processed_action.triggered.connect(lambda: open_folder_for('processing'))
+                menu.addAction(processed_action)
+
+                input_action = QAction("Go to input file", self)
+                input_action.triggered.connect(lambda: open_folder_for('display'))
+                menu.addAction(input_action)
+            else:
+                # Default behavior for non-document inputs: single "Go to folder" action
+                go_to_folder_action = QAction("Go to folder", self)
+
+                def go_to_folder():
+                    item = selected_items[0]
+                    paths = item.data(Qt.UserRole)
+                    if isinstance(paths, dict):
+                        file_path = paths.get('display_path', paths.get('processing_path', ''))
+                    else:
+                        file_path = paths  # Fallback for old format
+                    # Find the queue item
+                    for q in self.queue:
+                        if (getattr(q, "save_base_path", None) == file_path or q.file_name == file_path):
+                            target_path = getattr(q, "save_base_path", None) or q.file_name
+                            if not os.path.exists(target_path):
+                                QMessageBox.warning(
+                                    self, "File Not Found", f"The file does not exist."
+                                )
+                                return
+                            folder = os.path.dirname(target_path)
+                            if os.path.exists(folder):
+                                QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+                            break
+
+                go_to_folder_action.triggered.connect(go_to_folder)
+                menu.addAction(go_to_folder_action)
 
         elif len(selected_items) > 1:
             remove_action = QAction(f"Remove selected ({len(selected_items)})", self)

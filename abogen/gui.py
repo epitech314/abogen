@@ -486,15 +486,63 @@ class InputBox(QLabel):
         # win.selected_file holds the path to the text that is converted.
         file_to_check = win.selected_file
 
+        # If this is a converted document (epub/pdf/markdown) that was written to the
+        # user's cache directory, show a menu letting the user jump to either the
+        # processed (cached .txt) file or the original input file (epub/pdf/md).
+        try:
+            cache_dir = get_user_cache_path()
+        except Exception:
+            cache_dir = None
+
+        is_cached_doc = False
         if (
                 file_to_check
                 and os.path.exists(file_to_check)
                 and os.path.isfile(file_to_check)
+                and cache_dir
         ):
-            folder_path = os.path.dirname(file_to_check)
-            QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
+            # Consider it cached when the file is under the cache directory and is a .txt
+            if file_to_check.endswith('.txt') and os.path.commonpath([os.path.abspath(file_to_check), os.path.abspath(cache_dir)]) == os.path.abspath(cache_dir):
+                # Only treat as document-cache when original type was a document
+                if getattr(win, 'selected_file_type', None) in ['epub', 'pdf', 'md', 'markdown']:
+                    is_cached_doc = True
+
+        if is_cached_doc:
+            menu = QMenu(self)
+            act_processed = QAction("Go to processed file", self)
+
+            def open_processed():
+                folder_path = os.path.dirname(file_to_check)
+                QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
+
+            act_processed.triggered.connect(open_processed)
+            menu.addAction(act_processed)
+
+            act_input = QAction("Go to input file", self)
+            # Prefer displayed_file_path (original input path) then selected_book_path
+            input_path = getattr(win, 'displayed_file_path', None) or getattr(win, 'selected_book_path', None)
+            if input_path and os.path.exists(input_path):
+                def open_input():
+                    folder_path = os.path.dirname(input_path)
+                    QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
+
+                act_input.triggered.connect(open_input)
+            else:
+                act_input.setEnabled(False)
+
+            menu.addAction(act_input)
+            # Show the menu anchored to the button
+            menu.exec_(self.go_to_folder_btn.mapToGlobal(QPoint(0, self.go_to_folder_btn.height())))
         else:
-            QMessageBox.warning(win, "Error", "Converted file not found.")
+            if (
+                    file_to_check
+                    and os.path.exists(file_to_check)
+                    and os.path.isfile(file_to_check)
+            ):
+                folder_path = os.path.dirname(file_to_check)
+                QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
+            else:
+                QMessageBox.warning(win, "Error", "Converted file not found.")
 
 
 class TextboxDialog(QDialog):
@@ -1644,13 +1692,16 @@ class abogen(QWidget):
         # For epub/pdf, always use the converted txt file (selected_file)
         if self.selected_file_type in ["epub", "pdf", "md", "markdown"]:
             file_to_queue = self.selected_file
+            # Use the original file path for save location
+            save_base_path = self.displayed_file_path if self.displayed_file_path else file_to_queue
         else:
             file_to_queue = (
                 self.displayed_file_path
                 if self.displayed_file_path
                 else self.selected_file
             )
-
+            save_base_path = file_to_queue  # For non-EPUB, it's the same
+        
         if not file_to_queue:
             self.input_box.set_error("Please add a file.")
             return
@@ -1669,6 +1720,7 @@ class abogen(QWidget):
             output_format=self.selected_format,
             total_char_count=self.char_count,
             replace_single_newlines=self.replace_single_newlines,
+            save_base_path=save_base_path,
         )
 
         # Prevent adding duplicate items to the queue
@@ -1684,6 +1736,8 @@ class abogen(QWidget):
                     and queued_item.output_format == item_queue.output_format
                     and getattr(queued_item, "replace_single_newlines", False)
                     == item_queue.replace_single_newlines
+                    and getattr(queued_item, "save_base_path", None)
+                    == item_queue.save_base_path
             ):
                 QMessageBox.warning(
                     self, "Duplicate Item", "This item is already in the queue."
@@ -1743,6 +1797,8 @@ class abogen(QWidget):
             self.replace_single_newlines = getattr(
                 queued_item, "replace_single_newlines", False
             )
+            # Restore the original file path for save location
+            self.displayed_file_path = queued_item.save_base_path or queued_item.file_name
             self.start_conversion(from_queue=True)
         else:
             # Queue finished, reset index
@@ -1786,6 +1842,18 @@ class abogen(QWidget):
         if not self.selected_file:
             self.input_box.set_error("Please add a file.")
             return
+
+        # Ensure we honor the currently selected save option when not running from queue
+        if not from_queue:
+            current_option = self.save_combo.currentText()
+            self.save_option = current_option
+            self.config["save_option"] = current_option
+            # If user is not choosing a specific folder, clear any residual folder
+            if current_option != "Choose output folder":
+                self.selected_output_folder = None
+                self.config["selected_output_folder"] = None
+            save_config(self.config)
+
         prevent_sleep_start()
         self.is_converting = True
         self.convert_input_box_to_log()
@@ -1858,6 +1926,7 @@ class abogen(QWidget):
                 total_char_count=self.char_count,
                 use_gpu=self.gpu_ok,
                 from_queue=from_queue,
+                save_base_path=self.displayed_file_path,  # Pass the save base path (original file for EPUB)
             )  # Use gpu_ok status
             # Pass the displayed file path to the log_updated signal handler in ConversionThread
             self.conversion_thread.display_path = display_path
@@ -2981,7 +3050,7 @@ class abogen(QWidget):
     def open_cache_directory(self):
         """Open the cache directory used by the program."""
         try:
-            # Get the cache directory path
+            # Get the abogen cache directory
             cache_dir = get_user_cache_path()
 
             # Create the directory if it doesn't exist

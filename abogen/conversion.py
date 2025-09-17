@@ -148,6 +148,7 @@ class ConversionThread(QThread):
         total_char_count,
         use_gpu=True,
         from_queue=False,
+        save_base_path=None,
     ):  # Add use_gpu parameter
         super().__init__()
         self._chapter_options_event = threading.Event()
@@ -169,6 +170,7 @@ class ConversionThread(QThread):
         self.total_char_count = total_char_count  # Use passed total character count
         self.processed_char_count = 0  # Initialize processed character count
         self.display_path = None  # Add variable for display path
+        self.save_base_path = save_base_path  # Store the save base path
         self.is_direct_text = (
             False  # Flag to indicate if input is from textbox rather than file
         )
@@ -238,15 +240,23 @@ class ConversionThread(QThread):
             # Show configuration
             self.log_updated.emit("Configuration:")
 
+            # Determine input file and processing file
+            if getattr(self, "from_queue", False):
+                input_file = self.save_base_path or self.file_name
+                processing_file = self.file_name
+            else:
+                input_file = self.display_path if self.display_path else self.file_name
+                processing_file = self.file_name
+
+            self.log_updated.emit(f"- Input File: {input_file}")
+            if input_file != processing_file:
+                self.log_updated.emit(f"- Processing File: {processing_file}")
+
             # Use file_name for logs if from_queue, otherwise use display_path if available
             if getattr(self, "from_queue", False):
-                display_file = self.file_name
+                base_path = self.save_base_path or self.file_name  # Use save_base_path if available
             else:
-                display_file = (
-                    self.display_path if self.display_path else self.file_name
-                )
-
-            self.log_updated.emit(f"- Input File: {display_file}")
+                base_path = self.display_path if self.display_path else self.file_name
 
             # Use file size string passed from GUI
             if hasattr(self, "file_size_str"):
@@ -402,7 +412,7 @@ class ConversionThread(QThread):
 
             # Use file_name for logs if from_queue, otherwise use display_path if available
             if getattr(self, "from_queue", False):
-                base_path = self.file_name
+                base_path = self.save_base_path or self.file_name  # Use save_base_path if available
             else:
                 base_path = self.display_path if self.display_path else self.file_name
 
@@ -607,6 +617,10 @@ class ConversionThread(QThread):
             # Instead of processing the whole text, process by chapter
             for chapter_idx, (chapter_name, chapter_text) in enumerate(chapters, 1):
                 chapter_out_path = None
+                chapter_out_file = None
+                chapter_ffmpeg_proc = None
+                chapter_subtitle_file = None
+                chapter_subtitle_path = None
                 if total_chapters > 1:
                     self.log_updated.emit(
                         (
@@ -720,27 +734,21 @@ class ConversionThread(QThread):
                             is_narrow = subtitle_format in (
                                 "ass_narrow",
                                 "ass_centered_narrow",
-                            )
-                            chapter_subtitle_margin = "90" if is_narrow else ""
-                            chapter_subtitle_alignment_tag = (
-                                f"{{\\an5}}" if is_centered else ""
-                            )
-                        else:
-                            chapter_subtitle_file = open(
-                                chapter_subtitle_path,
-                                "w",
-                                encoding="utf-8",
-                                errors="replace",
-                            )
+                        )
+                        chapter_subtitle_margin = "90" if is_narrow else ""
+                        chapter_subtitle_alignment_tag = (
+                            f"{{\\an5}}" if is_centered else ""
+                        )
                     else:
-                        chapter_subtitle_path = None
-                        chapter_subtitle_file = None
+                        chapter_subtitle_file = open(
+                            chapter_subtitle_path,
+                            "w",
+                            encoding="utf-8",
+                            errors="replace",
+                        )
                 else:
-                    chapter_out_file = None
-                    chapter_out_path = None
-                    chapter_ffmpeg_proc = None
-                    chapter_subtitle_file = None
                     chapter_subtitle_path = None
+                    chapter_subtitle_file = None
                 for result in tts(
                     chapter_text,
                     voice=loaded_voice,
