@@ -176,6 +176,7 @@ class ConversionThread(QThread):
         self.waiting_for_user_input = False
         self.use_gpu = use_gpu  # Store the GPU setting
         self.max_subtitle_words = 50  # Default value, will be overridden from GUI
+        self.silence_duration = 2.0  # Default value, will be overridden from GUI
 
     def _stream_audio_in_chunks(
         self, segments, process_func, progress_prefix="Processing"
@@ -285,6 +286,12 @@ class ConversionThread(QThread):
                     self.log_updated.emit(
                         f"- Separate chapters format: {separate_format}"
                     )
+
+            # If merge_at_end is True, display the silence duration
+            if getattr(self, "merge_chapters_at_end", True):
+                self.log_updated.emit(
+                    f"- Silence between chapters: {self.silence_duration} seconds"
+                )
 
             if self.save_option == "Choose output folder":
                 self.log_updated.emit(
@@ -898,6 +905,22 @@ class ConversionThread(QThread):
 
                     # Update progress more frequently (after each result)
                     self.progress_updated.emit(percent, etr_str)
+
+                # Add silence between chapters for merged output (except after the last chapter)
+                if merge_chapters_at_end and chapter_idx < total_chapters:
+                    silence_samples = int(self.silence_duration * 24000)  # Silence duration at 24,000 Hz
+                    silence_audio = self.np.zeros(silence_samples, dtype="float32")
+                    silence_bytes = silence_audio.tobytes()
+                    
+                    if merged_out_file:
+                        merged_out_file.write(silence_audio)
+                    elif ffmpeg_proc:
+                        ffmpeg_proc.stdin.write(silence_bytes)
+                    
+                    # Update timing for the silence
+                    current_time += self.silence_duration
+                    if chapter_out_file or chapter_ffmpeg_proc:
+                        chapter_current_time += self.silence_duration
 
                 # Set chapter end time after processing
                 if merge_chapters_at_end:

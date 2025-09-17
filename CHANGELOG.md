@@ -1,7 +1,9 @@
 # 1.1.8 (pre-release)
 - Added `.md` (Markdown) file extension support by @brianxiadong in PR #75
+- Added new option `Configure silence between chapters` that lets users configure the silence between chapters, mentioned by @lfperez1982 in #79
 - Improved the markdown logic to better handle various markdown structures and edge cases.
-- Fixed `No Qt platform plugin could be initialized` error, mentioned in #59 by @sunrainxyz
+- Fixed `No Qt platform plugin could be initialized` error, mentioned by @sunrainxyz in #59
+- Improvements in code and documentation.
 
 # 1.1.7
 - Added MPS GPU acceleration support for Silicon Mac, mentioned in https://github.com/denizsafak/abogen/issues/32#issuecomment-3155902040 by @jefro108. **Please read the [Mac](https://github.com/denizsafak/abogen?tab=readme-ov-file#mac) section in the documentation again, as it requires additional configuration.**

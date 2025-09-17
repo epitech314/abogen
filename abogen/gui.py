@@ -689,6 +689,9 @@ class abogen(QWidget):
         self.max_subtitle_words = self.config.get(
             "max_subtitle_words", 50
         )  # Default max words per subtitle
+        self.silence_duration = self.config.get(
+            "silence_duration", 2.0
+        )  # Default silence duration
         self.selected_format = self.config.get("selected_format", "wav")
         self.separate_chapters_format = self.config.get(
             "separate_chapters_format", "wav"
@@ -1862,6 +1865,8 @@ class abogen(QWidget):
             self.conversion_thread.file_size_str = file_size_str
             # Pass max_subtitle_words from config
             self.conversion_thread.max_subtitle_words = self.max_subtitle_words
+            # Pass silence_duration from config
+            self.conversion_thread.silence_duration = self.silence_duration
             # Pass replace_single_newlines setting
             self.conversion_thread.replace_single_newlines = (
                 self.replace_single_newlines
@@ -2815,6 +2820,11 @@ class abogen(QWidget):
         max_words_action.triggered.connect(self.set_max_subtitle_words)
         menu.addAction(max_words_action)
 
+        # Add silence between chapters option
+        silence_action = QAction("Configure silence between chapters", self)
+        silence_action.triggered.connect(self.set_silence_between_chapters)
+        menu.addAction(silence_action)
+
         max_lines_action = QAction("Configure max lines in log window", self)
         max_lines_action.triggered.connect(self.set_max_log_lines)
         menu.addAction(max_lines_action)
@@ -3471,6 +3481,40 @@ Categories=AudioVideo;Audio;Utility;
                 f"Maximum words per subtitle set to {value}.",
             )
 
+    def set_silence_between_chapters(self):
+        """Open a dialog to set the silence duration between chapters"""
+        from PyQt5.QtWidgets import QInputDialog, QDialog
+
+        current_value = self.config.get("silence_duration", 2.0)
+
+        dlg = QInputDialog(self)
+        dlg.setWindowTitle("Silence Duration (seconds)")
+        dlg.setLabelText(
+            "Enter the duration of silence\nbetween chapters (in seconds):"
+        )
+        dlg.setInputMode(QInputDialog.DoubleInput)
+        dlg.setDoubleDecimals(1)
+        dlg.setDoubleMinimum(0.0)
+        dlg.setDoubleMaximum(60.0)
+        dlg.setDoubleValue(current_value)
+        dlg.setDoubleStep(0.1)  # <-- set step to 0.1
+
+        if dlg.exec_() == QDialog.Accepted:
+            value = dlg.doubleValue()
+            # Round to one decimal to avoid floating-point representation noise
+            value = round(value, 1)
+
+            # Save the new value
+            self.silence_duration = value
+            self.config["silence_duration"] = value
+            save_config(self.config)
+
+            # Show confirmation (format with one decimal)
+            QMessageBox.information(
+                self,
+                "Setting Saved",
+                f"Silence duration between chapters set to {value:.1f} seconds.",
+            )
     def set_separate_chapters_format(self, fmt):
         """Set the format for separate chapters audio files."""
         self.separate_chapters_format = fmt

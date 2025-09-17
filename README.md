@@ -151,6 +151,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 |---------|-------------|
 | **Theme** | Change the application's theme using `System`, `Light`, or `Dark` options. |
 | **Configure max words per subtitle** | Configures the maximum number of words per subtitle entry. |
+| **Configure silence between chapters** | Configures the duration of silence between chapters (in seconds). |
 | **Configure max lines in log window** | Configures the maximum number of lines to display in the log window. |
 | **Separate chapters audio format** | Configures the audio format for separate chapters as `wav`, `flac`, `mp3`, or `opus`. |
 | **Create desktop shortcut** | Creates a shortcut on your desktop for easy access. |
