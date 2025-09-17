@@ -331,7 +331,7 @@ This will start Abogen in command-line mode and display detailed error messages.
 > ```bash
 > python_embedded\python.exe -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 > ```
-> If you have an AMD GPU, use Linux and follow the Linux/ROCm [instructions](#how-to-install). If you want to keep running on CPU, no action is required, but performance will just be reduced. See [#32](https://github.com/denizsafak/abogen/issues/32) for more details.
+> If you have an AMD GPU, use Linux and follow the Linux/ROCm [instructions](#how-to-install-). If you want to keep running on CPU, no action is required, but performance will just be reduced. See [#32](https://github.com/denizsafak/abogen/issues/32) for more details.
 
 </details>
 
