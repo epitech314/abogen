@@ -89,14 +89,12 @@ pip3 install abogen
 pip3 uninstall torch 
 pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.4
 ```
-> [!TIP]
-> If you get `WARNING: The script abogen-cli is installed in '/home/username/.local/bin' which is not on PATH.` error, run the following command to add it to your PATH:
->```bash
->echo "export PATH=\"/home/$USER/.local/bin:\$PATH\"" >> ~/.bashrc && source ~/.bashrc
->```
 
-> [!TIP]
-> If you get "No matching distribution found" error, try installing it on supported Python (3.10 to 3.12). You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
+> See [How  to fix "WARNING: The script abogen-cli is installed in '/home/username/.local/bin' which is not on PATH" error in Linux?](#path-warning)
+
+> See [How to fix "No matching distribution found" error?](#no-matching-distribution-found)
+
+> See [How to fix "CUDA GPU is not available. Using CPU" warning?](#cuda-warning)
 
 > Special thanks to [@hg000125](https://github.com/hg000125) for his contribution in [#23](https://github.com/denizsafak/abogen/issues/23). AMD GPU support is possible thanks to his work.
 
@@ -107,7 +105,7 @@ If you installed using pip, you can simply run the following command to start Ab
 abogen
 ```
 > [!TIP]
-> If you installed using the Windows installer `(WINDOWS_INSTALL.bat)`, It should have created a shortcut in the same folder, or your desktop. You can run it from there. If you lost the shortcut, Abogen is located in `python_embedded/Scripts/abogen.exe`. You can run it from there directly.
+> If you installed Abogen using the Windows installer `(WINDOWS_INSTALL.bat)`, It should have created a shortcut in the same folder, or your desktop. You can run it from there. If you lost the shortcut, Abogen is located in `python_embedded/Scripts/abogen.exe`. You can run it from there directly.
 
 ## `How to use?`
 1) Drag and drop any ePub, PDF, text or markdown file (or use the built-in text editor)
@@ -135,10 +133,12 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 | **Voice mixer** | Create custom voices by mixing different voice models with a profile system. See [Voice Mixer](#voice-mixer) for more details. |
 | **Voice preview** | Listen to the selected voice before processing. |
 | **Generate subtitles** | `Disabled`, `Sentence`, `Sentence + Comma`, `Sentence + Highlighting`, `1 word`, `2 words`, `3 words`, etc. (Represents the number of words in each subtitle entry) |
-| **Output voice format** | `.WAV`, `.FLAC`, `.MP3`, `.OPUS (best compression)` and `M4B (with chapters)` (Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10)) |
+| **Output voice format** | `.WAV`, `.FLAC`, `.MP3`, `.OPUS (best compression)` and `M4B (with chapters)` |
 | **Output subtitle format** | Configures the subtitle format as `SRT (standard)`, `ASS (wide)`, `ASS (narrow)`, `ASS (centered wide)`, or `ASS (centered narrow)`. |
 | **Replace single newlines with spaces** | Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks. |
 | **Save location** | `Save next to input file`, `Save to desktop`, or `Choose output folder` |
+
+> Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10)
 
 | Book handler options | Description |
 |---------|-------------|
@@ -167,7 +167,9 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 ## `Voice Mixer`
 <img title="Abogen Voice Mixer" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/voice_mixer.png'>
 
-With voice mixer, you can create custom voices by mixing different voice models. You can adjust the weight of each voice and save your custom voice as a profile for future use. The voice mixer allows you to create unique and personalized voices. (Huge thanks to [@jborza](https://github.com/jborza) for making this possible through his contributions in [#5](https://github.com/denizsafak/abogen/pull/5))
+With voice mixer, you can create custom voices by mixing different voice models. You can adjust the weight of each voice and save your custom voice as a profile for future use. The voice mixer allows you to create unique and personalized voices.
+
+> Special thanks to [@jborza](https://github.com/jborza) for making this possible through his contributions in [#5](https://github.com/denizsafak/abogen/pull/5)
 
 ## `Queue Mode`
 <img title="Abogen queue mode" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/queue.png'>
@@ -179,6 +181,7 @@ Abogen supports **queue mode**, allowing you to add multiple files to a processi
 - You can view each file's configuration by hovering over them.
 
 Abogen will process each item in the queue automatically, saving outputs as configured.
+
 > Special thanks to [@jborza](https://github.com/jborza) for adding queue mode in PR [#35](https://github.com/denizsafak/abogen/pull/35)
 
 ## `About Chapter Markers`
@@ -229,8 +232,7 @@ Similar to chapter markers, it is possible to add metadata tags for `M4B` files.
 ```
 For a complete list of supported languages and voices, refer to Kokoro's [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md). To listen to sample audio outputs, see [SAMPLES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/SAMPLES.md).
 
-> [!NOTE]
-> Japanese audio may require additional configuration. Please check [#56](https://github.com/denizsafak/abogen/issues/56) for more information.
+> See [How to fix Japanese audio not working?](#japanese-audio-not-working)
 
 ## `MPV Config`
 I highly recommend using [MPV](https://mpv.io/installation/) to play your audio files, as it supports displaying subtitles even without a video track. Here's my `mpv.conf`:
@@ -283,7 +285,7 @@ Known issues:
 - Audio preview is not working inside container (ALSA error).
 - `Open cache directory` and `Open configuration directory` options in settings not working. (Tried pcmanfm, did not work with Abogen).
 
-(Special thanks to [@geo38](https://www.reddit.com/user/geo38/) from Reddit, who provided the Dockerfile and instructions in [this comment](https://www.reddit.com/r/selfhosted/comments/1k8x1yo/comment/mpe0bz8/).)
+> Special thanks to [@geo38](https://www.reddit.com/user/geo38/) from Reddit, who provided the Dockerfile and instructions in [this comment](https://www.reddit.com/r/selfhosted/comments/1k8x1yo/comment/mpe0bz8/).
 
 ## `Similar Projects`
 Abogen is a standalone project, but it is inspired by and shares some similarities with other projects. Here are a few:
@@ -306,7 +308,58 @@ If you encounter any issues while running Abogen, try launching it from the comm
 ```
 abogen-cli
 ```
+
+If you installed using the Windows installer `(WINDOWS_INSTALL.bat)`, go to `python_embedded/Scripts` and run:
+```
+abogen-cli.exe
+```
+
 This will start Abogen in command-line mode and display detailed error messages. Please open a new issue on the [Issues](https://github.com/denizsafak/abogen/issues) page with the error message and a description of your problem.
+
+## `Tips and Solutions`
+
+<details><summary><b>
+<a name="cuda-warning">How to fix "CUDA GPU is not available. Using CPU" warning?</a>
+</b></summary>
+
+> This message means PyTorch couldn't use your GPU. On Windows, Abogen supports NVIDIA GPUs with CUDA. AMD GPUs are supported only on Linux. Abogen will still run on the CPU, but it will be slower.
+>
+> If you have a compatible NVIDIA GPU on Windows and still see this warning:
+> Open your terminal in the Abogen folder (the folder that contains `python_embedded`) and type:
+> ```bash
+> python_embedded\python.exe -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+> ```
+> If you have an AMD GPU, use Linux and follow the Linux/ROCm [instructions](#how-to-install). If you want to keep running on CPU, no action is required, but performance will just be reduced. See [#32](https://github.com/denizsafak/abogen/issues/32) for more details.
+
+</details>
+
+<details><summary><b>
+<a name="path-warning">How to fix "WARNING: The script abogen-cli is installed in '/home/username/.local/bin' which is not on PATH" error in Linux?</a>
+</b></summary>
+
+> Run the following command to add Abogen to your PATH:
+> ```bash
+> echo "export PATH=\"/home/$USER/.local/bin:\$PATH\"" >> ~/.bashrc && source ~/.bashrc
+> ```
+
+</details>
+
+<details><summary><b>
+<a name="no-matching-distribution-found">How to fix "No matching distribution found" error?<a>
+</b></summary>
+
+> Try installing Abogen on supported Python (3.10 to 3.12) versions. You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
+
+</details>
+
+<details><summary><b>
+<a name="japanese-audio-not-working">How to fix Japanese audio not working?</a>
+</b></summary>
+
+> Japanese audio may require additional configuration. 
+> I'm not sure about the exact solution, but it seems to be related to installing additional dependencies for Japanese support in Kokoro. Please check [#56](https://github.com/denizsafak/abogen/issues/56) for more information. 
+
+</details>
 
 ## `Contributing`
 I welcome contributions! If you have ideas for new features, improvements, or bug fixes, please fork the repository and submit a pull request.
@@ -335,4 +388,4 @@ This project is available under the MIT License - see the [LICENSE](https://gith
 > [!IMPORTANT]
 > Subtitle generation currently works only for English. This is because Kokoro provides timestamp tokens only for English text. If you want subtitles in other languages, please request this feature in the [Kokoro project](https://github.com/hexgrad/kokoro). For more technical details, see [this line](https://github.com/hexgrad/kokoro/blob/6d87f4ae7abc2d14dbc4b3ef2e5f19852e861ac2/kokoro/pipeline.py#L383) in the Kokoro's code.
 
-> Tags: audiobook, kokoro, text-to-speech, TTS, audiobook generator, audiobooks, text to speech, audiobook maker, audiobook creator, audiobook generator, voice-synthesis, text to audio, text to audio converter, text to speech converter, text to speech generator, text to speech software, text to speech app, epub to audio, pdf to audio, content-creation, media-generation
+> Tags: audiobook, kokoro, text-to-speech, TTS, audiobook generator, audiobooks, text to speech, audiobook maker, audiobook creator, audiobook generator, voice-synthesis, text to audio, text to audio converter, text to speech converter, text to speech generator, text to speech software, text to speech app, epub to audio, pdf to audio, markdown to audio, content-creation, media-generation

@@ -1,7 +1,7 @@
 # 1.1.8 (pre-release)
 - Added `.md` (Markdown) file extension support by @brianxiadong in PR #75
 - Added new option `Configure silence between chapters` that lets you configure the silence between chapters, mentioned by @lfperez1982 in #79
-- Better indicators while displaying and managing the input and processing files.
+- Better indicators and options while displaying and managing the input and processing files.
 - Improved the markdown logic to better handle various markdown structures and cases.
 - Fixed subtitle splitting before commas by combining punctuation with preceding words.
 - Fixed save options not working correctly in queue mode, mentioned by @jborza in #78
