@@ -138,6 +138,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 | **Replace single newlines with spaces** | Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks. |
 | **Save location** | `Save next to input file`, `Save to desktop`, or `Choose output folder` |
 
+> Special thanks to [@brianxiadong](https://github.com/brianxiadong) for adding markdown support in PR [#75](https://github.com/denizsafak/abogen/pull/75)
 > Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10)
 
 | Book handler options | Description |
