@@ -96,6 +96,8 @@ pip3 install --pre torch torchvision torchaudio --index-url https://download.pyt
 
 > See [How to fix "CUDA GPU is not available. Using CPU" warning?](#cuda-warning)
 
+> See [How to use "uv" instead of "pip"?](#use-uv-instead-of-pip)
+
 > Special thanks to [@hg000125](https://github.com/hg000125) for his contribution in [#23](https://github.com/denizsafak/abogen/issues/23). AMD GPU support is possible thanks to his work.
 
 ## `How to run?`
@@ -360,6 +362,18 @@ This will start Abogen in command-line mode and display detailed error messages.
 
 > Japanese audio may require additional configuration. 
 > I'm not sure about the exact solution, but it seems to be related to installing additional dependencies for Japanese support in Kokoro. Please check [#56](https://github.com/denizsafak/abogen/issues/56) for more information. 
+
+</details>
+
+<details><summary><b>
+<a name="use-uv-instead-of-pip">How to use "uv" instead of "pip"?</a>
+</b></summary>
+
+> Abogen needs "pip", because Kokoro uses pip to download voice models from HuggingFace Hub. If you want to use "uv" instead of "pip", you can use the following command to run Abogen:
+>
+> ```bash
+> uvx --with pip abogen
+> ```
 
 </details>
 
