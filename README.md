@@ -7,7 +7,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-maroon.svg)](https://opensource.org/licenses/MIT)
 
-Abogen is a powerful text-to-speech conversion tool that makes it easy to turn ePub, PDF, or text files into high-quality audio with matching subtitles in seconds. Use it for audiobooks, voiceovers for Instagram, YouTube, TikTok, or any project that needs natural-sounding text-to-speech, using [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M).
+Abogen is a powerful text-to-speech conversion tool that makes it easy to turn ePub, PDF, text or markdown files into high-quality audio with matching subtitles in seconds. Use it for audiobooks, voiceovers for Instagram, YouTube, TikTok, or any project that needs natural-sounding text-to-speech, using [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M).
 
 <img title="Abogen Main" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen.png' width="380"> <img title="Abogen Processing" src='https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/abogen2.png' width="380">
 
@@ -110,7 +110,7 @@ abogen
 > If you installed using the Windows installer `(WINDOWS_INSTALL.bat)`, It should have created a shortcut in the same folder, or your desktop. You can run it from there. If you lost the shortcut, Abogen is located in `python_embedded/Scripts/abogen.exe`. You can run it from there directly.
 
 ## `How to use?`
-1) Drag and drop any ePub, PDF, or text file (or use the built-in text editor)
+1) Drag and drop any ePub, PDF, text or markdown file (or use the built-in text editor)
 2) Configure the settings:
     - Set speech speed
     - Select a voice (or create a custom voice using voice mixer)
@@ -128,7 +128,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 
 | Options | Description |
 |---------|-------------|
-| **Input Box** | Drag and drop `ePub`, `PDF`, or `.TXT` files (or use built-in text editor) |
+| **Input Box** | Drag and drop `ePub`, `PDF`, `.TXT` or `.MD` files (or use built-in text editor) |
 | **Queue options** | Add multiple files to a queue and process them in batch, with individual settings for each file. See [Queue mode](#queue-mode) for more details. |
 | **Speed** | Adjust speech rate from `0.1x` to `2.0x` |
 | **Select Voice** | First letter of the language code (e.g., `a` for American English, `b` for British English, etc.), second letter is for `m` for male and `f` for female. |
@@ -142,7 +142,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 
 | Book handler options | Description |
 |---------|-------------|
-| **Chapter Control** | Select specific `chapters` from ePUBs or `chapters + pages` from PDFs. |
+| **Chapter Control** | Select specific `chapters` from ePUBs or markdown files or `chapters + pages` from PDFs. |
 | **Save each chapter separately** | Save each chapter in e-books as a separate audio file. |
 | **Create a merged version** | Create a single audio file that combines all chapters. (If `Save each chapter separately` is disabled, this option will be the default behavior.) |
 | **Save in a project folder with metadata** | Save the converted items in a project folder with available metadata files. |
@@ -173,7 +173,7 @@ With voice mixer, you can create custom voices by mixing different voice models.
 
 Abogen supports **queue mode**, allowing you to add multiple files to a processing queue. This is useful if you want to convert several files in one batch.
 
-- You can add text files (`.txt`) directly using the **Add files** button in the Queue Manager. To add PDF or EPUB files, use the input box in the main window and click the **Add to Queue** button.
+- You can add text files (`.txt`) directly using the **Add files** button in the Queue Manager. To add PDF, EPUB, or markdown files, use the input box in the main window and click the **Add to Queue** button.
 - Each file in the queue keeps the configuration settings that were active when it was added. Changing the main window configuration afterward does **not** affect files already in the queue.
 - You can view each file's configuration by hovering over them.
 
@@ -181,12 +181,12 @@ Abogen will process each item in the queue automatically, saving outputs as conf
 > Special thanks to [@jborza](https://github.com/jborza) for adding queue mode in PR [#35](https://github.com/denizsafak/abogen/pull/35)
 
 ## `About Chapter Markers`
-When you process ePUB or PDF files, Abogen converts them into text files stored in your cache directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
+When you process ePUB, PDF or markdown files, Abogen converts them into text files stored in your cache directory. When you click "Edit," you're actually modifying these converted text files. In these text files, you'll notice tags that look like this:
 
 ```
 <<CHAPTER_MARKER:Chapter Title>>
 ```
-These are chapter markers. They are automatically added when you process ePUB or PDF files, based on the chapters you select. They serve an important purpose:
+These are chapter markers. They are automatically added when you process ePUB, PDF or markdown files, based on the chapters you select. They serve an important purpose:
 -  Allow you to split the text into separate audio files for each chapter
 -  Save time by letting you reprocess only specific chapters if errors occur, rather than the entire file
 
@@ -204,7 +204,7 @@ When you process the text file, Abogen will detect these markers automatically a
 ![Abogen Chapter Marker](https://raw.githubusercontent.com/denizsafak/abogen/refs/heads/main/demo/chapter_marker.png)
 
 ## `About Metadata Tags`
-Similar to chapter markers, it is possible to add metadata tags for `M4B` files. This is useful for audiobook players that support metadata, allowing you to add information like title, author, year, etc. Abogen automatically adds these tags when you process ePUB or PDF files, but you can also add them manually to your text files. Add metadata tags **at the beginning of your text file** like this:
+Similar to chapter markers, it is possible to add metadata tags for `M4B` files. This is useful for audiobook players that support metadata, allowing you to add information like title, author, year, etc. Abogen automatically adds these tags when you process ePUB, PDF or markdown files, but you can also add them manually to your text files. Add metadata tags **at the beginning of your text file** like this:
 ```
 <<METADATA_TITLE:Title>>
 <<METADATA_ARTIST:Author>>
