@@ -1189,13 +1189,32 @@ class ConversionThread(QThread):
         if not tokens_with_timestamps:
             return
 
+        # Always combine punctuation with preceding words for consistent handling across modes
+        processed_tokens = []
+        i = 0
+        while i < len(tokens_with_timestamps):
+            token = tokens_with_timestamps[i].copy()
+
+            # Look ahead for punctuation
+            while i + 1 < len(tokens_with_timestamps) and re.match(
+                r"^[^\w\s]+$", tokens_with_timestamps[i + 1]["text"]
+            ):
+                token["text"] += tokens_with_timestamps[i + 1]["text"]
+                token["end"] = tokens_with_timestamps[i + 1]["end"]
+                token["whitespace"] = tokens_with_timestamps[i + 1]["whitespace"]
+                i += 1
+
+            processed_tokens.append(token)
+            i += 1
+
+        # Use processed_tokens instead of tokens_with_timestamps for the rest of the method
         if self.subtitle_mode == "Sentence + Highlighting":
             # Sentence-based processing with karaoke highlighting
             separator = r"[.!?]"
             current_sentence = []
             word_count = 0
 
-            for token in tokens_with_timestamps:
+            for token in processed_tokens:  # Updated to use processed_tokens
                 current_sentence.append(token)
                 word_count += 1
 
@@ -1249,7 +1268,7 @@ class ConversionThread(QThread):
             current_sentence = []
             word_count = 0
 
-            for token in tokens_with_timestamps:
+            for token in processed_tokens:  # Updated to use processed_tokens
                 current_sentence.append(token)
                 word_count += 1
 
@@ -1299,25 +1318,7 @@ class ConversionThread(QThread):
             except (ValueError, IndexError):
                 word_count = 1
 
-            # Combine punctuation with preceding words
-            processed_tokens = []
-            i = 0
-            while i < len(tokens_with_timestamps):
-                token = tokens_with_timestamps[i].copy()
-
-                # Look ahead for punctuation
-                while i + 1 < len(tokens_with_timestamps) and re.match(
-                    r"^[^\w\s]+$", tokens_with_timestamps[i + 1]["text"]
-                ):
-                    token["text"] += tokens_with_timestamps[i + 1]["text"]
-                    token["end"] = tokens_with_timestamps[i + 1]["end"]
-                    token["whitespace"] = tokens_with_timestamps[i + 1]["whitespace"]
-                    i += 1
-
-                processed_tokens.append(token)
-                i += 1
-
-            # Group words into subtitle entries
+            # Group words into subtitle entries (processed_tokens already has punctuation combined)
             for i in range(0, len(processed_tokens), word_count):
                 group = processed_tokens[i : i + word_count]
                 if group:
@@ -1333,6 +1334,7 @@ class ConversionThread(QThread):
                 start, end, text = last_entry
                 if end is None or end <= start or end <= 0:
                     subtitle_entries[-1] = (start, fallback_end_time, text)
+
 
     def cancel(self):
         self.cancel_requested = True
