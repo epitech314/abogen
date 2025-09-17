@@ -5,6 +5,7 @@
 - Improved the markdown logic to better handle various markdown structures and cases.
 - Fixed save options not working correctly in queue mode, mentioned by @jborza in #78
 - Fixed `No Qt platform plugin could be initialized` error, mentioned by @sunrainxyz in #59
+- Fixed ordered list numbers not being included in EPUB content conversion. The numbers are now properly included in the converted content, mentioned by @jefro108 in #47
 - Potentially fixed subtitle generation stucks at 9:59:59, mentioned by @bolaykim in #73
 - Improvements in code and documentation.
 

@@ -321,9 +321,23 @@ class HandlerDialog(QDialog):
             html_content = self.doc_content.get(doc_href, "")
             if html_content:
                 soup = BeautifulSoup(html_content, "html.parser")
+                
+                # Handle ordered lists by prepending numbers to list items
+                for ol in soup.find_all("ol"):
+                    # Get start attribute or default to 1
+                    start = int(ol.get("start", 1))
+                    for i, li in enumerate(ol.find_all("li", recursive=False)):
+                        # Insert the number at the beginning of the list item
+                        number_text = f"{start + i}) "
+                        if li.string:
+                            li.string.replace_with(number_text + li.string)
+                        else:
+                            li.insert(0, NavigableString(number_text))
+                
                 # Remove sup and sub tags
                 for tag in soup.find_all(["sup", "sub"]):
                     tag.decompose()
+                    
                 text = clean_text(soup.get_text()).strip()
                 if text:
                     self.content_texts[doc_href] = text
@@ -627,10 +641,26 @@ class HandlerDialog(QDialog):
                 slice_html = current_doc_html
             if slice_html.strip():
                 slice_soup = BeautifulSoup(slice_html, "html.parser")
+                # Add line breaks after paragraphs and divs
                 for tag in slice_soup.find_all(["p", "div"]):
                     tag.append("\n\n")
+                
+                # Handle ordered lists by prepending numbers to list items
+                for ol in slice_soup.find_all("ol"):
+                    # Get start attribute or default to 1
+                    start = int(ol.get("start", 1))
+                    for i, li in enumerate(ol.find_all("li", recursive=False)):
+                        # Insert the number at the beginning of the list item
+                        number_text = f"{start + i}) "
+                        if li.string:
+                            li.string.replace_with(number_text + li.string)
+                        else:
+                            li.insert(0, NavigableString(number_text))
+                
+                # Remove sup and sub tags that might contain footnotes
                 for tag in slice_soup.find_all(["sup", "sub"]):
                     tag.decompose()
+                
                 text = clean_text(slice_soup.get_text()).strip()
                 if text:
                     self.content_texts[current_src] = text
