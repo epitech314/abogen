@@ -1,4 +1,4 @@
-# 1.1.8 (pre-release)
+# 1.1.8
 - Added `.md` (Markdown) file extension support by @brianxiadong in PR #75
 - Added new option `Configure silence between chapters` that lets you configure the silence between chapters, mentioned by @lfperez1982 in #79
 - Better indicators and options while displaying and managing the input and processing files.
