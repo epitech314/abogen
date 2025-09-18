@@ -1,4 +1,4 @@
-# 1.1.9 (pre-release)
+# 1.1.9
 - Fixed the issue where spaces were deleted before punctuation marks while generating subtitles.
 - Fixed markdown TOC generation breaks when "Replace single newlines" is enabled.
 - Improvements in code and documentation.
