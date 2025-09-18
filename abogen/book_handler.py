@@ -231,11 +231,15 @@ class HandlerDialog(QDialog):
         if not self.markdown_text:
             return
 
-        text = clean_text(self.markdown_text)
-        text = textwrap.dedent(text)
+        # Generate TOC from the original (dedented) markdown BEFORE cleaning,
+        # so header ids/anchors are preserved for reliable position detection.
+        original_text = textwrap.dedent(self.markdown_text)
         md = markdown.Markdown(extensions=['toc', 'fenced_code'])
-        html = md.convert(text)
+        html = md.convert(original_text)
         self.markdown_toc = md.toc_tokens
+
+        # Use cleaned text for stored content/length calculations
+        cleaned_full_text = clean_text(original_text)
 
         soup = BeautifulSoup(html, 'html.parser')
         self.content_texts = {}
@@ -243,8 +247,8 @@ class HandlerDialog(QDialog):
 
         if not self.markdown_toc:
             chapter_id = "markdown_content"
-            self.content_texts[chapter_id] = text
-            self.content_lengths[chapter_id] = calculate_text_length(text)
+            self.content_texts[chapter_id] = cleaned_full_text
+            self.content_lengths[chapter_id] = calculate_text_length(cleaned_full_text)
             return
 
         all_headers = []
@@ -279,6 +283,7 @@ class HandlerDialog(QDialog):
             header_tag = section_soup.find(attrs={'id': header_id})
             if header_tag:
                 header_tag.decompose()
+            # Clean section text for storage/lengths
             section_text = clean_text(section_soup.get_text()).strip()
             chapter_id = header_id
             if section_text:

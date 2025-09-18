@@ -1,5 +1,7 @@
-# 1.1.9
+# 1.1.9 (pre-release)
 - Fixed the issue where spaces were deleted before punctuation marks while generating subtitles.
+- Fixed markdown TOC generation breaks when "Replace single newlines" is enabled.
+- Improvements in code and documentation.
 
 # 1.1.8
 - Added `.md` (Markdown) file extension support by @brianxiadong in PR #75
