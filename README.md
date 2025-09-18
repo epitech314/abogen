@@ -92,11 +92,11 @@ pip3 uninstall torch
 pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm6.4
 ```
 
+> See [How to fix "CUDA GPU is not available. Using CPU" warning?](#cuda-warning)
+
 > See [How  to fix "WARNING: The script abogen-cli is installed in '/home/username/.local/bin' which is not on PATH" error in Linux?](#path-warning)
 
 > See [How to fix "No matching distribution found" error?](#no-matching-distribution-found)
-
-> See [How to fix "CUDA GPU is not available. Using CPU" warning?](#cuda-warning)
 
 > See [How to use "uv" instead of "pip"?](#use-uv-instead-of-pip)
 
@@ -143,6 +143,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 | **Save location** | `Save next to input file`, `Save to desktop`, or `Choose output folder` |
 
 > Special thanks to [@brianxiadong](https://github.com/brianxiadong) for adding markdown support in PR [#75](https://github.com/denizsafak/abogen/pull/75)
+
 > Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10)
 
 | Book handler options | Description |
@@ -322,7 +323,19 @@ abogen-cli.exe
 
 This will start Abogen in command-line mode and display detailed error messages. Please open a new issue on the [Issues](https://github.com/denizsafak/abogen/issues) page with the error message and a description of your problem.
 
-## `Tips and Solutions`
+## `Common Issues & Solutions`
+
+<details><summary><b>
+<a name="about-abogen">About the name "abogen"</a>
+</b></summary>
+
+> The name **"abogen"** comes from a shortened form of **"audiobook generator"**, which is the purpose of this project.  
+>
+> After releasing the project, I learned from [community feedback](https://news.ycombinator.com/item?id=44853064#44857237) that the prefix *"abo"* can unfortunately be understood as an ethnic slur in certain regions (particularly Australia and New Zealand). This was something I was not aware of when naming the project, as English is not my first language.  
+>
+> I want to make it clear that the name was chosen only for its technical meaning, with **no offensive intent**. I’m grateful to those who kindly pointed this out, as it helps ensure the project remains respectful and welcoming to everyone.  
+
+</details>
 
 <details><summary><b>
 <a name="cuda-warning">How to fix "CUDA GPU is not available. Using CPU" warning?</a>
