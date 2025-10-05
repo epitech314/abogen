@@ -1246,9 +1246,14 @@ class ConversionThread(QThread):
                 if end is None or end <= start or end <= 0:
                     subtitle_entries[-1] = (start, fallback_end_time, text)
 
-        elif self.subtitle_mode == "Sentence" or self.subtitle_mode == "Sentence + Comma":
+        elif self.subtitle_mode in ["Sentence", "Sentence + Comma", "Line"]:
             # Define separator pattern based on mode
-            separator = r"[.!?]" if self.subtitle_mode == "Sentence" else r"[.!?,]"
+            if self.subtitle_mode == "Line":
+                separator = r"\n"
+            elif self.subtitle_mode == "Sentence":
+                separator = r"[.!?]"
+            else:  # Sentence + Comma
+                separator = r"[.!?,]"
             current_sentence = []
             word_count = 0
 

@@ -953,6 +953,7 @@ class abogen(QWidget):
         self.subtitle_combo.setToolTip(
             "Choose how subtitles will be generated:\n"
             "Disabled: No subtitles will be generated.\n"
+            "Line: Subtitles will be generated for each line.\n"
             "Sentence: Subtitles will be generated for each sentence.\n"
             "Sentence + Comma: Subtitles will be generated for each sentence and comma.\n"
             "Sentence + Highlighting: Subtitles with word-by-word karaoke highlighting.\n"
@@ -963,7 +964,7 @@ class abogen(QWidget):
                 for lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
             )
         )
-        subtitle_options = ["Disabled", "Sentence", "Sentence + Comma", "Sentence + Highlighting"] + [
+        subtitle_options = ["Disabled", "Line", "Sentence", "Sentence + Comma", "Sentence + Highlighting"] + [
             f"{i} word" if i == 1 else f"{i} words" for i in range(1, 11)
         ]
         self.subtitle_combo.addItems(subtitle_options)
