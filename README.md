@@ -392,6 +392,22 @@ This will start Abogen in command-line mode and display detailed error messages.
 
 </details>
 
+<details><summary><b>
+<a name="use-uv-instead-of-pip">How to uninstall Abogen?</a>
+</b></summary>
+
+> - From the settings menu, go to `Open configuration directory` and delete the directory.
+> - From the settings menu, go to `Open cache directory` and delete the directory.
+> - If you installed abogen using pip, type:
+>```bash
+>pip uninstall abogen # uninstalls abogen
+>pip cache purge # removes pip cache
+>```
+> - If you installed using the windows installer (WINDOWS_INSTALL.bat), just remove the folder that contains Abogen. It installs everything inside `python_embedded` folder.
+> - If you installed espeak-ng, you need to remove it separately.
+
+</details>
+
 ## `Contributing`
 I welcome contributions! If you have ideas for new features, improvements, or bug fixes, please fork the repository and submit a pull request.
 ### For developers and contributors
