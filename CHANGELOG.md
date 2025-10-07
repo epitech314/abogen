@@ -1,3 +1,6 @@
+# 1.2.0
+- Fixed `cannot access local variable 'is_narrow'` error when subtitle format `SRT` was selected, mentioned by @Kinasa0096 in #88. 
+
 # 1.1.9
 - Fixed the issue where spaces were deleted before punctuation marks while generating subtitles.
 - Fixed markdown TOC generation breaks when "Replace single newlines" is enabled.
