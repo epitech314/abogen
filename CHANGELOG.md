@@ -1,4 +1,5 @@
 # 1.2.0
+- Added `Line` option to subtitle generation modes, allowing subtitles to be generated based on line breaks in the text, by @mleg in #94.
 - Fixed `cannot access local variable 'is_narrow'` error when subtitle format `SRT` was selected, mentioned by @Kinasa0096 in #88. 
 - Improvements in code and documentation.
 

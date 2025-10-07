@@ -136,7 +136,7 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 | **Select Voice** | First letter of the language code (e.g., `a` for American English, `b` for British English, etc.), second letter is for `m` for male and `f` for female. |
 | **Voice mixer** | Create custom voices by mixing different voice models with a profile system. See [Voice Mixer](#voice-mixer) for more details. |
 | **Voice preview** | Listen to the selected voice before processing. |
-| **Generate subtitles** | `Disabled`, `Sentence`, `Sentence + Comma`, `Sentence + Highlighting`, `1 word`, `2 words`, `3 words`, etc. (Represents the number of words in each subtitle entry) |
+| **Generate subtitles** | `Disabled`, `Line`, `Sentence`, `Sentence + Comma`, `Sentence + Highlighting`, `1 word`, `2 words`, `3 words`, etc. (Represents the number of words in each subtitle entry) |
 | **Output voice format** | `.WAV`, `.FLAC`, `.MP3`, `.OPUS (best compression)` and `M4B (with chapters)` |
 | **Output subtitle format** | Configures the subtitle format as `SRT (standard)`, `ASS (wide)`, `ASS (narrow)`, `ASS (centered wide)`, or `ASS (centered narrow)`. |
 | **Replace single newlines with spaces** | Replaces single newlines with spaces in the text. This is useful for texts that have imaginary line breaks. |
