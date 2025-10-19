@@ -259,6 +259,7 @@ class InputBox(QLabel):
             try:
 
                 book_path = file_path
+                # HandlerDialog uses internal caching to avoid reprocessing the same book
                 dialog = HandlerDialog(
                     book_path,
                     checked_chapters=self.window().selected_chapters,
@@ -1255,6 +1256,7 @@ class abogen(QWidget):
             self.selected_chapters = set()
             self.last_opened_book_path = book_path
 
+        # HandlerDialog uses internal caching to avoid reprocessing the same book
         dialog = HandlerDialog(
             book_path,
             file_type=getattr(self, 'selected_file_type', None),

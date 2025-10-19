@@ -40,6 +40,24 @@ class HandlerDialog(QDialog):
     _save_chapters_separately = False
     _merge_chapters_at_end = True
     _save_as_project = False  # New class variable for save_as_project option
+    
+    # Cache for processed book content to avoid reprocessing
+    # Key: (book_path, modification_time, file_type)
+    # Value: dict with content_texts, content_lengths, doc_content (for epub), markdown_toc (for markdown)
+    _content_cache = {}
+
+    @classmethod
+    def clear_content_cache(cls, book_path=None):
+        """Clear the content cache. If book_path is provided, only clear that book's cache."""
+        if book_path is None:
+            cls._content_cache.clear()
+            logging.info("Cleared all content cache")
+        else:
+            keys_to_remove = [key for key in cls._content_cache.keys() if key[0] == book_path]
+            for key in keys_to_remove:
+                del cls._content_cache[key]
+            if keys_to_remove:
+                logging.info(f"Cleared content cache for {os.path.basename(book_path)}")
 
     def __init__(self, book_path, file_type=None, checked_chapters=None, parent=None):
         super().__init__(parent)
@@ -189,6 +207,27 @@ class HandlerDialog(QDialog):
 
     def _preprocess_content(self):
         """Pre-process content from the document"""
+        # Create cache key from file path, modification time, and file type
+        try:
+            mod_time = os.path.getmtime(self.book_path)
+        except Exception:
+            mod_time = 0
+        
+        cache_key = (self.book_path, mod_time, self.file_type)
+        
+        # Check if content is already cached
+        if cache_key in HandlerDialog._content_cache:
+            cached_data = HandlerDialog._content_cache[cache_key]
+            self.content_texts = cached_data['content_texts']
+            self.content_lengths = cached_data['content_lengths']
+            if 'doc_content' in cached_data:
+                self.doc_content = cached_data['doc_content']
+            if 'markdown_toc' in cached_data:
+                self.markdown_toc = cached_data['markdown_toc']
+            logging.info(f"Using cached content for {os.path.basename(self.book_path)}")
+            return
+        
+        # Process content if not cached
         if self.file_type == "epub":
             try:
                 self._process_epub_content_nav()  # Use the new navigation-based method
@@ -203,6 +242,19 @@ class HandlerDialog(QDialog):
             self._preprocess_markdown_content()
         else:
             self._preprocess_pdf_content()
+        
+        # Cache the processed content
+        cache_data = {
+            'content_texts': self.content_texts,
+            'content_lengths': self.content_lengths,
+        }
+        if hasattr(self, 'doc_content'):
+            cache_data['doc_content'] = self.doc_content
+        if hasattr(self, 'markdown_toc'):
+            cache_data['markdown_toc'] = self.markdown_toc
+        
+        HandlerDialog._content_cache[cache_key] = cache_data
+        logging.info(f"Cached content for {os.path.basename(self.book_path)}")
 
     def _preprocess_pdf_content(self):
         """Pre-process all page contents from PDF document"""
