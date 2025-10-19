@@ -18,6 +18,16 @@ try:
 except ImportError:
     print("PyQt5 not installed.")
 
+# Set application ID for Windows taskbar icon
+if platform.system() == "Windows":
+    try:
+        from abogen.constants import PROGRAM_NAME, VERSION
+        import ctypes
+        app_id = f"{PROGRAM_NAME}.{VERSION}"
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+    except Exception as e:
+        print("Warning: failed to set AppUserModelID:", e)
+
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
@@ -85,13 +95,6 @@ def qt_message_handler(mode, context, message):
 
 # Install the custom message handler
 qInstallMessageHandler(qt_message_handler)
-
-# Set application ID for Windows taskbar icon
-if platform.system() == "Windows":
-    import ctypes
-
-    app_id = f"{PROGRAM_NAME}.{VERSION}"
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
 
 # Handle Wayland on Linux GNOME
 if platform.system() == "Linux":

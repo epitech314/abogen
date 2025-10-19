@@ -4,6 +4,7 @@
 - Fixed folder and filename sanitization to properly handle OS-specific illegal characters (Windows, Linux, macOS), ensuring compatibility across all platforms when creating chapter folders and files.
 - Fixed `/` and `\` path display by normalizing paths.
 - Fixed book reprocessing issue where books were being processed every time the chapters window was opened, improving performance when reopening the same book.
+- Fixed taskbar icon not appearing correctly in Windows.
 - Improvements in code and documentation.
 
 # 1.1.9

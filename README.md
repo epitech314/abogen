@@ -146,6 +146,8 @@ Here’s Abogen in action: in this demo, it processes ∼3,000 characters of tex
 
 > Special thanks to [@jborza](https://github.com/jborza) for chapter support in PR [#10](https://github.com/denizsafak/abogen/pull/10)
 
+> Special thanks to [@mleg](https://github.com/mleg) for adding `Line` option in subtitle generation in PR [#94](https://github.com/denizsafak/abogen/pull/94)
+
 | Book handler options | Description |
 |---------|-------------|
 | **Chapter Control** | Select specific `chapters` from ePUBs or markdown files or `chapters + pages` from PDFs. |
