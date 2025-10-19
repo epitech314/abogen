@@ -1,5 +1,4 @@
 import re
-import html
 import ebooklib
 import base64
 import fitz  # PyMuPDF for PDF support
@@ -21,7 +20,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QLabel,
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from abogen.utils import clean_text, calculate_text_length, detect_encoding
 import os
 import logging  # Add logging
@@ -45,6 +44,20 @@ class HandlerDialog(QDialog):
     # Key: (book_path, modification_time, file_type)
     # Value: dict with content_texts, content_lengths, doc_content (for epub), markdown_toc (for markdown)
     _content_cache = {}
+
+    class _LoaderThread(QThread):
+        """Minimal QThread that runs a callable and emits an error string on exception."""
+        error = pyqtSignal(str)
+
+        def __init__(self, target_callable):
+            super().__init__()
+            self._target = target_callable
+
+        def run(self):
+            try:
+                self._target()
+            except Exception as e:
+                self.error.emit(str(e))
 
     @classmethod
     def clear_content_cache(cls, book_path=None):
@@ -157,14 +170,11 @@ class HandlerDialog(QDialog):
         # Initialize checked_chapters set
         self.checked_chapters = set(checked_chapters) if checked_chapters else set()
 
-        # For storing content and lengths
+        # For storing content and lengths (will be filled by background loader)
         self.content_texts = {}
         self.content_lengths = {}
 
-        # Pre-process content based on file type
-        self._preprocess_content()
-
-        # Add "Information" item at the beginning of the tree
+        # Add a placeholder "Information" item so the tree isn't empty immediately
         info_item = QTreeWidgetItem(self.treeWidget, ["Information"])
         info_item.setData(0, Qt.UserRole, "info:bookinfo")
         info_item.setFlags(info_item.flags() & ~Qt.ItemIsUserCheckable)
@@ -172,8 +182,18 @@ class HandlerDialog(QDialog):
         font.setBold(True)
         info_item.setFont(0, font)
 
-        # Build tree based on file type
-        self._build_tree()
+        # Setup UI now so dialog appears immediately
+        self._setup_ui()
+
+        # Create a centered loading overlay and show it while background load runs
+        self._create_loading_overlay()
+        # Hide the main UI so only the overlay is visible initially
+        if getattr(self, 'splitter', None) is not None:
+            self.splitter.setVisible(False)
+        self._show_loading_overlay("Loading...")
+
+        # Start background loading of book content so the dialog opens immediately
+        self._start_background_load()
 
         # Hide expand/collapse decoration if there are no parent items
         has_parents = False
@@ -183,27 +203,99 @@ class HandlerDialog(QDialog):
                 break
         self.treeWidget.setRootIsDecorated(has_parents)
 
-        # Setup UI (creates save_chapters_checkbox and other UI elements)
-        self._setup_ui()
 
-        # Run auto-check after UI is setup
-        if not self._are_provided_checks_relevant():
-            self._run_auto_check()
 
-        # Connect signals
-        self.treeWidget.currentItemChanged.connect(self.update_preview)
-        self.treeWidget.itemChanged.connect(self.handle_item_check)
-        self.treeWidget.itemChanged.connect(lambda _: self._update_checkbox_states())
-        self.treeWidget.itemDoubleClicked.connect(self.handle_item_double_click)
+    def _create_loading_overlay(self):
+        """Create a simple centered QLabel used as loading indicator.
 
-        # Select first item and expand all
-        self.treeWidget.expandAll()
-        if self.treeWidget.topLevelItemCount() > 0:
-            self.treeWidget.setCurrentItem(self.treeWidget.topLevelItem(0))
-            self.treeWidget.setFocus()
+        This label is added to the dialog's main layout above the splitter so
+        when the splitter is hidden only the text is visible.
+        """
+        try:
+            label = QLabel(self)
+            label.setAlignment(Qt.AlignCenter)
+            # larger plain text per request
+            label.setStyleSheet("font-size: 14pt;")
+            label.setVisible(False)
+            # insert at top of main layout if present, otherwise keep as child
+            try:
+                layout = self.layout()
+                if layout is not None:
+                    layout.insertWidget(0, label)
+            except Exception:
+                pass
+            self._loading_label = label
+        except Exception:
+            self._loading_label = None
 
-        # Update checkbox states
-        self._update_checkbox_states()
+    def _show_loading_overlay(self, text: str):
+        lbl = getattr(self, '_loading_label', None)
+        if lbl is None:
+            return
+        lbl.setText(text)
+        lbl.setVisible(True)
+
+    def _hide_loading_overlay(self):
+        lbl = getattr(self, '_loading_label', None)
+        if lbl is None:
+            return
+        lbl.setVisible(False)
+
+
+    def _start_background_load(self):
+        """Start a QThread that runs the preprocessing in background."""
+        # Start a minimal QThread which executes _preprocess_content
+        self._loader_thread = HandlerDialog._LoaderThread(self._preprocess_content)
+        self._loader_thread.finished.connect(self._on_load_finished)
+        self._loader_thread.error.connect(self._on_load_error)
+        # ensure thread instance is deleted when done
+        self._loader_thread.finished.connect(self._loader_thread.deleteLater)
+        self._loader_thread.start()
+
+    def _on_load_error(self, err_msg):
+        logging.error(f"Error loading book in background: {err_msg}")
+        if getattr(self, 'previewEdit', None) is not None:
+            self.previewEdit.setPlainText(f"Error loading book: {err_msg}")
+        if getattr(self, 'splitter', None) is not None:
+            self.splitter.setVisible(True)
+        self._hide_loading_overlay()
+
+    def _on_load_finished(self):
+        """Called in the main thread when background loading finished."""
+        # Build the tree now that content_texts/content_lengths/etc. are ready
+        try:
+            # Rebuild tree based on file type
+            self._build_tree()
+
+            # Run auto-check if no provided checks are relevant
+            if not self._are_provided_checks_relevant():
+                self._run_auto_check()
+
+            # Connect signals (after tree exists)
+            self.treeWidget.currentItemChanged.connect(self.update_preview)
+            self.treeWidget.itemChanged.connect(self.handle_item_check)
+            self.treeWidget.itemChanged.connect(lambda _: self._update_checkbox_states())
+            self.treeWidget.itemDoubleClicked.connect(self.handle_item_double_click)
+
+            # Expand and select first item
+            self.treeWidget.expandAll()
+            if self.treeWidget.topLevelItemCount() > 0:
+                self.treeWidget.setCurrentItem(self.treeWidget.topLevelItem(0))
+                self.treeWidget.setFocus()
+
+            # Update checkbox states
+            self._update_checkbox_states()
+
+            # Update preview for the current selection
+            current = self.treeWidget.currentItem()
+            self.update_preview(current)
+
+        except Exception as e:
+            logging.error(f"Error finalizing book load: {e}")
+        # Show the main UI and hide loading text
+        if getattr(self, 'splitter', None) is not None:
+            self.splitter.setVisible(True)
+        self._hide_loading_overlay()
 
     def _preprocess_content(self):
         """Pre-process content from the document"""
@@ -1958,6 +2050,17 @@ class HandlerDialog(QDialog):
         return metadata
 
     def get_selected_text(self):
+        # If a background loader thread is running, wait for it to finish to
+        # preserve compatibility with callers that expect content to be ready
+        # when they create a HandlerDialog and immediately request selected text.
+        try:
+            if hasattr(self, '_loader_thread') and getattr(self, '_loader_thread') is not None:
+                # Wait for thread to finish (blocks until done)
+                if self._loader_thread.isRunning():
+                    self._loader_thread.wait()
+        except Exception:
+            pass
+
         if self.file_type == "epub":
             return self._get_epub_selected_text()
         elif self.file_type == "markdown":

@@ -85,7 +85,6 @@ from abogen.voice_profiles import load_profiles
 # Import ctypes for Windows-specific taskbar icon
 if platform.system() == "Windows":
     import ctypes
-    import winreg
 
 
 class DarkTitleBarEventFilter(QObject):
