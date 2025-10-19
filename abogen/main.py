@@ -9,7 +9,10 @@ import signal
 try:
     from PyQt5.QtCore import QLibraryInfo
     plugins = QLibraryInfo.location(QLibraryInfo.PluginsPath)
-    platform_dir = os.path.join(plugins, "platforms")
+    # Normalize path to use the OS-native separators and absolute path
+    platform_dir = os.path.normpath(os.path.join(plugins, "platforms"))
+    # Ensure we work with an absolute path for clarity
+    platform_dir = os.path.abspath(platform_dir)
     if os.path.isdir(platform_dir):
         os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = platform_dir
         print("QT_QPA_PLATFORM_PLUGIN_PATH set to:", platform_dir)
