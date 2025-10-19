@@ -139,10 +139,10 @@ if exist "%VERSION_FILE%" (
 REM Python embedded download configuration for different architectures
 if "%PROCESSOR_ARCHITECTURE%"=="x86" (
     set PYTHON_EMBEDDED_FILE=%PROJECTFOLDER%\python_embedded_win32.zip
-    set PYTHON_EMBEDDED_URL=https://github.com/wojiushixiaobai/Python-Embed-Win64/releases/download/3.12.8/python-3.12.8-embed-win32.zip
+    set PYTHON_EMBEDDED_URL=https://github.com/wojiushixiaobai/Python-Embed-Win64/releases/download/3.12.12/python-3.12.12-embed-win32.zip
 ) else (
     set PYTHON_EMBEDDED_FILE=%PROJECTFOLDER%\python_embedded_amd64.zip
-    set PYTHON_EMBEDDED_URL=https://github.com/wojiushixiaobai/Python-Embed-Win64/releases/download/3.12.8/python-3.12.8-embed-amd64.zip
+    set PYTHON_EMBEDDED_URL=https://github.com/wojiushixiaobai/Python-Embed-Win64/releases/download/3.12.12/python-3.12.12-embed-amd64.zip
 )
 
 :: Check if Python exists
