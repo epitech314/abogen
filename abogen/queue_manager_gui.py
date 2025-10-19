@@ -221,6 +221,10 @@ class QueueManager(QDialog):
             display_file_path = getattr(item, "save_base_path", None) or item.file_name
             processing_file_path = item.file_name
             
+            # Normalize paths for consistent display (fixes Windows path separator issues)
+            display_file_path = os.path.normpath(display_file_path) if display_file_path else display_file_path
+            processing_file_path = os.path.normpath(processing_file_path) if processing_file_path else processing_file_path
+            
             # Only show the file name, not the full path
             display_name = display_file_path
             import os

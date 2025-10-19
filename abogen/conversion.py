@@ -308,6 +308,10 @@ class ConversionThread(QThread):
                 input_file = self.display_path if self.display_path else self.file_name
                 processing_file = self.file_name
 
+            # Normalize paths for consistent display (fixes Windows path separator issues)
+            input_file = os.path.normpath(input_file) if input_file else input_file
+            processing_file = os.path.normpath(processing_file) if processing_file else processing_file
+
             self.log_updated.emit(f"- Input File: {input_file}")
             if input_file != processing_file:
                 self.log_updated.emit(f"- Processing File: {processing_file}")
