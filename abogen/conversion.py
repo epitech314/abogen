@@ -28,6 +28,66 @@ def get_sample_voice_text(lang_code):
     return SAMPLE_VOICE_TEXTS.get(lang_code, SAMPLE_VOICE_TEXTS["a"])
 
 
+def sanitize_name_for_os(name, is_folder=True):
+    """
+    Sanitize a filename or folder name based on the operating system.
+    
+    Args:
+        name: The name to sanitize
+        is_folder: Whether this is a folder name (default: True)
+    
+    Returns:
+        Sanitized name safe for the current OS
+    """
+    if not name:
+        return "audiobook"
+    
+    system = platform.system()
+    
+    if system == "Windows":
+        # Windows illegal characters: < > : " / \ | ? *
+        # Also can't end with space or dot
+        sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
+        # Remove control characters (0-31)
+        sanitized = re.sub(r'[\x00-\x1f]', '_', sanitized)
+        # Remove trailing spaces and dots
+        sanitized = sanitized.rstrip('. ')
+        # Windows reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+        reserved = ['CON', 'PRN', 'AUX', 'NUL'] + \
+                   [f'COM{i}' for i in range(1, 10)] + \
+                   [f'LPT{i}' for i in range(1, 10)]
+        if sanitized.upper() in reserved or sanitized.upper().split('.')[0] in reserved:
+            sanitized = f"_{sanitized}"
+    elif system == "Darwin":  # macOS
+        # macOS illegal characters: : (colon is converted to / by the system)
+        # Also can't start with dot (hidden file) for folders typically
+        sanitized = re.sub(r'[:]', '_', name)
+        # Remove control characters
+        sanitized = re.sub(r'[\x00-\x1f]', '_', sanitized)
+        # Avoid leading dot for folders (creates hidden folders)
+        if is_folder and sanitized.startswith('.'):
+            sanitized = '_' + sanitized[1:]
+    else:  # Linux and others
+        # Linux illegal characters: / and null character
+        # Though / is illegal, most other chars are technically allowed
+        sanitized = re.sub(r'[/\x00]', '_', name)
+        # Remove other control characters for safety
+        sanitized = re.sub(r'[\x01-\x1f]', '_', sanitized)
+        # Avoid leading dot for folders (creates hidden folders)
+        if is_folder and sanitized.startswith('.'):
+            sanitized = '_' + sanitized[1:]
+    
+    # Ensure the name is not empty after sanitization
+    if not sanitized or sanitized.strip() == '':
+        sanitized = "audiobook"
+    
+    # Limit length to 255 characters (common limit across filesystems)
+    if len(sanitized) > 255:
+        sanitized = sanitized[:255].rstrip('. ')
+    
+    return sanitized
+
+
 class ChapterOptionsDialog(QDialog):
     def __init__(self, chapter_count, parent=None):
         super().__init__(parent)
@@ -417,6 +477,9 @@ class ConversionThread(QThread):
                 base_path = self.display_path if self.display_path else self.file_name
 
             base_name = os.path.splitext(os.path.basename(base_path))[0]
+            # Sanitize base_name for folder/file creation based on OS
+            sanitized_base_name = sanitize_name_for_os(base_name, is_folder=True)
+            
             if self.save_option == "Save to Desktop":
                 parent_dir = user_desktop_dir()
             elif self.save_option == "Save next to input file":
@@ -437,11 +500,11 @@ class ConversionThread(QThread):
             while True:
                 suffix = f"_{counter}" if counter > 1 else ""
                 chapters_out_dir_candidate = os.path.join(
-                    parent_dir, f"{base_name}{suffix}_chapters"
+                    parent_dir, f"{sanitized_base_name}{suffix}_chapters"
                 )
                 # Only check for files with allowed extensions (extension without dot, case-insensitive)
                 clash = any(
-                    os.path.splitext(fname)[0] == f"{base_name}{suffix}"
+                    os.path.splitext(fname)[0] == f"{sanitized_base_name}{suffix}"
                     and os.path.splitext(fname)[1][1:].lower() in allowed_exts
                     for fname in os.listdir(parent_dir)
                 )
@@ -461,7 +524,7 @@ class ConversionThread(QThread):
             # Prepare merged output file for incremental writing ONLY if merge_chapters_at_end is True
             if merge_chapters_at_end:
                 out_dir = parent_dir
-                base_filepath_no_ext = os.path.join(out_dir, f"{base_name}{suffix}")
+                base_filepath_no_ext = os.path.join(out_dir, f"{sanitized_base_name}{suffix}")
                 merged_out_path = f"{base_filepath_no_ext}.{self.output_format}"
                 subtitle_entries = []
                 current_time = 0.0
@@ -651,8 +714,13 @@ class ConversionThread(QThread):
                     loaded_voice = self.voice
                 # Prepare per-chapter output file if needed
                 if save_chapters_separately and total_chapters > 1:
+                    # First pass: keep alphanumeric, spaces, hyphens, and underscores
                     sanitized = re.sub(r"[^\w\s\-]", "", chapter_name)
+                    # Replace multiple spaces/hyphens with single underscore
                     sanitized = re.sub(r"[\s\-]+", "_", sanitized).strip("_")
+                    # Apply OS-specific sanitization
+                    sanitized = sanitize_name_for_os(sanitized, is_folder=False)
+                    # Limit length (leaving room for the chapter number prefix)
                     MAX_LEN = 80
                     if len(sanitized) > MAX_LEN:
                         pos = sanitized[:MAX_LEN].rfind("_")
