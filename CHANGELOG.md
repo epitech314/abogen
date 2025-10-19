@@ -2,6 +2,7 @@
 - Added `Line` option to subtitle generation modes, allowing subtitles to be generated based on line breaks in the text, by @mleg in #94.
 - Fixed `cannot access local variable 'is_narrow'` error when subtitle format `SRT` was selected, mentioned by @Kinasa0096 in #88.
 - Fixed folder and filename sanitization to properly handle OS-specific illegal characters (Windows, Linux, macOS), ensuring compatibility across all platforms when creating chapter folders and files.
+- Fixed `/` and `\` path display by normalizing paths.
 - Improvements in code and documentation.
 
 # 1.1.9

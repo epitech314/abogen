@@ -207,6 +207,8 @@ class QueueManager(QDialog):
 
     def process_queue(self):
         """Process the queue items."""
+        import os
+        
         self.listwidget.clear()
         if not self.queue:
             self.empty_overlay.resize(self.listwidget.size())
@@ -227,7 +229,6 @@ class QueueManager(QDialog):
             
             # Only show the file name, not the full path
             display_name = display_file_path
-            import os
 
             if os.path.sep in display_file_path:
                 display_name = os.path.basename(display_file_path)
