@@ -98,6 +98,8 @@ pip3 install --pre torch torchvision torchaudio --index-url https://download.pyt
 
 > See [How to fix "No matching distribution found" error?](#no-matching-distribution-found)
 
+> See [How to fix "[WinError 1114] A dynamic link library (DLL) initialization routine failed" error?](#WinError-1114)
+
 > See [How to use "uv" instead of "pip"?](#use-uv-instead-of-pip)
 
 > Special thanks to [@hg000125](https://github.com/hg000125) for his contribution in [#23](https://github.com/denizsafak/abogen/issues/23). AMD GPU support is possible thanks to his work.
@@ -370,6 +372,22 @@ This will start Abogen in command-line mode and display detailed error messages.
 </b></summary>
 
 > Try installing Abogen on supported Python (3.10 to 3.12) versions. You can use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions easily in Linux. Watch this [video](https://www.youtube.com/watch?v=MVyb-nI4KyI) by NetworkChuck for a quick guide.
+
+</details>
+
+<details><summary><b>
+<a name="WinError-1114">How to fix "[WinError 1114] A dynamic link library (DLL) initialization routine failed" error?</a>
+</b></summary>
+
+> I faced this error when trying to run Abogen in a virtual Windows machine without GPU support. Here's how I fixed it:
+> If you installed Abogen using the Windows installer `(WINDOWS_INSTALL.bat)`, go to Abogen's folder (that contains `python_embedded`), open your terminal there and run:
+> ```bash
+> python_embedded\python.exe -m pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0
+> ```
+> If you installed Abogen using pip, open your terminal in the virtual environment and run:
+> ```bash
+> pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0
+> ```
 
 </details>
 
