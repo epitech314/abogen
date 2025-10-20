@@ -1117,11 +1117,12 @@ class ConversionThread(QThread):
                         merged_out_path,
                     )
             else:
-                # If not merging, just finish after chapters
+                # If not merging, report the folder that holds the chapter files
                 self.progress_updated.emit(100, "00:00:00")
+                chapters_dir = os.path.abspath(chapters_out_dir or parent_dir)
                 self.conversion_finished.emit(
-                    ("\nAll chapters saved.", "green"),
-                    None,
+                    (f"\nAll chapters saved to: {chapters_dir}", "green"),
+                    chapters_dir,
                 )
         except Exception as e:
             # Cleanup ffmpeg subprocesses on error

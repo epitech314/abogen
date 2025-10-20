@@ -6,6 +6,7 @@
 - Fixed `/` and `\` path display by normalizing paths.
 - Fixed book reprocessing issue where books were being processed every time the chapters window was opened, improving performance when reopening the same book.
 - Fixed taskbar icon not appearing correctly in Windows.
+- Fixed “Go to folder” button not opening the chapter output directory when only separate chapters were generated.
 - Improvements in code and documentation.
 
 # 1.1.9
