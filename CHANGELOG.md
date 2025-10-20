@@ -1,4 +1,4 @@
-# 1.2.0 (pre-release)
+# 1.2.0
 - Added `Line` option to subtitle generation modes, allowing subtitles to be generated based on line breaks in the text, by @mleg in #94.
 - Added a loading indicator to the book handler window for better user experience during book preprocessing.
 - Fixed `cannot access local variable 'is_narrow'` error when subtitle format `SRT` was selected, mentioned by @Kinasa0096 in #88.
