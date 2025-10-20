@@ -230,6 +230,8 @@ class InputBox(QLabel):
         size_str = self._human_readable_size(os.path.getsize(file_path))
         name = os.path.basename(file_path)
         char_count = 0
+        window = self.window()
+        cache = getattr(window, "_char_count_cache", None)
 
         def parse_size(size_str):
             # Use regex to extract the numeric part
@@ -249,41 +251,49 @@ class InputBox(QLabel):
             except Exception:
                 return str(n)
 
-        if (
-                file_path.lower().endswith(".epub")
-                or file_path.lower().endswith(".pdf")
-                or file_path.lower().endswith((".md", ".markdown"))
-        ) and hasattr(self.window(), "selected_chapters"):
-            # EPUB, PDF, or Markdown: sum character counts for selected chapters
-            try:
+        doc_extensions = (".epub", ".pdf", ".md", ".markdown")
+        char_source_path = file_path
+        cached_char_count = None
 
-                book_path = file_path
-                # HandlerDialog uses internal caching to avoid reprocessing the same book
-                dialog = HandlerDialog(
-                    book_path,
-                    checked_chapters=self.window().selected_chapters,
-                    parent=self.window(),
-                )
-                chapters_text, all_checked_hrefs = dialog.get_selected_text()
-                # Clean text before counting characters
-                cleaned_text = clean_text(chapters_text)
-                char_count = calculate_text_length(cleaned_text)
-            except Exception:
-                char_count = "N/A"
-        else:
+        if file_path.lower().endswith(doc_extensions):
+            selected_file_path = getattr(window, "selected_file", None)
+            if selected_file_path and os.path.exists(selected_file_path):
+                char_source_path = selected_file_path
+            else:
+                char_source_path = None
+
+        if cache is not None:
+            cached_char_count = cache.get(file_path)
+            if (
+                    cached_char_count is None
+                    and char_source_path
+                    and char_source_path != file_path
+            ):
+                cached_char_count = cache.get(char_source_path)
+
+        if cached_char_count is not None:
+            char_count = cached_char_count
+        elif char_source_path:
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(char_source_path, "r", encoding="utf-8", errors="ignore") as f:
                     text = f.read()
-                    # Clean text before counting characters
                     cleaned_text = clean_text(text)
                     char_count = calculate_text_length(cleaned_text)
             except Exception:
                 char_count = "N/A"
+        else:
+            char_count = "N/A"
+
+        if cache is not None and isinstance(char_count, int):
+            cache[file_path] = char_count
+            if char_source_path and char_source_path != file_path:
+                cache[char_source_path] = char_count
+
         # Store numeric char_count on window
         try:
-            self.window().char_count = int(char_count)
+            window.char_count = int(char_count)
         except Exception:
-            self.window().char_count = 0
+            window.char_count = 0
         # embed icon at native size with word-wrap for the filename
         self.setText(
             f'<img src="data:image/png;base64,{img_data}"><br><span style="display: inline-block; max-width: 100%; word-break: break-all;"><b>{name}</b></span><br>Size: {size_str}<br>Characters: {format_num(char_count)}'
@@ -294,11 +304,11 @@ class InputBox(QLabel):
             f"QLabel {{ {self.STYLE_ACTIVE} }} QLabel:hover {{ {self.STYLE_ACTIVE_HOVER} }}"
         )
         self.clear_btn.show()
-        is_document = self.window().selected_file_type in ["epub", "pdf", "md", "markdown"]
+        is_document = window.selected_file_type in ["epub", "pdf", "md", "markdown"]
         self.chapters_btn.setVisible(is_document)
         if is_document:
-            chapter_count = len(self.window().selected_chapters)
-            file_type = self.window().selected_file_type
+            chapter_count = len(window.selected_chapters)
+            file_type = window.selected_file_type
             # Adjust button text based on file type
             if file_type == "epub" or file_type == "md" or file_type == "markdown":
                 self.chapters_btn.setText(f"Chapters ({chapter_count})")
@@ -313,8 +323,8 @@ class InputBox(QLabel):
 
         # For epub/pdf files, show edit if we have a selected_file (temp txt)
         if (
-                self.window().selected_file_type in ["epub", "pdf", "md", "markdown", "md", "markdown"]
-                and self.window().selected_file
+                window.selected_file_type in ["epub", "pdf", "md", "markdown", "md", "markdown"]
+                and window.selected_file
         ):
             should_show_edit = True
 
@@ -322,13 +332,13 @@ class InputBox(QLabel):
         self.go_to_folder_btn.show()
         # Enable add to queue button only when file is accepted (input box is green)
         self.resizeEvent(None)
-        if hasattr(self.window(), "btn_add_to_queue"):
-            self.window().btn_add_to_queue.setEnabled(True)
+        if hasattr(window, "btn_add_to_queue"):
+            window.btn_add_to_queue.setEnabled(True)
 
         self.chapters_btn.adjustSize()
         # Reset the input_box_cleared_by_queue flag after setting file info
-        if hasattr(self.window(), "input_box_cleared_by_queue"):
-            self.window().input_box_cleared_by_queue = False
+        if hasattr(window, "input_box_cleared_by_queue"):
+            window.input_box_cleared_by_queue = False
 
     def set_error(self, message):
         self.setText(message)
@@ -721,6 +731,8 @@ class abogen(QWidget):
         self.selected_chapters = set()
         self.last_opened_book_path = None  # Track the last opened book path
         self.last_output_path = None
+        self.char_count = 0
+        self._char_count_cache = {}
         # Only one of selected_profile_name or selected_voice should be set
         self.selected_profile_name = self.config.get("selected_profile_name")
         self.selected_voice = None
@@ -1294,6 +1306,12 @@ class abogen(QWidget):
             if book_path.lower().endswith(".pdf"):
                 self.pdf_has_bookmarks = getattr(dialog, "has_pdf_bookmarks", False)
 
+            cleaned_text = clean_text(chapters_text)
+            computed_char_count = calculate_text_length(cleaned_text)
+            self.char_count = computed_char_count
+            if isinstance(getattr(self, "_char_count_cache", None), dict):
+                self._char_count_cache[book_path] = computed_char_count
+
             # Use "abogen" prefix for cache files
             # Extract base name without extension
             base_name = os.path.splitext(os.path.basename(book_path))[0]
@@ -1378,6 +1396,8 @@ class abogen(QWidget):
             self.selected_file = tmp
             self.selected_book_path = book_path
             self.displayed_file_path = book_path
+            if isinstance(getattr(self, "_char_count_cache", None), dict):
+                self._char_count_cache[tmp] = computed_char_count
             # Only set file info if dialog was accepted
             self.input_box.set_file_info(book_path)
             return True
