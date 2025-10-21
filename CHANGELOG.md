@@ -1,3 +1,6 @@
+# 1.2.1 (pre-release)
+- Added loading gif animation to book handler window.
+
 # 1.2.0
 - Added `Line` option to subtitle generation modes, allowing subtitles to be generated based on line breaks in the text, by @mleg in #94.
 - Added a loading indicator to the book handler window for better user experience during book preprocessing.

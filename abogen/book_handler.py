@@ -20,8 +20,9 @@ from PyQt5.QtWidgets import (
     QMenu,
     QLabel,
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from abogen.utils import clean_text, calculate_text_length, detect_encoding
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt5.QtGui import QMovie
+from abogen.utils import clean_text, calculate_text_length, detect_encoding, get_resource_path
 import os
 import logging  # Add logging
 import urllib.parse
@@ -206,40 +207,92 @@ class HandlerDialog(QDialog):
 
 
     def _create_loading_overlay(self):
-        """Create a simple centered QLabel used as loading indicator.
+        """Create a centered loading indicator with a GIF on the left and text on the right.
 
-        This label is added to the dialog's main layout above the splitter so
-        when the splitter is hidden only the text is visible.
+        The indicator is added to the dialog's main layout above the splitter so
+        when the splitter is hidden only the indicator is visible.
         """
         try:
-            label = QLabel(self)
-            label.setAlignment(Qt.AlignCenter)
-            # larger plain text per request
-            label.setStyleSheet("font-size: 14pt;")
-            label.setVisible(False)
-            # insert at top of main layout if present, otherwise keep as child
+            # Container to hold gif + text and allow centering via stretches
+            container = QWidget(self)
+            container.setVisible(False)
+            h = QHBoxLayout(container)
+            h.setContentsMargins(0, 8, 0, 8)
+            h.setSpacing(10)
+
+            # Left: GIF label (animated)
+            gif_label = QLabel(container)
+            gif_label.setVisible(False)
+
+            loading_gif_path = get_resource_path("abogen.assets", "loading.gif")
+            movie = None
+            if loading_gif_path:
+                try:
+                    movie = QMovie(loading_gif_path)
+                    # Make GIF smaller so it doesn't dominate the text
+                    movie.setScaledSize(QSize(25, 25))
+                    gif_label.setMovie(movie)
+                    gif_label.setFixedSize(25, 25)
+                    gif_label.setVisible(True)
+                except Exception:
+                    movie = None
+
+            # Right: Text label
+            text_label = QLabel(container)
+            text_label.setStyleSheet("font-size: 14pt;")
+
+            # Add stretches to center the content horizontally
+            h.addStretch(1)
+            h.addWidget(gif_label, 0, Qt.AlignVCenter)
+            h.addWidget(text_label, 0, Qt.AlignVCenter)
+            h.addStretch(1)
+
+            # Insert at top of main layout if present, otherwise keep as child
             try:
                 layout = self.layout()
                 if layout is not None:
-                    layout.insertWidget(0, label)
+                    layout.insertWidget(0, container)
             except Exception:
                 pass
-            self._loading_label = label
+
+            # Store refs
+            self._loading_container = container
+            self._loading_gif_label = gif_label
+            self._loading_text_label = text_label
+            self._loading_movie = movie
         except Exception:
-            self._loading_label = None
+            self._loading_container = None
+            self._loading_gif_label = None
+            self._loading_text_label = None
+            self._loading_movie = None
 
     def _show_loading_overlay(self, text: str):
-        lbl = getattr(self, '_loading_label', None)
-        if lbl is None:
+        container = getattr(self, '_loading_container', None)
+        text_lbl = getattr(self, '_loading_text_label', None)
+        movie = getattr(self, '_loading_movie', None)
+        gif_lbl = getattr(self, '_loading_gif_label', None)
+        if container is None or text_lbl is None:
             return
-        lbl.setText(text)
-        lbl.setVisible(True)
+        text_lbl.setText(text)
+        if movie is not None and gif_lbl is not None:
+            try:
+                movie.start()
+                gif_lbl.setVisible(True)
+            except Exception:
+                pass
+        container.setVisible(True)
 
     def _hide_loading_overlay(self):
-        lbl = getattr(self, '_loading_label', None)
-        if lbl is None:
+        container = getattr(self, '_loading_container', None)
+        movie = getattr(self, '_loading_movie', None)
+        if container is None:
             return
-        lbl.setVisible(False)
+        if movie is not None:
+            try:
+                movie.stop()
+            except Exception:
+                pass
+        container.setVisible(False)
 
 
     def _start_background_load(self):
