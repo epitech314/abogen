@@ -1,5 +1,6 @@
 # 1.2.1 (pre-release)
 - Added loading gif animation to book handler window.
+- Fixed subtitle word-count splitting logic for more accurate segmentation.
 
 # 1.2.0
 - Added `Line` option to subtitle generation modes, allowing subtitles to be generated based on line breaks in the text, by @mleg in #94.

@@ -1382,23 +1382,35 @@ class ConversionThread(QThread):
                     subtitle_entries[-1] = (start, fallback_end_time, text)
 
         else:
-            # Word count-based grouping
+            # Word count-based grouping - simply count spaces and split after N spaces
             try:
                 word_count = int(self.subtitle_mode.split()[0])
                 word_count = min(word_count, max_subtitle_words)
             except (ValueError, IndexError):
                 word_count = 1
 
-            # Group words into subtitle entries (processed_tokens already has punctuation combined)
-            for i in range(0, len(processed_tokens), word_count):
-                group = processed_tokens[i : i + word_count]
-                if group:
-                    text = "".join(
-                        t["text"] + (t.get("whitespace", "") or "") for t in group
-                    )
-                    subtitle_entries.append(
-                        (group[0]["start"], group[-1]["end"], text.strip())
-                    )
+            current_group = []
+            space_count = 0
+
+            for token in processed_tokens:
+                current_group.append(token)
+                
+                # Count spaces after tokens (in the whitespace field)
+                if token.get("whitespace", "") == " ":
+                    space_count += 1
+                    
+                    # Split after counting N spaces
+                    if space_count >= word_count:
+                        text = "".join(t["text"] + (t.get("whitespace", "") or "") for t in current_group)
+                        subtitle_entries.append((current_group[0]["start"], current_group[-1]["end"], text.strip()))
+                        current_group = []
+                        space_count = 0
+
+            # Add any remaining tokens
+            if current_group:
+                text = "".join(t["text"] + (t.get("whitespace", "") or "") for t in current_group)
+                subtitle_entries.append((current_group[0]["start"], current_group[-1]["end"], text.strip()))
+
             # Fallback for last entry
             if subtitle_entries and fallback_end_time is not None:
                 last_entry = subtitle_entries[-1]
