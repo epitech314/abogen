@@ -3,6 +3,7 @@
 - Added tooltip indicators in queue manager to display book handler options (`Save chapters separately` and `Merge chapters at the end`) for queued items.
 - Added `Open processed file` and `Open input file` options for items in the queue manager, instead of just `Open file` option.
 - Added loading gif animation to book handler window.
+- Fixed light theme slider colors in voice mixer for better visibility (for non-Windows users).
 - Fixed subtitle word-count splitting logic for more accurate segmentation.
 
 # 1.2.0

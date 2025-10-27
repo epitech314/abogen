@@ -242,20 +242,8 @@ class VoiceMixer(QWidget):
         )
         self.slider.setFixedWidth(SLIDER_WIDTH)
 
-        # Fix slider in Windows
-        if platform.system() == "Windows":
-            appstyle = QApplication.instance().style().objectName().lower()
-            if appstyle != "windowsvista":
-                # Set custom groove color for disabled state using COLORS["GREY_BACKGROUND"]
-                self.slider.setStyleSheet(
-                    f"""
-                    QSlider::groove:vertical:disabled {{
-                        background: {COLORS.get("GREY_BACKGROUND")};
-                        width: 4px;
-                        border-radius: 4px;
-                    }}
-                """
-                )
+        # Apply slider styling after widget is added to window (see showEvent)
+        self._slider_style_applied = False
 
         # Connect controls
         self.slider.valueChanged.connect(lambda val: self.spin_box.setValue(val / 100))
@@ -284,6 +272,48 @@ class VoiceMixer(QWidget):
         layout.addLayout(slider_layout, stretch=1)
         self.setLayout(layout)
         self.toggle_inputs()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Apply slider styling once when widget is shown and has access to parent
+        if not self._slider_style_applied:
+            self._slider_style_applied = True
+            
+            # Fix slider in Windows
+            if platform.system() == "Windows":
+                appstyle = QApplication.instance().style().objectName().lower()
+                if appstyle != "windowsvista":
+                    # Set custom groove color for disabled state using COLORS["GREY_BACKGROUND"]
+                    self.slider.setStyleSheet(
+                        f"""
+                        QSlider::groove:vertical:disabled {{
+                            background: {COLORS.get("GREY_BACKGROUND")};
+                            width: 4px;
+                            border-radius: 4px;
+                        }}
+                    """
+                    )
+            else:
+                # Apply same fix for Light theme on non-Windows systems
+                # Get theme from parent window's config
+                parent_window = self.window()
+                theme = "system"
+                while parent_window:
+                    if hasattr(parent_window, "config"):
+                        theme = parent_window.config.get("theme", "system")
+                        break
+                    parent_window = parent_window.parent()
+                
+                if theme == "light":
+                    self.slider.setStyleSheet(
+                        f"""
+                        QSlider::groove:vertical:disabled {{
+                            background: {COLORS.get("GREY_BACKGROUND")};
+                            width: 4px;
+                            border-radius: 4px;
+                        }}
+                    """
+                    )
 
     def toggle_inputs(self):
         is_enabled = self.checkbox.isChecked()
