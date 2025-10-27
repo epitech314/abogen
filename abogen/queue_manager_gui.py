@@ -513,38 +513,7 @@ class QueueManager(QDialog):
             remove_action.triggered.connect(self.remove_item)
             menu.addAction(remove_action)
 
-            # Add Open file action
-            open_file_action = QAction("Open file", self)
-
-            def open_file():
-                from PyQt6.QtWidgets import QMessageBox
-
-                item = selected_items[0]
-                paths = item.data(Qt.ItemDataRole.UserRole)
-                if isinstance(paths, dict):
-                    file_path = paths.get('display_path', paths.get('processing_path', ''))
-                else:
-                    file_path = paths  # Fallback for old format
-                
-                # Find the queue item
-                for q in self.queue:
-                    if (getattr(q, "save_base_path", None) == file_path or 
-                        q.file_name == file_path):
-                        target_path = getattr(q, "save_base_path", None) or q.file_name
-                        if not os.path.exists(target_path):
-                            QMessageBox.warning(
-                                self, "File Not Found", f"The file does not exist."
-                            )
-                            return
-                        QDesktopServices.openUrl(QUrl.fromLocalFile(target_path))
-                        break
-
-            open_file_action.triggered.connect(open_file)
-            menu.addAction(open_file_action)
-
-            # Add Go to folder action
-            # If the queued item represents a converted document (markdown, pdf, epub)
-            # show two actions: Go to processed file (the cached .txt) and Go to input file (original source)
+            # Get paths for determining if it's a document input
             item = selected_items[0]
             paths = item.data(Qt.ItemDataRole.UserRole)
             if isinstance(paths, dict):
@@ -560,6 +529,59 @@ class QueueManager(QDialog):
             ) or (
                 isinstance(processing_path, str) and processing_path.lower().endswith(doc_exts)
             )
+
+            # Add Open file action(s)
+            def open_file_by_path(path_label: str):
+                from PyQt6.QtWidgets import QMessageBox
+
+                p = display_path if path_label == 'display' else processing_path
+                if not p:
+                    QMessageBox.warning(self, "File Not Found", "Path is not available.")
+                    return
+                
+                # Find the queue item and resolve the target path
+                target_path = None
+                for q in self.queue:
+                    if getattr(q, 'save_base_path', None) == display_path or q.file_name == display_path:
+                        if path_label == 'display':
+                            target_path = getattr(q, 'save_base_path', None) or q.file_name
+                        else:
+                            target_path = q.file_name
+                        break
+                    if getattr(q, 'save_base_path', None) == processing_path or q.file_name == processing_path:
+                        if path_label == 'display':
+                            target_path = getattr(q, 'save_base_path', None) or q.file_name
+                        else:
+                            target_path = q.file_name
+                        break
+                
+                # Fallback to the raw path if resolution failed
+                if not target_path:
+                    target_path = p
+                
+                if not os.path.exists(target_path):
+                    QMessageBox.warning(self, "File Not Found", f"The file does not exist.")
+                    return
+                QDesktopServices.openUrl(QUrl.fromLocalFile(target_path))
+
+            if is_document_input:
+                # For documents, show two open options
+                open_processed_action = QAction("Open processed file", self)
+                open_processed_action.triggered.connect(lambda: open_file_by_path('processing'))
+                menu.addAction(open_processed_action)
+
+                open_input_action = QAction("Open input file", self)
+                open_input_action.triggered.connect(lambda: open_file_by_path('display'))
+                menu.addAction(open_input_action)
+            else:
+                # For plain text files, show single open option
+                open_file_action = QAction("Open file", self)
+                open_file_action.triggered.connect(lambda: open_file_by_path('display'))
+                menu.addAction(open_file_action)
+
+            # Add Go to folder action
+            # If the queued item represents a converted document (markdown, pdf, epub)
+            # show two actions: Go to processed file (the cached .txt) and Go to input file (original source)
 
             from PyQt6.QtWidgets import QMessageBox
 
