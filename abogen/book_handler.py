@@ -366,13 +366,18 @@ class HandlerDialog(QDialog):
 
     def _preprocess_content(self):
         """Pre-process content from the document"""
-        # Create cache key from file path, modification time, and file type
+        # Create cache key from file path, modification time, file type, and replace_single_newlines setting
         try:
             mod_time = os.path.getmtime(self.book_path)
         except Exception:
             mod_time = 0
 
-        cache_key = (self.book_path, mod_time, self.file_type)
+        # Include replace_single_newlines in cache key since it affects text cleaning
+        from abogen.utils import load_config
+        cfg = load_config()
+        replace_single_newlines = cfg.get("replace_single_newlines", False)
+        
+        cache_key = (self.book_path, mod_time, self.file_type, replace_single_newlines)
 
         # Check if content is already cached
         if cache_key in HandlerDialog._content_cache:
