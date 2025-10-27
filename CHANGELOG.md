@@ -1,4 +1,4 @@
-# 1.2.1 (pre-release)
+# 1.2.1
 - Upgraded Abogen's interface from PyQt5 to PyQt6 for better compatibility and long-term support.
 - Added tooltip indicators in queue manager to display book handler options (`Save chapters separately` and `Merge chapters at the end`) for queued items.
 - Added `Open processed file` and `Open input file` options for items in the queue manager, instead of just `Open file` option.
