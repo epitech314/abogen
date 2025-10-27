@@ -2,7 +2,7 @@
 # button to remove an item from the queue
 # button to clear the queue
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
@@ -14,18 +14,20 @@ from PyQt5.QtWidgets import (
     QLabel,
     QWidget,
     QSizePolicy,
+    QAbstractItemView,
 )
-from PyQt5.QtCore import QFileInfo, Qt
+from PyQt6.QtCore import QFileInfo, Qt
 from abogen.constants import COLORS
 from copy import deepcopy
-from PyQt5.QtGui import QFontMetrics
+from PyQt6.QtGui import QFontMetrics
 
 
 class ElidedLabel(QLabel):
-    def __init__(self, text, parent=None):
-        super().__init__(text, parent)
+    def __init__(self, text):
+        super().__init__(text)
         self._full_text = text
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.setTextFormat(Qt.TextFormat.PlainText)
 
     def setText(self, text):
         self._full_text = text
@@ -34,7 +36,7 @@ class ElidedLabel(QLabel):
 
     def resizeEvent(self, event):
         metrics = QFontMetrics(self.font())
-        elided = metrics.elidedText(self._full_text, Qt.ElideRight, self.width())
+        elided = metrics.elidedText(self._full_text, Qt.TextElideMode.ElideRight, self.width())
         super().setText(elided)
         super().resizeEvent(event)
 
@@ -53,8 +55,8 @@ class QueueListItemWidget(QWidget):
         name_label = ElidedLabel(os.path.basename(file_name))
         char_label = QLabel(f"Chars: {char_count}")
         char_label.setStyleSheet(f"color: {COLORS['LIGHT_DISABLED']};")
-        char_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        char_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        char_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        char_label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         layout.addWidget(name_label, 1)
         layout.addWidget(char_label, 0)
         self.setLayout(layout)
@@ -67,12 +69,12 @@ class DroppableQueueListWidget(QListWidget):
         self.setAcceptDrops(True)
         # Overlay for drag hover
         self.drag_overlay = QLabel("", self)
-        self.drag_overlay.setAlignment(Qt.AlignCenter)
+        self.drag_overlay.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drag_overlay.setStyleSheet(
             f"border:2px dashed {COLORS['BLUE_BORDER_HOVER']}; border-radius:5px; padding:20px; background:{COLORS['BLUE_BG_HOVER']};"
         )
         self.drag_overlay.setVisible(False)
-        self.drag_overlay.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.drag_overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -132,9 +134,9 @@ class QueueManager(QDialog):
         layout.setSpacing(12)  # set spacing between widgets in main layout
         # list of queued items
         self.listwidget = DroppableQueueListWidget(self)
-        self.listwidget.setSelectionMode(QListWidget.ExtendedSelection)
+        self.listwidget.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.listwidget.setAlternatingRowColors(True)
-        self.listwidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.listwidget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.listwidget.customContextMenuRequested.connect(self.show_context_menu)
         # Add informative instructions at the top
         instructions = QLabel(
@@ -145,7 +147,7 @@ class QueueManager(QDialog):
             "Changing the main window configuration afterward <b>does not</b> affect files already in the queue. "
             "You can view each file's configuration by hovering over them."
         )
-        instructions.setAlignment(Qt.AlignLeft)
+        instructions.setAlignment(Qt.AlignmentFlag.AlignLeft)
         instructions.setWordWrap(True)
         instructions.setStyleSheet("margin-bottom: 8px;")
         layout.addWidget(instructions)
@@ -154,12 +156,12 @@ class QueueManager(QDialog):
             "Drag and drop your text files here or use the 'Add files' button.",
             self.listwidget,
         )
-        self.empty_overlay.setAlignment(Qt.AlignCenter)
+        self.empty_overlay.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty_overlay.setStyleSheet(
             f"color: {COLORS['LIGHT_DISABLED']}; background: transparent; padding: 20px;"
         )
         self.empty_overlay.setWordWrap(True)
-        self.empty_overlay.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.empty_overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.empty_overlay.hide()
         # add queue items to the list
         self.process_queue()
@@ -192,7 +194,7 @@ class QueueManager(QDialog):
         self.listwidget.currentItemChanged.connect(self.update_button_states)
         self.listwidget.itemSelectionChanged.connect(self.update_button_states)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -211,7 +213,6 @@ class QueueManager(QDialog):
         
         self.listwidget.clear()
         if not self.queue:
-            self.empty_overlay.resize(self.listwidget.size())
             self.empty_overlay.show()
             self.update_button_states()
             return
@@ -262,10 +263,18 @@ class QueueManager(QDialog):
                 f"<b>Characters:</b> {getattr(item, 'total_char_count', '')}<br>"
                 f"<b>Replace Single Newlines:</b> {getattr(item, 'replace_single_newlines', False)}"
             )
+            # Add book handler options if present
+            save_chapters_separately = getattr(item, 'save_chapters_separately', None)
+            merge_chapters_at_end = getattr(item, 'merge_chapters_at_end', None)
+            if save_chapters_separately is not None:
+                tooltip += f"<br><b>Save chapters separately:</b> {'Yes' if save_chapters_separately else 'No'}"
+                # Only show merge option if saving chapters separately
+                if save_chapters_separately and merge_chapters_at_end is not None:
+                    tooltip += f"<br><b>Merge chapters at the end:</b> {'Yes' if merge_chapters_at_end else 'No'}"
             list_item.setToolTip(tooltip)
             list_item.setIcon(icon)
             # Store both paths for context menu
-            list_item.setData(Qt.UserRole, {
+            list_item.setData(Qt.ItemDataRole.UserRole, {
                 'display_path': display_file_path,
                 'processing_path': processing_file_path
             })
@@ -280,7 +289,7 @@ class QueueManager(QDialog):
         items = self.listwidget.selectedItems()
         if not items:
             return
-        from PyQt5.QtWidgets import QMessageBox
+        from PyQt6.QtWidgets import QMessageBox
 
         # Remove by index to ensure correct mapping
         rows = sorted([self.listwidget.row(item) for item in items], reverse=True)
@@ -290,10 +299,10 @@ class QueueManager(QDialog):
                 self,
                 "Confirm Remove",
                 f"Are you sure you want to remove {len(rows)} selected items from the queue?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
-            if reply != QMessageBox.Yes:
+            if reply != QMessageBox.StandardButton.Yes:
                 return
         for row in rows:
             if 0 <= row < len(self.queue):
@@ -302,17 +311,17 @@ class QueueManager(QDialog):
         self.update_button_states()
 
     def clear_queue(self):
-        from PyQt5.QtWidgets import QMessageBox
+        from PyQt6.QtWidgets import QMessageBox
 
         if len(self.queue) > 1:
             reply = QMessageBox.question(
                 self,
                 "Confirm Clear Queue",
                 f"Are you sure you want to clear {len(self.queue)} items from the queue?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
-            if reply != QMessageBox.Yes:
+            if reply != QMessageBox.StandardButton.Yes:
                 return
         self.queue.clear()
         self.listwidget.clear()
@@ -362,6 +371,13 @@ class QueueManager(QDialog):
             attrs["replace_single_newlines"] = getattr(
                 parent, "replace_single_newlines", False
             )
+            # book handler options
+            attrs["save_chapters_separately"] = getattr(
+                parent, "save_chapters_separately", None
+            )
+            attrs["merge_chapters_at_end"] = getattr(
+                parent, "merge_chapters_at_end", None
+            )
         else:
             # fallback: empty values
             attrs = {
@@ -378,11 +394,13 @@ class QueueManager(QDialog):
                     "replace_single_newlines",
                 ]
             }
+            attrs["save_chapters_separately"] = None
+            attrs["merge_chapters_at_end"] = None
         return attrs
 
     def add_files_from_paths(self, file_paths):
         from abogen.utils import calculate_text_length
-        from PyQt5.QtWidgets import QMessageBox
+        from PyQt6.QtWidgets import QMessageBox
         import os
 
         current_attrs = self.get_current_attributes()
@@ -430,6 +448,10 @@ class QueueManager(QDialog):
                     == getattr(item, "replace_single_newlines", False)
                     and getattr(queued_item, "save_base_path", None)
                     == getattr(item, "save_base_path", None)
+                    and getattr(queued_item, "save_chapters_separately", None)
+                    == getattr(item, "save_chapters_separately", None)
+                    and getattr(queued_item, "merge_chapters_at_end", None)
+                    == getattr(item, "merge_chapters_at_end", None)
                 ):
                     is_duplicate = True
                     break
@@ -447,7 +469,7 @@ class QueueManager(QDialog):
         self.update_button_states()
 
     def add_more_files(self):
-        from PyQt5.QtWidgets import QFileDialog
+        from PyQt6.QtWidgets import QFileDialog
         from abogen.utils import calculate_text_length  # import the function
 
         # Only allow .txt files
@@ -477,9 +499,9 @@ class QueueManager(QDialog):
             self.clear_button.setEnabled(bool(self.queue))
 
     def show_context_menu(self, pos):
-        from PyQt5.QtWidgets import QMenu, QAction
-        from PyQt5.QtGui import QDesktopServices
-        from PyQt5.QtCore import QUrl
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction, QDesktopServices
+        from PyQt6.QtCore import QUrl
         import os
 
         global_pos = self.listwidget.viewport().mapToGlobal(pos)
@@ -495,10 +517,10 @@ class QueueManager(QDialog):
             open_file_action = QAction("Open file", self)
 
             def open_file():
-                from PyQt5.QtWidgets import QMessageBox
+                from PyQt6.QtWidgets import QMessageBox
 
                 item = selected_items[0]
-                paths = item.data(Qt.UserRole)
+                paths = item.data(Qt.ItemDataRole.UserRole)
                 if isinstance(paths, dict):
                     file_path = paths.get('display_path', paths.get('processing_path', ''))
                 else:
@@ -524,7 +546,7 @@ class QueueManager(QDialog):
             # If the queued item represents a converted document (markdown, pdf, epub)
             # show two actions: Go to processed file (the cached .txt) and Go to input file (original source)
             item = selected_items[0]
-            paths = item.data(Qt.UserRole)
+            paths = item.data(Qt.ItemDataRole.UserRole)
             if isinstance(paths, dict):
                 display_path = paths.get('display_path', '')
                 processing_path = paths.get('processing_path', '')
@@ -539,7 +561,7 @@ class QueueManager(QDialog):
                 isinstance(processing_path, str) and processing_path.lower().endswith(doc_exts)
             )
 
-            from PyQt5.QtWidgets import QMessageBox
+            from PyQt6.QtWidgets import QMessageBox
 
             def open_folder_for(path_label: str):
                 # path_label should be either 'display' or 'processing'
@@ -588,7 +610,7 @@ class QueueManager(QDialog):
 
                 def go_to_folder():
                     item = selected_items[0]
-                    paths = item.data(Qt.UserRole)
+                    paths = item.data(Qt.ItemDataRole.UserRole)
                     if isinstance(paths, dict):
                         file_path = paths.get('display_path', paths.get('processing_path', ''))
                     else:
@@ -618,7 +640,7 @@ class QueueManager(QDialog):
         clear_action = QAction("Clear Queue", self)
         clear_action.triggered.connect(self.clear_queue)
         menu.addAction(clear_action)
-        menu.exec_(global_pos)
+        menu.exec(global_pos)
 
     def accept(self):
         # Accept: keep changes
@@ -626,7 +648,7 @@ class QueueManager(QDialog):
 
     def reject(self):
         # Cancel: restore original queue
-        from PyQt5.QtWidgets import QMessageBox
+        from PyQt6.QtWidgets import QMessageBox
 
         # Warn if user changed a lot (e.g., more than 1 items difference)
         original_count = len(self._original_queue)
@@ -636,19 +658,19 @@ class QueueManager(QDialog):
                 self,
                 "Confirm Cancel",
                 f"Are you sure you want to cancel and discard all changes?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
-            if reply != QMessageBox.Yes:
+            if reply != QMessageBox.StandardButton.Yes:
                 return
         self.queue.clear()
         self.queue.extend(deepcopy(self._original_queue))
         super().reject()
 
     def keyPressEvent(self, event):
-        from PyQt5.QtCore import Qt
+        from PyQt6.QtCore import Qt
 
-        if event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete:
             self.remove_item()
         else:
             super().keyPressEvent(event)

@@ -12,7 +12,7 @@ RUN apt-get update \
         python3 \
         python3-venv \
         python3-pip \
-        python3-pyqt5 \
+        python3-pyqt6 \
         espeak-ng \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*

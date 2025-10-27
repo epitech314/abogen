@@ -148,6 +148,7 @@ COLORS = {
     "BLUE_BORDER_HOVER": "#6ab0de",
     "YELLOW_BACKGROUND": "rgba(255, 221, 51, 0.40)",
     "GREY_BACKGROUND": "rgba(128, 128, 128, 0.15)",
+    "GREY_BORDER": "#808080",
     "RED_BACKGROUND": "rgba(232, 78, 60, 0.15)",
     "RED_BG": "rgba(232, 78, 60, 0.10)",
     "RED_BG_HOVER": "rgba(232, 78, 60, 0.15)",

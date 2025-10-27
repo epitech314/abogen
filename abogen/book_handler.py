@@ -4,24 +4,34 @@ import base64
 import fitz  # PyMuPDF for PDF support
 from ebooklib import epub
 from bs4 import BeautifulSoup, NavigableString
-from PyQt5.QtWidgets import (
+from PyQt6.QtGui import QAction, QMovie, QFont
+from PyQt6.QtWidgets import (
+    QApplication,
     QDialog,
     QTreeWidget,
     QTreeWidgetItem,
-    QDialogButtonBox,
+    QTextEdit,
+    QPushButton,
     QVBoxLayout,
     QHBoxLayout,
-    QTextEdit,
-    QTreeWidgetItemIterator,
+    QDialogButtonBox,
     QSplitter,
     QWidget,
-    QPushButton,
     QCheckBox,
-    QMenu,
+    QTreeWidgetItemIterator,
     QLabel,
+    QMenu,
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
-from PyQt5.QtGui import QMovie
+from PyQt6.QtCore import (
+    Qt,
+    QThread,
+    pyqtSignal,
+    QObject,
+    QSize,
+    QEvent,
+    QPoint,
+    QRect,
+)
 from abogen.utils import clean_text, calculate_text_length, detect_encoding, get_resource_path
 import os
 import logging  # Add logging
@@ -97,9 +107,9 @@ class HandlerDialog(QDialog):
         self._block_signals = False  # Flag to prevent recursive signals
         # Configure window: remove help button and allow resizing
         self.setWindowFlags(
-            Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint
+            Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMaximizeButtonHint
         )
-        self.setWindowModality(Qt.NonModal)
+        self.setWindowModality(Qt.WindowModality.NonModal)
         # Initialize save chapters flags from class variables
         self.save_chapters_separately = HandlerDialog._save_chapters_separately
         self.merge_chapters_at_end = HandlerDialog._merge_chapters_at_end
@@ -164,8 +174,8 @@ class HandlerDialog(QDialog):
         # Build treeview
         self.treeWidget = QTreeWidget(self)
         self.treeWidget.setHeaderHidden(True)
-        self.treeWidget.setSelectionMode(QTreeWidget.ExtendedSelection)
-        self.treeWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treeWidget.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
+        self.treeWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.treeWidget.customContextMenuRequested.connect(self.on_tree_context_menu)
 
         # Initialize checked_chapters set
@@ -177,8 +187,8 @@ class HandlerDialog(QDialog):
 
         # Add a placeholder "Information" item so the tree isn't empty immediately
         info_item = QTreeWidgetItem(self.treeWidget, ["Information"])
-        info_item.setData(0, Qt.UserRole, "info:bookinfo")
-        info_item.setFlags(info_item.flags() & ~Qt.ItemIsUserCheckable)
+        info_item.setData(0, Qt.ItemDataRole.UserRole, "info:bookinfo")
+        info_item.setFlags(info_item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
         font = info_item.font(0)
         font.setBold(True)
         info_item.setFont(0, font)
@@ -243,8 +253,8 @@ class HandlerDialog(QDialog):
 
             # Add stretches to center the content horizontally
             h.addStretch(1)
-            h.addWidget(gif_label, 0, Qt.AlignVCenter)
-            h.addWidget(text_label, 0, Qt.AlignVCenter)
+            h.addWidget(gif_label, 0, Qt.AlignmentFlag.AlignVCenter)
+            h.addWidget(text_label, 0, Qt.AlignmentFlag.AlignVCenter)
             h.addStretch(1)
 
             # Insert at top of main layout if present, otherwise keep as child
@@ -1148,8 +1158,8 @@ class HandlerDialog(QDialog):
         self.treeWidget.clear()
 
         info_item = QTreeWidgetItem(self.treeWidget, ["Information"])
-        info_item.setData(0, Qt.UserRole, "info:bookinfo")
-        info_item.setFlags(info_item.flags() & ~Qt.ItemIsUserCheckable)
+        info_item.setData(0, Qt.ItemDataRole.UserRole, "info:bookinfo")
+        info_item.setFlags(info_item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
         font = info_item.font(0)
         font.setBold(True)
         info_item.setFont(0, font)
@@ -1172,7 +1182,7 @@ class HandlerDialog(QDialog):
 
         has_parents = False
         iterator = QTreeWidgetItemIterator(
-            self.treeWidget, QTreeWidgetItemIterator.HasChildren
+            self.treeWidget, QTreeWidgetItemIterator.IteratorFlag.HasChildren
         )
         if iterator.value():
             has_parents = True
@@ -1195,7 +1205,7 @@ class HandlerDialog(QDialog):
             children = node.get("children", [])
 
             item = QTreeWidgetItem(parent_item, [title])
-            item.setData(0, Qt.UserRole, src)
+            item.setData(0, Qt.ItemDataRole.UserRole, src)
 
             is_empty = (
                     src
@@ -1211,18 +1221,18 @@ class HandlerDialog(QDialog):
                     seen_content_hashes.add(content_hash)
 
             if src and not is_empty and not is_duplicate:
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 is_checked = src in self.checked_chapters
-                item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
+                item.setCheckState(0, Qt.CheckState.Checked if is_checked else Qt.CheckState.Unchecked)
             elif is_duplicate:
                 # Mark as duplicate and remove checkbox
                 item.setText(0, f"{title} (Duplicate)")
-                item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
             elif children:
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.Unchecked)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(0, Qt.CheckState.Unchecked)
             else:
-                item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
 
             if children:
                 self._build_epub_tree_from_nav(children, item, seen_content_hashes)
@@ -1252,18 +1262,18 @@ class HandlerDialog(QDialog):
                 continue
 
             item = QTreeWidgetItem(parent_item, [title])
-            item.setData(0, Qt.UserRole, href)
+            item.setData(0, Qt.ItemDataRole.UserRole, href)
 
             has_content = (
                     href and href in self.content_texts and self.content_texts[href].strip()
             )
 
             if has_content or children:
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 is_checked = href and href in self.checked_chapters
-                item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
+                item.setCheckState(0, Qt.CheckState.Checked if is_checked else Qt.CheckState.Unchecked)
             else:
-                item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
 
             if children:
                 self._build_epub_tree_fallback(children, item)
@@ -1318,27 +1328,27 @@ class HandlerDialog(QDialog):
                     if page_num in self.bookmark_items_map:
                         orig = self.bookmark_items_map[page_num]
                         child = QTreeWidgetItem(orig, [f"{title} (Same page)"])
-                        child.setData(0, Qt.UserRole, page_id)
-                        child.setFlags(child.flags() & ~Qt.ItemIsUserCheckable)
+                        child.setData(0, Qt.ItemDataRole.UserRole, page_id)
+                        child.setFlags(child.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
                         continue
                     bookmark_item = QTreeWidgetItem(parent_item, [title])
-                    bookmark_item.setData(0, Qt.UserRole, page_id)
+                    bookmark_item.setData(0, Qt.ItemDataRole.UserRole, page_id)
                     # only allow checking if this chapter has content
                     if self.content_lengths.get(page_id, 0) > 0:
                         bookmark_item.setFlags(
-                            bookmark_item.flags() | Qt.ItemIsUserCheckable
+                            bookmark_item.flags() | Qt.ItemFlag.ItemIsUserCheckable
                         )
                         bookmark_item.setCheckState(
                             0,
                             (
-                                Qt.Checked
+                                Qt.CheckState.Checked
                                 if page_id in self.checked_chapters
-                                else Qt.Unchecked
+                                else Qt.CheckState.Unchecked
                             ),
                         )
                     else:
                         bookmark_item.setFlags(
-                            bookmark_item.flags() & ~Qt.ItemIsUserCheckable
+                            bookmark_item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable
                         )
                     # map for uncategorized pages
                     self.bookmark_items_map[page_num] = bookmark_item
@@ -1363,23 +1373,23 @@ class HandlerDialog(QDialog):
                                 page_title += f" - {first_line}"
 
                         page_item = QTreeWidgetItem(bookmark_item, [page_title])
-                        page_item.setData(0, Qt.UserRole, page_id)
+                        page_item.setData(0, Qt.ItemDataRole.UserRole, page_id)
                         # only allow checking if this sub-page has content
                         if self.content_lengths.get(page_id, 0) > 0:
                             page_item.setFlags(
-                                page_item.flags() | Qt.ItemIsUserCheckable
+                                page_item.flags() | Qt.ItemFlag.ItemIsUserCheckable
                             )
                             page_item.setCheckState(
                                 0,
                                 (
-                                    Qt.Checked
+                                    Qt.CheckState.Checked
                                     if page_id in self.checked_chapters
-                                    else Qt.Unchecked
+                                    else Qt.CheckState.Unchecked
                                 ),
                             )
                         else:
                             page_item.setFlags(
-                                page_item.flags() & ~Qt.ItemIsUserCheckable
+                                page_item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable
                             )
 
                         added_pages.add(sub_page_num)
@@ -1405,15 +1415,15 @@ class HandlerDialog(QDialog):
                 if first and len(first) < 100:
                     title += f" - {first}"
             page_item = QTreeWidgetItem(parent_item, [title])
-            page_item.setData(0, Qt.UserRole, page_id)
+            page_item.setData(0, Qt.ItemDataRole.UserRole, page_id)
             # only allow checking if uncategorized page has content
             if self.content_lengths.get(page_id, 0) > 0:
-                page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
+                page_item.setFlags(page_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 page_item.setCheckState(
-                    0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked
+                    0, Qt.CheckState.Checked if page_id in self.checked_chapters else Qt.CheckState.Unchecked
                 )
             else:
-                page_item.setFlags(page_item.flags() & ~Qt.ItemIsUserCheckable)
+                page_item.setFlags(page_item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
 
     def _build_markdown_tree(self):
         """Build tree structure for markdown file based on parsed TOC."""
@@ -1426,13 +1436,13 @@ class HandlerDialog(QDialog):
                 chapter_id = list(self.content_texts.keys())[0]
                 title = "Content"
                 item = QTreeWidgetItem(self.treeWidget, [title])
-                item.setData(0, Qt.UserRole, chapter_id)
+                item.setData(0, Qt.ItemDataRole.UserRole, chapter_id)
                 if self.content_lengths.get(chapter_id, 0) > 0:
-                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                     is_checked = chapter_id in self.checked_chapters
-                    item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
+                    item.setCheckState(0, Qt.CheckState.Checked if is_checked else Qt.CheckState.Unchecked)
                 else:
-                    item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
             return
 
         def build_from_toc(toc_list, parent_item):
@@ -1441,17 +1451,17 @@ class HandlerDialog(QDialog):
                 chapter_id = header['id']
 
                 item = QTreeWidgetItem(parent_item, [title])
-                item.setData(0, Qt.UserRole, chapter_id)
+                item.setData(0, Qt.ItemDataRole.UserRole, chapter_id)
 
                 has_content = self.content_lengths.get(chapter_id, 0) > 0
                 has_children = bool(header.get('children'))
 
                 if has_content or has_children:
-                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                     is_checked = chapter_id in self.checked_chapters
-                    item.setCheckState(0, Qt.Checked if is_checked else Qt.Unchecked)
+                    item.setCheckState(0, Qt.CheckState.Checked if is_checked else Qt.CheckState.Unchecked)
                 else:
-                    item.setFlags(item.flags() & ~Qt.ItemIsUserCheckable)
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
 
                 if has_children:
                     build_from_toc(header['children'], item)
@@ -1460,7 +1470,7 @@ class HandlerDialog(QDialog):
 
     def _build_pdf_pages_tree(self):
         pages_item = QTreeWidgetItem(self.treeWidget, ["Pages"])
-        pages_item.setFlags(pages_item.flags() & ~Qt.ItemIsUserCheckable)
+        pages_item.setFlags(pages_item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
         font = pages_item.font(0)
         font.setBold(True)
         pages_item.setFont(0, font)
@@ -1476,15 +1486,15 @@ class HandlerDialog(QDialog):
                     page_title += f" - {first_line}"
 
             page_item = QTreeWidgetItem(pages_item, [page_title])
-            page_item.setData(0, Qt.UserRole, page_id)
+            page_item.setData(0, Qt.ItemDataRole.UserRole, page_id)
             # only allow checking if standalone page has content
             if self.content_lengths.get(page_id, 0) > 0:
-                page_item.setFlags(page_item.flags() | Qt.ItemIsUserCheckable)
+                page_item.setFlags(page_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 page_item.setCheckState(
-                    0, Qt.Checked if page_id in self.checked_chapters else Qt.Unchecked
+                    0, Qt.CheckState.Checked if page_id in self.checked_chapters else Qt.CheckState.Unchecked
                 )
             else:
-                page_item.setFlags(page_item.flags() & ~Qt.ItemIsUserCheckable)
+                page_item.setFlags(page_item.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
 
     def _are_provided_checks_relevant(self):
         if not self.checked_chapters:
@@ -1494,8 +1504,8 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if item.flags() & Qt.ItemIsUserCheckable:
-                identifier = item.data(0, Qt.UserRole)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                identifier = item.data(0, Qt.ItemDataRole.UserRole)
                 if identifier:
                     all_identifiers.add(identifier)
             iterator += 1
@@ -1525,7 +1535,7 @@ class HandlerDialog(QDialog):
         rightWidget = QWidget()
         rightWidget.setLayout(previewLayout)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -1611,7 +1621,7 @@ class HandlerDialog(QDialog):
         leftWidget = QWidget()
         leftWidget.setLayout(leftLayout)
 
-        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.addWidget(leftWidget)
         self.splitter.addWidget(rightWidget)
         self.splitter.setSizes([280, 420])
@@ -1643,8 +1653,8 @@ class HandlerDialog(QDialog):
             while iterator.value():
                 item = iterator.value()
                 if (
-                        item.flags() & Qt.ItemIsUserCheckable
-                        and item.checkState(0) == Qt.Checked
+                        item.flags() & Qt.ItemFlag.ItemIsUserCheckable
+                        and item.checkState(0) == Qt.CheckState.Checked
                 ):
                     checked_count += 1
                     if checked_count >= 2:
@@ -1658,8 +1668,8 @@ class HandlerDialog(QDialog):
             while iterator.value():
                 item = iterator.value()
                 if (
-                        item.flags() & Qt.ItemIsUserCheckable
-                        and item.checkState(0) == Qt.Checked
+                        item.flags() & Qt.ItemFlag.ItemIsUserCheckable
+                        and item.checkState(0) == Qt.CheckState.Checked
                 ):
                     parent = item.parent()
                     if parent and parent != self.treeWidget.invisibleRootItem():
@@ -1683,8 +1693,8 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if item.flags() & Qt.ItemIsUserCheckable:
-                item.setCheckState(0, Qt.Checked)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                item.setCheckState(0, Qt.CheckState.Checked)
             iterator += 1
         self._block_signals = False
         self._update_checked_set_from_tree()
@@ -1694,8 +1704,8 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if item.flags() & Qt.ItemIsUserCheckable:
-                item.setCheckState(0, Qt.Unchecked)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                item.setCheckState(0, Qt.CheckState.Unchecked)
             iterator += 1
         self._block_signals = False
         self._update_checked_set_from_tree()
@@ -1705,8 +1715,8 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if item.flags() & Qt.ItemIsUserCheckable and item.childCount() > 0:
-                item.setCheckState(0, Qt.Checked)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable and item.childCount() > 0:
+                item.setCheckState(0, Qt.CheckState.Checked)
             iterator += 1
         self._block_signals = False
         self._update_checked_set_from_tree()
@@ -1716,8 +1726,8 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if item.flags() & Qt.ItemIsUserCheckable and item.childCount() > 0:
-                item.setCheckState(0, Qt.Unchecked)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable and item.childCount() > 0:
+                item.setCheckState(0, Qt.CheckState.Unchecked)
             iterator += 1
         self._block_signals = False
         self._update_checked_set_from_tree()
@@ -1742,30 +1752,30 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if not (item.flags() & Qt.ItemIsUserCheckable):
+            if not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable):
                 iterator += 1
                 continue
 
-            src = item.data(0, Qt.UserRole)
+            src = item.data(0, Qt.ItemDataRole.UserRole)
 
             has_significant_content = src and self.content_lengths.get(src, 0) > 1000
             is_parent = item.childCount() > 0
 
             if has_significant_content or is_parent:
-                item.setCheckState(0, Qt.Checked)
+                item.setCheckState(0, Qt.CheckState.Checked)
                 if is_parent:
                     for i in range(item.childCount()):
                         child = item.child(i)
-                        if child.flags() & Qt.ItemIsUserCheckable:
-                            child_src = child.data(0, Qt.UserRole)
+                        if child.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                            child_src = child.data(0, Qt.ItemDataRole.UserRole)
                             child_has_content = (
                                     child_src and self.content_lengths.get(child_src, 0) > 0
                             )
                             child_is_parent = child.childCount() > 0
                             if child_has_content or child_is_parent:
-                                child.setCheckState(0, Qt.Checked)
+                                child.setCheckState(0, Qt.CheckState.Checked)
             else:
-                item.setCheckState(0, Qt.Unchecked)
+                item.setCheckState(0, Qt.CheckState.Unchecked)
 
             iterator += 1
 
@@ -1774,32 +1784,32 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if not (item.flags() & Qt.ItemIsUserCheckable):
+            if not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable):
                 iterator += 1
                 continue
 
-            identifier = item.data(0, Qt.UserRole)
+            identifier = item.data(0, Qt.ItemDataRole.UserRole)
 
             # Select chapters with content > 500 characters or parent items
             has_significant_content = identifier and self.content_lengths.get(identifier, 0) > 500
             is_parent = item.childCount() > 0
 
             if has_significant_content or is_parent:
-                item.setCheckState(0, Qt.Checked)
+                item.setCheckState(0, Qt.CheckState.Checked)
                 # Also check children if this is a parent
                 if is_parent:
                     for i in range(item.childCount()):
                         child = item.child(i)
-                        if child.flags() & Qt.ItemIsUserCheckable:
-                            child_identifier = child.data(0, Qt.UserRole)
+                        if child.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                            child_identifier = child.data(0, Qt.ItemDataRole.UserRole)
                             child_has_content = (
                                     child_identifier and self.content_lengths.get(child_identifier, 0) > 0
                             )
                             child_is_parent = child.childCount() > 0
                             if child_has_content or child_is_parent:
-                                child.setCheckState(0, Qt.Checked)
+                                child.setCheckState(0, Qt.CheckState.Checked)
             else:
-                item.setCheckState(0, Qt.Unchecked)
+                item.setCheckState(0, Qt.CheckState.Unchecked)
 
             iterator += 1
 
@@ -1808,19 +1818,19 @@ class HandlerDialog(QDialog):
             iterator = QTreeWidgetItemIterator(self.treeWidget)
             while iterator.value():
                 item = iterator.value()
-                if item.flags() & Qt.ItemIsUserCheckable:
-                    item.setCheckState(0, Qt.Checked)
+                if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                    item.setCheckState(0, Qt.CheckState.Checked)
                 iterator += 1
             return
 
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if not (item.flags() & Qt.ItemIsUserCheckable):
+            if not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable):
                 iterator += 1
                 continue
 
-            identifier = item.data(0, Qt.UserRole)
+            identifier = item.data(0, Qt.ItemDataRole.UserRole)
 
             if not identifier:
                 iterator += 1
@@ -1830,7 +1840,7 @@ class HandlerDialog(QDialog):
                     not identifier.startswith("page_")
                     or self.content_lengths.get(identifier, 0) > 0
             ):
-                item.setCheckState(0, Qt.Checked)
+                item.setCheckState(0, Qt.CheckState.Checked)
 
             iterator += 1
 
@@ -1839,8 +1849,8 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if item.checkState(0) == Qt.Checked:
-                identifier = item.data(0, Qt.UserRole)
+            if item.checkState(0) == Qt.CheckState.Checked:
+                identifier = item.data(0, Qt.ItemDataRole.UserRole)
                 if identifier:
                     self.checked_chapters.add(identifier)
             iterator += 1
@@ -1853,17 +1863,17 @@ class HandlerDialog(QDialog):
 
         self._block_signals = True
 
-        if item.flags() & Qt.ItemIsUserCheckable:
+        if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
             for i in range(item.childCount()):
                 child = item.child(i)
-                if child.flags() & Qt.ItemIsUserCheckable:
+                if child.flags() & Qt.ItemFlag.ItemIsUserCheckable:
                     child.setCheckState(0, item.checkState(0))
 
         self._block_signals = False
         self._update_checked_set_from_tree()
 
     def handle_item_double_click(self, item, column=0):
-        if item.flags() & Qt.ItemIsUserCheckable and item.childCount() == 0:
+        if item.flags() & Qt.ItemFlag.ItemIsUserCheckable and item.childCount() == 0:
             rect = self.treeWidget.visualItemRect(item)
             checkbox_width = 20
 
@@ -1871,7 +1881,7 @@ class HandlerDialog(QDialog):
 
             if mouse_pos.x() > rect.x() + checkbox_width:
                 new_state = (
-                    Qt.Unchecked if item.checkState(0) == Qt.Checked else Qt.Checked
+                    Qt.CheckState.Unchecked if item.checkState(0) == Qt.CheckState.Checked else Qt.CheckState.Checked
                 )
                 item.setCheckState(0, new_state)
 
@@ -1880,7 +1890,7 @@ class HandlerDialog(QDialog):
             self.previewEdit.clear()
             return
 
-        identifier = current.data(0, Qt.UserRole)
+        identifier = current.data(0, Qt.ItemDataRole.UserRole)
 
         if identifier == "info:bookinfo":
             self._display_book_info()
@@ -2172,8 +2182,8 @@ class HandlerDialog(QDialog):
         while iterator.value():
             item = iterator.value()
             item_order_counter += 1
-            if item.checkState(0) == Qt.Checked:
-                identifier = item.data(0, Qt.UserRole)
+            if item.checkState(0) == Qt.CheckState.Checked:
+                identifier = item.data(0, Qt.ItemDataRole.UserRole)
 
                 if identifier and identifier != "info:bookinfo":
                     all_checked_identifiers.add(identifier)
@@ -2208,8 +2218,8 @@ class HandlerDialog(QDialog):
         while iterator.value():
             item = iterator.value()
             item_order_counter += 1
-            if item.checkState(0) == Qt.Checked:
-                identifier = item.data(0, Qt.UserRole)
+            if item.checkState(0) == Qt.CheckState.Checked:
+                identifier = item.data(0, Qt.ItemDataRole.UserRole)
                 if identifier and identifier != "info:bookinfo":
                     all_checked_identifiers.add(identifier)
                     ordered_checked_items.append((item_order_counter, item, identifier))
@@ -2244,8 +2254,8 @@ class HandlerDialog(QDialog):
         iterator = QTreeWidgetItemIterator(self.treeWidget)
         while iterator.value():
             item = iterator.value()
-            if item.checkState(0) == Qt.Checked:
-                identifier = item.data(0, Qt.UserRole)
+            if item.checkState(0) == Qt.CheckState.Checked:
+                identifier = item.data(0, Qt.ItemDataRole.UserRole)
                 if identifier:
                     all_checked_identifiers.add(identifier)
             iterator += 1
@@ -2270,15 +2280,15 @@ class HandlerDialog(QDialog):
         while iterator.value():
             item = iterator.value()
             if item.childCount() > 0:
-                parent_checked = item.checkState(0) == Qt.Checked
-                parent_id = item.data(0, Qt.UserRole)
+                parent_checked = item.checkState(0) == Qt.CheckState.Checked
+                parent_id = item.data(0, Qt.ItemDataRole.UserRole)
                 parent_title = item.text(0)
                 checked_children = []
                 for i in range(item.childCount()):
                     child = item.child(i)
-                    child_id = child.data(0, Qt.UserRole)
+                    child_id = child.data(0, Qt.ItemDataRole.UserRole)
                     if (
-                            child.checkState(0) == Qt.Checked
+                            child.checkState(0) == Qt.CheckState.Checked
                             and child_id
                             and child_id not in included_text_ids
                     ):
@@ -2306,12 +2316,12 @@ class HandlerDialog(QDialog):
                             else:
                                 section_titles.append((title, text))
                         included_text_ids.add(child_id)
-            elif item.flags() & Qt.ItemIsUserCheckable:
-                identifier = item.data(0, Qt.UserRole)
+            elif item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                identifier = item.data(0, Qt.ItemDataRole.UserRole)
                 if (
                         identifier
                         and identifier not in included_text_ids
-                        and item.checkState(0) == Qt.Checked
+                        and item.checkState(0) == Qt.CheckState.Checked
                 ):
                     text = self.content_texts.get(identifier, "")
                     if text:
@@ -2363,8 +2373,8 @@ class HandlerDialog(QDialog):
         print(f"Checking selected items: {state}")
         self.treeWidget.blockSignals(True)
         for item in self.treeWidget.selectedItems():
-            if item.flags() & Qt.ItemIsUserCheckable:
-                item.setCheckState(0, Qt.Checked if state else Qt.Unchecked)
+            if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                item.setCheckState(0, Qt.CheckState.Checked if state else Qt.CheckState.Unchecked)
         self.treeWidget.blockSignals(False)
         self._update_checked_set_from_tree()
 
@@ -2377,30 +2387,30 @@ class HandlerDialog(QDialog):
             action.triggered.connect(self.check_selected_items)
             action = menu.addAction("Clear")
             action.triggered.connect(self.uncheck_selected_items)
-            menu.exec_(self.treeWidget.mapToGlobal(pos))
+            menu.exec(self.treeWidget.mapToGlobal(pos))
             return
 
         if (
                 not item
                 or item.childCount() == 0
-                or not (item.flags() & Qt.ItemIsUserCheckable)
+                or not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable)
         ):
             return
 
         menu = QMenu(self)
-        checked = item.checkState(0) == Qt.Checked
+        checked = item.checkState(0) == Qt.CheckState.Checked
         text = "Unselect only this" if checked else "Select only this"
         action = menu.addAction(text)
 
         def do_toggle():
             self.treeWidget.blockSignals(True)
-            new_state = Qt.Unchecked if checked else Qt.Checked
+            new_state = Qt.CheckState.Unchecked if checked else Qt.CheckState.Checked
             item.setCheckState(0, new_state)
             self.treeWidget.blockSignals(False)
             self._update_checked_set_from_tree()
 
         action.triggered.connect(do_toggle)
-        menu.exec_(self.treeWidget.mapToGlobal(pos))
+        menu.exec(self.treeWidget.mapToGlobal(pos))
 
     def closeEvent(self, event):
         if self.pdf_doc is not None:

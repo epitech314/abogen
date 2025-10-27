@@ -15,3 +15,5 @@ class QueuedItem:
     total_char_count: int
     replace_single_newlines: bool = False
     save_base_path: str = None
+    save_chapters_separately: bool = None
+    merge_chapters_at_end: bool = None

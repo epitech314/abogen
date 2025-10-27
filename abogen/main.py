@@ -7,19 +7,24 @@ import signal
 
 # Qt platform plugin detection (fixes #59)
 try:
-    from PyQt5.QtCore import QLibraryInfo
-    plugins = QLibraryInfo.location(QLibraryInfo.PluginsPath)
+    from PyQt6.QtCore import QLibraryInfo
+    
+    # Get the path to the plugins directory
+    plugins = QLibraryInfo.path(QLibraryInfo.LibraryPath.PluginsPath)
+    
     # Normalize path to use the OS-native separators and absolute path
     platform_dir = os.path.normpath(os.path.join(plugins, "platforms"))
+    
     # Ensure we work with an absolute path for clarity
     platform_dir = os.path.abspath(platform_dir)
+    
     if os.path.isdir(platform_dir):
         os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = platform_dir
         print("QT_QPA_PLATFORM_PLUGIN_PATH set to:", platform_dir)
     else:
-        print("PyQt5 platform plugins not found at", platform_dir)
+        print("PyQt6 platform plugins not found at", platform_dir)
 except ImportError:
-    print("PyQt5 not installed.")
+    print("PyQt6 not installed.")
 
 # Set application ID for Windows taskbar icon
 if platform.system() == "Windows":
@@ -31,9 +36,16 @@ if platform.system() == "Windows":
     except Exception as e:
         print("Warning: failed to set AppUserModelID:", e)
 
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import (
+    Qt,
+    QLibraryInfo,
+    qInstallMessageHandler,
+    QStandardPaths,
+    QSettings,
+    QtMsgType,
+)
 
 # Add the directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
@@ -82,10 +94,12 @@ if platform.system() == "Darwin" and platform.processor() == "arm":
 
 # Custom message handler to filter out specific Qt warnings
 def qt_message_handler(mode, context, message):
+    # In PyQt6, the mode is an enum, so we compare with the enum members
     if "Wayland does not support QWindow::requestActivate()" in message:
         return  # Suppress this specific message
     if "setGrabPopup called with a parent, QtWaylandClient" in message:
         return
+
     if mode == QtMsgType.QtWarningMsg:
         print(f"Qt Warning: {message}")
     elif mode == QtMsgType.QtCriticalMsg:
@@ -129,7 +143,7 @@ def main():
 
     ex = abogen()
     ex.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

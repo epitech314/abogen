@@ -1,6 +1,6 @@
 import json
 import os
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QCheckBox,
@@ -22,12 +22,11 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QSplitter,
     QMenu,
-    QAction,
-    QComboBox,
     QApplication,
+    QComboBox,
 )
-from PyQt5.QtCore import Qt, QTimer, QPoint, QRect, QSize
-from PyQt5.QtGui import QPixmap, QIcon
+from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, QSize
+from PyQt6.QtGui import QPixmap, QIcon, QAction
 from abogen.constants import (
     VOICES_INTERNAL,
     SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION,
@@ -91,7 +90,7 @@ class FlowLayout(QLayout):
         return len(self._item_list)
 
     def expandingDirections(self):
-        return Qt.Orientations(Qt.Orientation(0))
+        return Qt.Orientation(0)
 
     def hasHeightForWidth(self):
         return True
@@ -132,10 +131,10 @@ class FlowLayout(QLayout):
         for item in self._item_list:
             style = self.parentWidget().style() if self.parentWidget() else QStyle()
             layout_spacing_x = style.layoutSpacing(
-                QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal
+                QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton, Qt.Orientation.Horizontal
             )
             layout_spacing_y = style.layoutSpacing(
-                QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Vertical
+                QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton, Qt.Orientation.Vertical
             )
             space_x = spacing if spacing >= 0 else layout_spacing_x
             space_y = spacing if spacing >= 0 else layout_spacing_y
@@ -163,7 +162,7 @@ class VoiceMixer(QWidget):
         super().__init__()
         self.voice_name = voice_name
         self.setFixedWidth(VOICE_MIXER_WIDTH)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         # TODO Set CSS for rounded corners
         # self.setObjectName("VoiceMixer")
@@ -173,7 +172,7 @@ class VoiceMixer(QWidget):
 
         # Name label at the top
         name = voice_name
-        layout.addWidget(QLabel(name), alignment=Qt.AlignCenter)
+        layout.addWidget(QLabel(name), alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Voice name label with gender icon
         is_female = self.voice_name in VOICES_INTERNAL and self.voice_name[1] == "f"
@@ -181,7 +180,7 @@ class VoiceMixer(QWidget):
         # Icons layout (flag and gender)
         icons_layout = QHBoxLayout()
         icons_layout.setSpacing(3)
-        icons_layout.setAlignment(Qt.AlignCenter)  # Center the icons horizontally
+        icons_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Center the icons horizontally
 
         # Flag icon
         flag_icon_path = get_resource_path(
@@ -194,11 +193,11 @@ class VoiceMixer(QWidget):
         gender_label = QLabel()
         flag_pixmap = QPixmap(flag_icon_path)
         flag_label.setPixmap(
-            flag_pixmap.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            flag_pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         )
         gender_pixmap = QPixmap(gender_icon_path)
         gender_label.setPixmap(
-            gender_pixmap.scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            gender_pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         )
         icons_layout.addWidget(flag_label)
         icons_layout.addWidget(gender_label)
@@ -210,7 +209,7 @@ class VoiceMixer(QWidget):
         self.checkbox = QCheckBox()
         self.checkbox.setChecked(initial_status)
         self.checkbox.stateChanged.connect(self.toggle_inputs)
-        layout.addWidget(self.checkbox, alignment=Qt.AlignCenter)
+        layout.addWidget(self.checkbox, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Spinbox and slider
         self.spin_box = QDoubleSpinBox()
@@ -219,10 +218,10 @@ class VoiceMixer(QWidget):
         self.spin_box.setDecimals(2)
         self.spin_box.setValue(initial_weight)
 
-        self.slider = QSlider(Qt.Vertical)
+        self.slider = QSlider(Qt.Orientation.Vertical)
         self.slider.setRange(0, 100)
         self.slider.setValue(int(initial_weight * 100))
-        self.slider.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        self.slider.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         self.slider.setFixedWidth(SLIDER_WIDTH)
 
         # Fix slider in Windows
@@ -249,17 +248,17 @@ class VoiceMixer(QWidget):
         # Layout for slider and labels
         slider_layout = QVBoxLayout()
         slider_layout.addWidget(self.spin_box)
-        slider_layout.addWidget(QLabel("1", alignment=Qt.AlignCenter))
+        slider_layout.addWidget(QLabel("1", alignment=Qt.AlignmentFlag.AlignCenter))
 
         slider_center_layout = QHBoxLayout()
-        slider_center_layout.addWidget(self.slider, alignment=Qt.AlignHCenter)
+        slider_center_layout.addWidget(self.slider, alignment=Qt.AlignmentFlag.AlignHCenter)
         slider_center_layout.setContentsMargins(0, 0, 0, 0)
 
         slider_center_widget = QWidget()
         slider_center_widget.setLayout(slider_center_layout)
 
         slider_layout.addWidget(slider_center_widget, stretch=1)
-        slider_layout.addWidget(QLabel("0", alignment=Qt.AlignCenter))
+        slider_layout.addWidget(QLabel("0", alignment=Qt.AlignmentFlag.AlignCenter))
         slider_layout.setStretch(2, 1)
 
         layout.addLayout(slider_layout, stretch=1)
@@ -307,9 +306,9 @@ class HoverLabel(QLabel):
             """
         )
         # Make sure the entire button is clickable, not just the text
-        self.delete_button.setFocusPolicy(Qt.NoFocus)
-        self.delete_button.setAttribute(Qt.WA_TransparentForMouseEvents, False)
-        self.delete_button.setCursor(Qt.PointingHandCursor)
+        self.delete_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.delete_button.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_button.hide()
 
     def resizeEvent(self, event):
@@ -357,7 +356,7 @@ class VoiceFormulaDialog(QDialog):
         if parent is not None and hasattr(parent, "subtitle_combo"):
             self.subtitle_combo = parent.subtitle_combo
         # Create main container layout with profile section and mixer section
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         # Profile section
         profile_widget = QWidget()
         profile_layout = QVBoxLayout(profile_widget)
@@ -371,8 +370,8 @@ class VoiceFormulaDialog(QDialog):
         profile_layout.addLayout(header_layout)
         # Profile list
         self.profile_list = QListWidget()
-        self.profile_list.setSelectionMode(QListWidget.SingleSelection)
-        self.profile_list.setSelectionBehavior(QListWidget.SelectRows)
+        self.profile_list.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
+        self.profile_list.setSelectionBehavior(QListWidget.SelectionBehavior.SelectRows)
         self.profile_list.setStyleSheet(
             "QListWidget::item:selected { background: palette(highlight); color: palette(highlighted-text); }"
         )
@@ -388,7 +387,7 @@ class VoiceFormulaDialog(QDialog):
             idx = list(profiles.keys()).index(self.current_profile)
             self.profile_list.setCurrentRow(idx)
         profile_layout.addWidget(self.profile_list)
-        self.profile_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.profile_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.profile_list.customContextMenuRequested.connect(
             self.show_profile_context_menu
         )
@@ -409,7 +408,7 @@ class VoiceFormulaDialog(QDialog):
 
         self.setWindowTitle("Voice Mixer")
         self.setWindowFlags(
-            Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint
+            Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMaximizeButtonHint
         )
         self.setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         self.resize(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT)
@@ -468,21 +467,21 @@ class VoiceFormulaDialog(QDialog):
 
         # Separator
         separator = QFrame()
-        separator.setFrameShadow(QFrame.Sunken)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
         mixer_layout.addWidget(separator)
 
         # Voice list scroll area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scroll_area.viewport().installEventFilter(self)
 
         self.voice_list_widget = QWidget()
         self.voice_list_layout = QHBoxLayout()
         self.voice_list_widget.setLayout(self.voice_list_layout)
         self.voice_list_widget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.scroll_area.setWidget(self.voice_list_widget)
         mixer_layout.addWidget(self.scroll_area, stretch=1)
@@ -497,6 +496,9 @@ class VoiceFormulaDialog(QDialog):
         ok_button.setDefault(True)
         ok_button.setFocus()
 
+        # Connect buttons
+        clear_all_button.clicked.connect(self.clear_all_voices)
+        ok_button.clicked.connect(self.accept)
         # Connect buttons
         clear_all_button.clicked.connect(self.clear_all_voices)
         ok_button.clicked.connect(self.accept)
@@ -533,7 +535,7 @@ class VoiceFormulaDialog(QDialog):
 
     def keyPressEvent(self, event):
         # Bind Delete key to delete_profile when a profile is selected
-        if event.key() == Qt.Key_Delete and self.profile_list.hasFocus():
+        if event.key() == Qt.Key.Key_Delete and self.profile_list.hasFocus():
             item = self.profile_list.currentItem()
             if item:
                 self.delete_profile(item)
@@ -562,10 +564,10 @@ class VoiceFormulaDialog(QDialog):
                 self,
                 "Unsaved Changes",
                 msg,
-                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-                QMessageBox.Save,
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save,
             )
-            if ret == QMessageBox.Save:
+            if ret == QMessageBox.StandardButton.Save:
                 # Save all using stored states
                 profiles = load_profiles()
                 for i in dirty_indices:
@@ -590,7 +592,7 @@ class VoiceFormulaDialog(QDialog):
                 self.update_profile_save_buttons()
                 self.update_profile_list_colors()
                 return True
-            elif ret == QMessageBox.Discard:
+            elif ret == QMessageBox.StandardButton.Discard:
                 # Discard all modifications
                 self._profile_states.clear()
                 for i in dirty_indices:
@@ -612,17 +614,17 @@ class VoiceFormulaDialog(QDialog):
         else:
             # Fallback to original logic for 0 or 1 dirty profile
             box = QMessageBox(self)
-            box.setIcon(QMessageBox.Warning)
+            box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Unsaved Changes")
             box.setText(
                 "You have unsaved changes in your profile. Do you want to save the changes?"
             )
             box.setStandardButtons(
-                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel
             )
-            box.setDefaultButton(QMessageBox.Save)
-            ret = box.exec_()
-            if ret == QMessageBox.Save:
+            box.setDefaultButton(QMessageBox.StandardButton.Save)
+            ret = box.exec()
+            if ret == QMessageBox.StandardButton.Save:
                 for i in range(self.profile_list.count()):
                     item = self.profile_list.item(i)
                     name = item.text().lstrip("*")
@@ -636,7 +638,7 @@ class VoiceFormulaDialog(QDialog):
                 if hasattr(parent, "populate_profiles_in_voice_combo"):
                     parent.populate_profiles_in_voice_combo()
                 return True
-            elif ret == QMessageBox.Discard:
+            elif ret == QMessageBox.StandardButton.Discard:
                 profiles = load_profiles()
                 for i in range(self.profile_list.count()):
                     item = self.profile_list.item(i)
@@ -717,7 +719,7 @@ class VoiceFormulaDialog(QDialog):
         return voice_mixer
 
     def handle_voice_checkbox(self, voice_mixer, state):
-        if state == Qt.Checked:
+        if state == Qt.CheckState.Checked.value:
             self.last_enabled_voice = voice_mixer.voice_name
         self.update_weighted_sums()
 
@@ -767,7 +769,7 @@ class VoiceFormulaDialog(QDialog):
                     f'<b><span style="color:{COLORS.get("BLUE")}">{name}: {percentage:.1f}%</span></b>',
                     name,
                 )
-                voice_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+                voice_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
                 voice_label.delete_button.clicked.connect(
                     lambda _, vn=name: self.disable_voice_by_name(vn)
                 )
@@ -787,7 +789,7 @@ class VoiceFormulaDialog(QDialog):
             mixer.checkbox.setChecked(False)
 
     def eventFilter(self, source, event):
-        if source is self.scroll_area.viewport() and event.type() == event.Wheel:
+        if source is self.scroll_area.viewport() and event.type() == event.Type.Wheel:
             # Skip if over an enabled slider
             if any(
                 mixer.slider.underMouse() and mixer.slider.isEnabled()
@@ -890,10 +892,10 @@ class VoiceFormulaDialog(QDialog):
             self,
             "Invalid Profiles",
             msg,
-            QMessageBox.Yes | QMessageBox.Cancel,
-            QMessageBox.Yes,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             for i, name in reversed(zero):
                 self.profile_list.takeItem(i)
                 delete_profile(name)
@@ -980,8 +982,8 @@ class VoiceFormulaDialog(QDialog):
         super().closeEvent(event)
 
     def _parse_rgba_to_qcolor(self, rgba_str):
-        from PyQt5.QtCore import Qt
-        from PyQt5.QtGui import QColor
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QColor
 
         """Helper to convert 'rgba(R,G,B,A_float)' string to QColor."""
         match = re.match(r"rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)", rgba_str)
@@ -1136,9 +1138,9 @@ class VoiceFormulaDialog(QDialog):
                     msg += f"\nThis will overwrite an existing profile."
                 msg += "\nContinue?"
                 reply = QMessageBox.question(
-                    self, "Import Profile", msg, QMessageBox.Yes | QMessageBox.No
+                    self, "Import Profile", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
-                if reply != QMessageBox.Yes:
+                if reply != QMessageBox.StandardButton.Yes:
                     return
                 profiles.update(imported_profiles)
                 save_profiles(profiles)
@@ -1153,9 +1155,9 @@ class VoiceFormulaDialog(QDialog):
                     msg += f"\n{len(collisions)} profile(s) will be overwritten."
                 msg += "\nContinue?"
                 reply = QMessageBox.question(
-                    self, "Import Profiles", msg, QMessageBox.Yes | QMessageBox.No
+                    self, "Import Profiles", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
-                if reply != QMessageBox.Yes:
+                if reply != QMessageBox.StandardButton.Yes:
                     return
                 profiles.update(imported_profiles)
                 save_profiles(profiles)
@@ -1196,7 +1198,7 @@ class VoiceFormulaDialog(QDialog):
         menu.addAction(dup_act)
         menu.addAction(export_act)
         menu.addAction(delete_act)
-        act = menu.exec_(self.profile_list.viewport().mapToGlobal(pos))
+        act = menu.exec(self.profile_list.viewport().mapToGlobal(pos))
         if act == rename_act:
             self.rename_profile(item)
         elif act == delete_act:
@@ -1323,9 +1325,9 @@ class VoiceFormulaDialog(QDialog):
             self,
             "Delete Profile",
             f"Delete profile '{name}'?",
-            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             delete_profile(name)
             row = self.profile_list.row(item)
             self.profile_list.takeItem(row)
@@ -1378,7 +1380,7 @@ class VoiceFormulaDialog(QDialog):
                 self.profile_list.setItemWidget(item, widget)
 
     def update_profile_list_colors(self):
-        from PyQt5.QtCore import Qt
+        from PyQt6.QtCore import Qt
 
         profiles = load_profiles()
         for i in range(self.profile_list.count()):
@@ -1386,13 +1388,13 @@ class VoiceFormulaDialog(QDialog):
             name = item.text().lstrip("*")
             if self._virtual_new_profile and name == "New profile":
                 color = self._parse_rgba_to_qcolor(COLORS.get("YELLOW_BACKGROUND"))
-                item.setData(Qt.BackgroundRole, color)
+                item.setData(Qt.ItemDataRole.BackgroundRole, color)
             elif item.text().startswith("*"):
                 color = self._parse_rgba_to_qcolor(COLORS.get("YELLOW_BACKGROUND"))
-                item.setData(Qt.BackgroundRole, color)
+                item.setData(Qt.ItemDataRole.BackgroundRole, color)
             else:
                 item.setData(
-                    Qt.BackgroundRole, self.profile_list.palette().base().color()
+                    Qt.ItemDataRole.BackgroundRole, self.profile_list.palette().base().color()
                 )
                 weights = profiles.get(name, {}).get("voices", [])
                 total = 0
@@ -1406,7 +1408,7 @@ class VoiceFormulaDialog(QDialog):
                             total += entry[1]
                 if total == 0:
                     color = self._parse_rgba_to_qcolor(COLORS.get("RED_BACKGROUND"))
-                    item.setData(Qt.BackgroundRole, color)
+                    item.setData(Qt.ItemDataRole.BackgroundRole, color)
         self.update_profile_save_buttons()
 
     def preview_current_mix(self):

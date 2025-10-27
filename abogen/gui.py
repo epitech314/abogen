@@ -8,28 +8,31 @@ from abogen.queue_manager_gui import QueueManager
 from abogen.queued_item import QueuedItem
 import abogen.hf_tracker as hf_tracker
 import hashlib  # Added for cache path generation
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication,
+    QMainWindow,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QFileDialog,
-    QLabel,
-    QProgressBar,
-    QSlider,
     QComboBox,
-    QSizePolicy,
     QTextEdit,
-    QFileIconProvider,
+    QLabel,
+    QSlider,
     QMessageBox,
+    QFileDialog,
+    QProgressBar,
+    QFrame,
+    QStyleFactory,
+    QInputDialog,
+    QFileIconProvider,
+    QSizePolicy,
     QDialog,
     QCheckBox,
     QMenu,
-    QAction,
-    QActionGroup,
 )
-from PyQt5.QtCore import (
+from PyQt6.QtGui import QAction, QActionGroup
+from PyQt6.QtCore import (
     Qt,
     QUrl,
     QPoint,
@@ -42,8 +45,9 @@ from PyQt5.QtCore import (
     QSize,
     QTimer,
     QEvent,
+    QProcess,
 )
-from PyQt5.QtGui import (
+from PyQt6.QtGui import (
     QTextCursor,
     QDesktopServices,
     QIcon,
@@ -52,6 +56,7 @@ from PyQt5.QtGui import (
     QPolygon,
     QColor,
     QMovie,
+    QPalette,
 )
 from abogen.utils import (
     load_config,
@@ -95,12 +100,12 @@ class DarkTitleBarEventFilter(QObject):
         self.set_title_bar_dark_mode = set_title_bar_dark_mode_func
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.Show:
+        if event.type() == QEvent.Type.Show:
             # Only apply to QWidget windows
             if isinstance(obj, QWidget) and obj.isWindow():
                 if self.is_windows and self.get_dark_mode():
                     self.set_title_bar_dark_mode(obj, True)
-        return False
+        return super().eventFilter(obj, event)
 
 
 class ShowWarningSignalEmitter(QObject):  # New class to handle signal emission
@@ -154,7 +159,7 @@ class InputBox(QLabel):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setAcceptDrops(True)
         self.setText(
             "Drag and drop your file here or click to browse.\n(.txt, .epub, .pdf, .md)"
@@ -162,8 +167,8 @@ class InputBox(QLabel):
         self.setStyleSheet(
             f"QLabel {{ {self.STYLE_DEFAULT} }} QLabel:hover {{ {self.STYLE_DEFAULT_HOVER} }}"
         )
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         # Add clear button
         self.clear_btn = QPushButton("✕", self)
@@ -223,7 +228,7 @@ class InputBox(QLabel):
         pixmap = qicon.pixmap(size)
         # convert to base64 PNG
         buffer = QBuffer()
-        buffer.open(QIODevice.WriteOnly)
+        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
         pixmap.save(buffer, "PNG")
         img_data = base64.b64encode(buffer.data()).decode()
 
@@ -356,6 +361,9 @@ class InputBox(QLabel):
         self.window().displayed_file_path = (
             None  # Reset the displayed file path when clearing input
         )
+        # Reset book handler attributes
+        self.window().save_chapters_separately = None
+        self.window().merge_chapters_at_end = None
         self.setText(
             "Drag and drop your file here or click to browse.\n(.txt, .epub, .pdf, .md)"
         )
@@ -384,7 +392,7 @@ class InputBox(QLabel):
         return f"{size:.{decimal_places}f} PB"
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.window().open_file_dialog()
 
     def dragEnterEvent(self, event):
@@ -542,7 +550,7 @@ class InputBox(QLabel):
 
             menu.addAction(act_input)
             # Show the menu anchored to the button
-            menu.exec_(self.go_to_folder_btn.mapToGlobal(QPoint(0, self.go_to_folder_btn.height())))
+            menu.exec(self.go_to_folder_btn.mapToGlobal(QPoint(0, self.go_to_folder_btn.height())))
         else:
             if (
                     file_to_check
@@ -560,7 +568,7 @@ class TextboxDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Enter Text")
         self.setWindowFlags(
-            Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint
+            Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMaximizeButtonHint
         )
         self.resize(700, 500)
 
@@ -634,16 +642,16 @@ class TextboxDialog(QDialog):
             # Check if we need to warn about overwriting a non-temporary file
             if hasattr(self, "is_non_cache_file") and self.is_non_cache_file:
                 msg_box = QMessageBox(self)
-                msg_box.setIcon(QMessageBox.Warning)
+                msg_box.setIcon(QMessageBox.Icon.Warning)
                 msg_box.setWindowTitle("File Overwrite Warning")
                 msg_box.setText(
                     f"You are about to overwrite the original file:\n{self.non_cache_file_path}"
                 )
                 msg_box.setInformativeText("Do you want to continue?")
-                msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-                msg_box.setDefaultButton(QMessageBox.No)
+                msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                msg_box.setDefaultButton(QMessageBox.StandardButton.No)
 
-                if msg_box.exec_() != QMessageBox.Yes:
+                if msg_box.exec() != QMessageBox.StandardButton.Yes:
                     # User canceled, don't close the dialog
                     return
 
@@ -873,7 +881,7 @@ class abogen(QWidget):
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
         self.log_text.setUndoRedoEnabled(False)
-        self.log_text.setFrameStyle(QTextEdit.NoFrame)
+        self.log_text.setFrameStyle(QFrame.Shape.NoFrame)
         self.log_text.setStyleSheet("QTextEdit { border: none; }")
         self.log_text.hide()
         container_layout.addWidget(self.log_text, 1)
@@ -884,11 +892,11 @@ class abogen(QWidget):
         speed_layout = QVBoxLayout()
         speed_layout.setSpacing(2)
         speed_layout.addWidget(QLabel("Speed:", self))
-        self.speed_slider = QSlider(Qt.Horizontal, self)
+        self.speed_slider = QSlider(Qt.Orientation.Horizontal, self)
         self.speed_slider.setMinimum(10)
         self.speed_slider.setMaximum(200)
         self.speed_slider.setValue(100)
-        self.speed_slider.setTickPosition(QSlider.TicksBelow)
+        self.speed_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.speed_slider.setTickInterval(5)
         self.speed_slider.setSingleStep(5)
         speed_layout.addWidget(self.speed_slider)
@@ -910,7 +918,7 @@ class abogen(QWidget):
             "The first character represents the language:\n"
             '"a" => American English\n"b" => British English\n"e" => Spanish\n"f" => French\n"h" => Hindi\n"i" => Italian\n"j" => Japanese\n"p" => Brazilian Portuguese\n"z" => Mandarin Chinese\nThe second character represents the gender:\n"m" => Male\n"f" => Female'
         )
-        self.voice_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.voice_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         voice_layout.addWidget(self.voice_combo)
         # Voice formula button
         self.btn_voice_formula_mixer = QPushButton(self)
@@ -925,11 +933,11 @@ class abogen(QWidget):
         # Play/Stop icons
         def make_icon(color, shape):
             pix = QPixmap(20, 20)
-            pix.fill(Qt.transparent)
+            pix.fill(Qt.GlobalColor.transparent)
             p = QPainter(pix)
-            p.setRenderHint(QPainter.Antialiasing)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
             p.setBrush(QColor(*color))
-            p.setPen(Qt.NoPen)
+            p.setPen(Qt.PenStyle.NoPen)
             if shape == "play":
                 pts = [
                     pix.rect().topLeft() + QPoint(4, 2),
@@ -983,7 +991,7 @@ class abogen(QWidget):
         self.subtitle_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
-        self.subtitle_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.subtitle_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.subtitle_combo.setCurrentText(self.subtitle_mode)
         self.subtitle_combo.currentTextChanged.connect(self.on_subtitle_mode_changed)
         # Enable/disable subtitle options based on selected language (profile or voice)
@@ -1001,7 +1009,7 @@ class abogen(QWidget):
         self.format_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
-        self.format_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.format_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         # Add items with display labels and underlying keys
         for key, label in [
             ("wav", "wav"),
@@ -1032,7 +1040,7 @@ class abogen(QWidget):
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
         self.subtitle_format_combo.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Fixed
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         for value, text in SUBTITLE_FORMATS:
             self.subtitle_format_combo.addItem(text, value)
@@ -1079,7 +1087,7 @@ class abogen(QWidget):
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
         self.replace_newlines_combo.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Fixed
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         # Set initial value based on config
         self.replace_newlines_combo.setCurrentIndex(
@@ -1106,7 +1114,7 @@ class abogen(QWidget):
         self.save_combo.setStyleSheet(
             "QComboBox { min-height: 20px; padding: 6px 12px; }"
         )
-        self.save_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.save_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.save_combo.setCurrentText(self.save_option)
         self.save_combo.currentTextChanged.connect(self.on_save_option_changed)
         save_layout.addWidget(self.save_combo)
@@ -1121,7 +1129,7 @@ class abogen(QWidget):
         save_path_row.addWidget(selected_folder_label)
         self.save_path_label = QLabel("", self.save_path_row_widget)
         self.save_path_label.setStyleSheet(f"QLabel {{ color: {COLORS['GREEN']}; }}")
-        self.save_path_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.save_path_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         save_path_row.addWidget(self.save_path_label)
         self.save_path_row_widget.hide()  # Hide the whole row by default
         controls_layout.addWidget(self.save_path_row_widget)
@@ -1164,9 +1172,10 @@ class abogen(QWidget):
         self.btn_start.setFixedHeight(60)
         self.btn_start.clicked.connect(self.start_conversion)
         controls_layout.addWidget(self.btn_start)
+        # Add controls to a container widget
         self.controls_widget = QWidget()
         self.controls_widget.setLayout(controls_layout)
-        self.controls_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.controls_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         container_layout.addWidget(self.controls_widget)
         # Progress bar
         self.progress_bar = QProgressBar(self)
@@ -1175,7 +1184,7 @@ class abogen(QWidget):
         container_layout.addWidget(self.progress_bar)
         # ETR Label
         self.etr_label = QLabel("Estimated time remaining: Calculating...", self)
-        self.etr_label.setAlignment(Qt.AlignCenter)
+        self.etr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.etr_label.hide()
         container_layout.addWidget(self.etr_label)
         # Cancel button
@@ -1274,12 +1283,12 @@ class abogen(QWidget):
             checked_chapters=self.selected_chapters,
             parent=self
         )
-        dialog.setWindowModality(Qt.NonModal)
+        dialog.setWindowModality(Qt.WindowModality.NonModal)
         dialog.setModal(False)
         dialog.show()  # We'll handle the dialog result asynchronously
 
         def on_dialog_finished(result):
-            if result != QDialog.Accepted:
+            if result != QDialog.DialogCode.Accepted:
                 return False
             chapters_text, all_checked_hrefs = dialog.get_selected_text()
             if not all_checked_hrefs:
@@ -1319,7 +1328,7 @@ class abogen(QWidget):
             if self.save_as_project:
                 # Get project directory from user
                 project_dir = QFileDialog.getExistingDirectory(
-                    self, "Select Project Folder", "", QFileDialog.ShowDirsOnly
+                    self, "Select Project Folder", "", QFileDialog.Option.ShowDirsOnly
                 )
                 if not project_dir:
                     # User cancelled, fallback to cache
@@ -1445,7 +1454,7 @@ class abogen(QWidget):
                     dialog.non_cache_file_path = edit_file
             except Exception:
                 pass
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             text = dialog.get_text()
             if not text.strip():
                 self._show_error_message_box("Textbox Error", "Text cannot be empty.")
@@ -1605,7 +1614,7 @@ class abogen(QWidget):
         at_bottom = sb.value() == sb.maximum()
 
         cursor = txt.textCursor()
-        cursor.movePosition(QTextCursor.End)
+        cursor.movePosition(QTextCursor.MoveOperation.End)
 
         fmt = cursor.charFormat()
         if isinstance(message, tuple):
@@ -1624,7 +1633,7 @@ class abogen(QWidget):
             end = doc.findBlockByNumber(excess).position()
             trim_cursor = QTextCursor(doc)
             trim_cursor.setPosition(start)
-            trim_cursor.setPosition(end, QTextCursor.KeepAnchor)
+            trim_cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
             trim_cursor.removeSelectedText()
 
         if at_bottom:
@@ -1743,6 +1752,8 @@ class abogen(QWidget):
             total_char_count=self.char_count,
             replace_single_newlines=self.replace_single_newlines,
             save_base_path=save_base_path,
+            save_chapters_separately=getattr(self, "save_chapters_separately", None),
+            merge_chapters_at_end=getattr(self, "merge_chapters_at_end", None),
         )
 
         # Prevent adding duplicate items to the queue
@@ -1760,6 +1771,10 @@ class abogen(QWidget):
                     == item_queue.replace_single_newlines
                     and getattr(queued_item, "save_base_path", None)
                     == item_queue.save_base_path
+                    and getattr(queued_item, "save_chapters_separately", None)
+                    == item_queue.save_chapters_separately
+                    and getattr(queued_item, "merge_chapters_at_end", None)
+                    == item_queue.merge_chapters_at_end
             ):
                 QMessageBox.warning(
                     self, "Duplicate Item", "This item is already in the queue."
@@ -1779,10 +1794,10 @@ class abogen(QWidget):
                 self,
                 "Confirm Clear Queue",
                 f"Are you sure you want to clear {len(self.queued_items)} items from the queue?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
-            if reply != QMessageBox.Yes:
+            if reply != QMessageBox.StandardButton.Yes:
                 return
         self.queued_items = []
         self.enable_disable_queue_buttons()
@@ -1790,7 +1805,7 @@ class abogen(QWidget):
     def manage_queue(self):
         # show a dialog to manage the queue
         dialog = QueueManager(self, self.queued_items)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.queued_items = dialog.get_queue()
             # re-enable/disable buttons based on queue state
             self.enable_disable_queue_buttons()
@@ -2057,7 +2072,7 @@ class abogen(QWidget):
         dialog.setLayout(layout)
         dialog.setMinimumSize(400, 300)
         dialog.setSizeGripEnabled(True)  # Allow resizing
-        dialog.exec_()
+        dialog.exec()
 
     def on_conversion_finished(self, message, output_path):
         prevent_sleep_end()
@@ -2516,14 +2531,14 @@ class abogen(QWidget):
 
     def _show_error_message_box(self, title, message):
         box = QMessageBox(self)
-        box.setIcon(QMessageBox.Critical)
+        box.setIcon(QMessageBox.Icon.Critical)
         box.setWindowTitle(title)
         box.setText(message)
         copy_btn = QPushButton("Copy")
-        box.addButton(copy_btn, QMessageBox.ActionRole)
-        box.addButton(QMessageBox.Ok)
+        box.addButton(copy_btn, QMessageBox.ButtonRole.ActionRole)
+        box.addButton(QMessageBox.StandardButton.Ok)
         copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(message))
-        box.exec_()
+        box.exec()
 
     def _show_preview_error_box(self, msg):
         self._show_error_message_box("Preview Error", f"Preview error: {msg}")
@@ -2551,14 +2566,14 @@ class abogen(QWidget):
     def cancel_conversion(self):
         if self.is_converting:
             box = QMessageBox(self)
-            box.setIcon(QMessageBox.Warning)
+            box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Cancel Conversion")
             box.setText(
                 "A conversion is currently running. Are you sure you want to cancel?"
             )
-            box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            box.setDefaultButton(QMessageBox.No)
-            if box.exec_() != QMessageBox.Yes:
+            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            if box.exec() != QMessageBox.StandardButton.Yes:
                 return
         try:
             if (
@@ -2643,7 +2658,7 @@ class abogen(QWidget):
         save_config(self.config)
 
     def on_gpu_setting_changed(self, state):
-        self.use_gpu = state == Qt.Checked
+        self.use_gpu = state == Qt.CheckState.Checked.value
         self.config["use_gpu"] = self.use_gpu
         save_config(self.config)
 
@@ -2660,14 +2675,14 @@ class abogen(QWidget):
     def closeEvent(self, event):
         if self.is_converting:
             box = QMessageBox(self)
-            box.setIcon(QMessageBox.Warning)
+            box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Conversion in Progress")
             box.setText(
                 "A conversion is currently running. Are you sure you want to exit?"
             )
-            box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            box.setDefaultButton(QMessageBox.No)
-            if box.exec_() == QMessageBox.Yes:
+            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            if box.exec() == QMessageBox.StandardButton.Yes:
                 self.cleanup_conversion_thread()
                 event.accept()
             else:
@@ -2681,10 +2696,10 @@ class abogen(QWidget):
         from abogen.conversion import ChapterOptionsDialog
 
         dialog = ChapterOptionsDialog(chapter_count, parent=self)
-        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
 
         # If dialog is accepted, pass the options to the conversion thread
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             options = dialog.get_options()
             if (
                     hasattr(self, "conversion_thread")
@@ -2696,8 +2711,7 @@ class abogen(QWidget):
             self.cancel_conversion()
 
     def apply_theme(self, theme):
-        from PyQt5.QtGui import QPalette, QColor
-        from PyQt5.QtWidgets import QStyleFactory
+
 
         app = QApplication.instance()
         is_windows = platform.system() == "Windows"
@@ -2981,7 +2995,7 @@ class abogen(QWidget):
         about_action.triggered.connect(self.show_about_dialog)
         menu.addAction(about_action)
 
-        menu.exec_(self.settings_btn.mapToGlobal(QPoint(0, self.settings_btn.height())))
+        menu.exec(self.settings_btn.mapToGlobal(QPoint(0, self.settings_btn.height())))
 
     def toggle_replace_single_newlines(self, enabled):
         self.replace_single_newlines = enabled
@@ -2989,7 +3003,7 @@ class abogen(QWidget):
         save_config(self.config)
 
     def restart_app(self):
-        from PyQt5.QtCore import QProcess
+
         import sys
 
         exe = sys.executable
@@ -3022,10 +3036,10 @@ class abogen(QWidget):
             self,
             "Restart Required",
             message,
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             self.config["disable_kokoro_internet"] = disabled
             save_config(self.config)
             try:
@@ -3040,10 +3054,10 @@ class abogen(QWidget):
             self,
             "Reset Settings",
             "This will reset all settings to their default values and restart the application.\n\nDo you want to continue?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             from abogen.utils import get_user_config_path
 
             config_path = get_user_config_path()
@@ -3204,9 +3218,9 @@ Categories=AudioVideo;Audio;Utility;
                     self,
                     "Install Application Entry",
                     "Install application entry for current user?",
-                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )
-                if reply == QMessageBox.Yes:
+                if reply == QMessageBox.StandardButton.Yes:
                     import shutil
 
                     user_app_dir = os.path.expanduser("~/.local/share/applications")
@@ -3266,12 +3280,11 @@ Categories=AudioVideo;Audio;Utility;
                     initial_state = entry.get("voices", [])
                 else:
                     initial_state = entry
-            else:
-                initial_state = []
+                    self.selected_lang = entry[0][0] if entry and entry[0] else None
         dialog = VoiceFormulaDialog(
             self, initial_state=initial_state, selected_profile=selected_profile
         )
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             if dialog.current_profile:
                 self.selected_profile_name = dialog.current_profile
                 self.config["selected_profile_name"] = dialog.current_profile
@@ -3292,7 +3305,7 @@ Categories=AudioVideo;Audio;Utility;
         # Create custom dialog
         dialog = QDialog(self)
         dialog.setWindowTitle(f"About {PROGRAM_NAME}")
-        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
         dialog.setFixedSize(400, 320)  # Increased height for new button
 
         layout = QVBoxLayout(dialog)
@@ -3314,7 +3327,7 @@ Categories=AudioVideo;Audio;Utility;
         title_label = QLabel(
             f"<h1 style='margin-bottom: 0;'>{PROGRAM_NAME} <span style='font-size: 12px; font-weight: normal; color: #666;'>v{VERSION}</span></h1><h3 style='margin-top: 5px;'>Audiobook Generator</h3>"
         )
-        title_label.setTextFormat(Qt.RichText)
+        title_label.setTextFormat(Qt.TextFormat.RichText)
         header_layout.addWidget(title_label, 1)
         layout.addLayout(header_layout)
 
@@ -3323,7 +3336,7 @@ Categories=AudioVideo;Audio;Utility;
             f"<p>{PROGRAM_DESCRIPTION}</p>"
             "<p>Visit the GitHub repository for updates, documentation, and to report issues.</p>"
         )
-        desc_label.setTextFormat(Qt.RichText)
+        desc_label.setTextFormat(Qt.TextFormat.RichText)
         desc_label.setWordWrap(True)
         layout.addWidget(desc_label)
 
@@ -3346,7 +3359,7 @@ Categories=AudioVideo;Audio;Utility;
         close_btn.setFixedHeight(32)
         layout.addWidget(close_btn)
 
-        dialog.exec_()
+        dialog.exec()
 
     def manual_check_for_updates(self):
         """Manually check for updates and always show result"""
@@ -3359,7 +3372,7 @@ Categories=AudioVideo;Audio;Utility;
 
         def show_update_message(remote_version, local_version):
             msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setIcon(QMessageBox.Icon.Information)
             msg_box.setWindowTitle("Update Available")
             msg_box.setText(
                 f"A new version of {PROGRAM_NAME} is available! ({local_version} > {remote_version})"
@@ -3371,9 +3384,9 @@ Categories=AudioVideo;Audio;Utility;
                 "Alternatively, visit the GitHub repository for more information. "
                 "Would you like to view the changelog?"
             )
-            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            msg_box.setDefaultButton(QMessageBox.Yes)
-            if msg_box.exec_() == QMessageBox.Yes:
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
+            if msg_box.exec() == QMessageBox.StandardButton.Yes:
                 try:
                     QDesktopServices.openUrl(QUrl(GITHUB_URL + "/releases/latest"))
                 except Exception:
@@ -3455,7 +3468,7 @@ Categories=AudioVideo;Audio;Utility;
 
             # Create a custom message box with checkbox
             msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Question)
+            msg_box.setIcon(QMessageBox.Icon.Question)
             msg_box.setWindowTitle("Clear Cache Files")
 
             msg_text = f"Found {file_count} cache file{'s' if file_count != 1 else ''} in the {PROGRAM_NAME} cache folder."
@@ -3474,10 +3487,10 @@ Categories=AudioVideo;Audio;Utility;
             msg_box.setCheckBox(preview_cache_checkbox)
 
             # Add buttons
-            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
 
-            if msg_box.exec_() != QMessageBox.Yes:
+            if msg_box.exec() != QMessageBox.StandardButton.Yes:
                 return
 
             # Delete the text files
@@ -3522,7 +3535,7 @@ Categories=AudioVideo;Audio;Utility;
 
     def set_max_log_lines(self):
         """Open a dialog to set the maximum lines in the log window."""
-        from PyQt5.QtWidgets import QInputDialog
+        from PyQt6.QtWidgets import QInputDialog
 
         value, ok = QInputDialog.getInt(
             self,
@@ -3545,7 +3558,7 @@ Categories=AudioVideo;Audio;Utility;
 
     def set_max_subtitle_words(self):
         """Open a dialog to set the maximum words per subtitle"""
-        from PyQt5.QtWidgets import QInputDialog
+        from PyQt6.QtWidgets import QInputDialog
 
         current_value = self.config.get("max_subtitle_words", 50)
 
@@ -3574,7 +3587,7 @@ Categories=AudioVideo;Audio;Utility;
 
     def set_silence_between_chapters(self):
         """Open a dialog to set the silence duration between chapters"""
-        from PyQt5.QtWidgets import QInputDialog, QDialog
+
 
         current_value = self.config.get("silence_duration", 2.0)
 
@@ -3583,14 +3596,14 @@ Categories=AudioVideo;Audio;Utility;
         dlg.setLabelText(
             "Enter the duration of silence\nbetween chapters (in seconds):"
         )
-        dlg.setInputMode(QInputDialog.DoubleInput)
+        dlg.setInputMode(QInputDialog.InputMode.DoubleInput)
         dlg.setDoubleDecimals(1)
         dlg.setDoubleMinimum(0.0)
         dlg.setDoubleMaximum(60.0)
         dlg.setDoubleValue(current_value)
         dlg.setDoubleStep(0.1)  # <-- set step to 0.1
 
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.DialogCode.Accepted:
             value = dlg.doubleValue()
             # Round to one decimal to avoid floating-point representation noise
             value = round(value, 1)

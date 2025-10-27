@@ -3,8 +3,8 @@ import re
 import time
 import hashlib  # For generating unique cache filenames
 from platformdirs import user_desktop_dir
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
-from PyQt5.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer
+from PyQt6.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
 from abogen.utils import clean_text, create_process, get_user_cache_path, detect_encoding
 from abogen.constants import (
@@ -96,8 +96,8 @@ class ChapterOptionsDialog(QDialog):
         # Prevent closing with the X button and remove the help button
         self.setWindowFlags(
             self.windowFlags()
-            & ~Qt.WindowCloseButtonHint
-            & ~Qt.WindowContextHelpButtonHint
+            & ~Qt.WindowType.WindowCloseButtonHint
+            & ~Qt.WindowType.WindowContextHelpButtonHint
         )
 
         layout = QVBoxLayout(self)
@@ -131,7 +131,7 @@ class ChapterOptionsDialog(QDialog):
         layout.addWidget(self.countdown_label)
 
         # Add OK button
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
         button_box.accepted.connect(self.accept)
         layout.addWidget(button_box)
 
@@ -180,7 +180,7 @@ class ChapterOptionsDialog(QDialog):
 
     # Prevent escape key from closing the dialog
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
+        if event.key() == Qt.Key.Key_Escape:
             event.ignore()
         else:
             super().keyPressEvent(event)
