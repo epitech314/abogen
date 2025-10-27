@@ -1,4 +1,3 @@
-from json import load
 import os
 import sys
 import platform
@@ -40,11 +39,8 @@ if platform.system() == "Windows":
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import (
-    Qt,
     QLibraryInfo,
     qInstallMessageHandler,
-    QStandardPaths,
-    QSettings,
     QtMsgType,
 )
 

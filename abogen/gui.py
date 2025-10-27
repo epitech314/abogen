@@ -10,7 +10,6 @@ import abogen.hf_tracker as hf_tracker
 import hashlib  # Added for cache path generation
 from PyQt6.QtWidgets import (
     QApplication,
-    QMainWindow,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,

@@ -4,9 +4,8 @@ import base64
 import fitz  # PyMuPDF for PDF support
 from ebooklib import epub
 from bs4 import BeautifulSoup, NavigableString
-from PyQt6.QtGui import QAction, QMovie, QFont
+from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import (
-    QApplication,
     QDialog,
     QTreeWidget,
     QTreeWidgetItem,
@@ -26,11 +25,7 @@ from PyQt6.QtCore import (
     Qt,
     QThread,
     pyqtSignal,
-    QObject,
     QSize,
-    QEvent,
-    QPoint,
-    QRect,
 )
 from abogen.utils import (
     clean_text,
@@ -1959,7 +1954,9 @@ class HandlerDialog(QDialog):
             title = current.text(0)
             self.previewEdit.setPlainText(f"{title}\n\n(This item is empty)")
         else:
-            self.previewEdit.setPlainText(text)
+            # Apply clean_text to preview so replace_single_newlines setting is respected
+            cleaned_text = clean_text(text)
+            self.previewEdit.setPlainText(cleaned_text)
 
     def _display_book_info(self):
         self.previewEdit.clear()
