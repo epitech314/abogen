@@ -14,6 +14,7 @@ warnings.filterwarnings("ignore")
 def detect_encoding(file_path):
     import chardet
     import charset_normalizer
+
     with open(file_path, "rb") as f:
         raw_data = f.read()
     detected_encoding = None
@@ -27,6 +28,7 @@ def detect_encoding(file_path):
             break
     encoding = detected_encoding if detected_encoding else "utf-8"
     return encoding.lower()
+
 
 def get_resource_path(package, resource):
     """
@@ -261,18 +263,18 @@ def get_gpu_acceleration(enabled):
 
         if not enabled:
             return "GPU available but using CPU.", False
-        
+
         # Check for Apple Silicon MPS
         if platform.system() == "Darwin" and platform.processor() == "arm":
             if torch.backends.mps.is_available():
                 return "MPS GPU available and enabled.", True
             else:
                 return "MPS GPU not available on Apple Silicon. Using CPU.", False
-        
+
         # Check for CUDA
         if cuda_available():
             return "CUDA GPU available and enabled.", True
-        
+
         # Gather CUDA diagnostic info if not available
         try:
             cuda_devices = torch.cuda.device_count()

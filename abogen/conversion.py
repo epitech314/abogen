@@ -6,7 +6,12 @@ from platformdirs import user_desktop_dir
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt6.QtWidgets import QCheckBox, QVBoxLayout, QDialog, QLabel, QDialogButtonBox
 import soundfile as sf
-from abogen.utils import clean_text, create_process, get_user_cache_path, detect_encoding
+from abogen.utils import (
+    clean_text,
+    create_process,
+    get_user_cache_path,
+    detect_encoding,
+)
 from abogen.constants import (
     LANGUAGE_DESCRIPTIONS,
     SAMPLE_VOICE_TEXTS,
@@ -31,60 +36,62 @@ def get_sample_voice_text(lang_code):
 def sanitize_name_for_os(name, is_folder=True):
     """
     Sanitize a filename or folder name based on the operating system.
-    
+
     Args:
         name: The name to sanitize
         is_folder: Whether this is a folder name (default: True)
-    
+
     Returns:
         Sanitized name safe for the current OS
     """
     if not name:
         return "audiobook"
-    
+
     system = platform.system()
-    
+
     if system == "Windows":
         # Windows illegal characters: < > : " / \ | ? *
         # Also can't end with space or dot
-        sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
+        sanitized = re.sub(r'[<>:"/\\|?*]', "_", name)
         # Remove control characters (0-31)
-        sanitized = re.sub(r'[\x00-\x1f]', '_', sanitized)
+        sanitized = re.sub(r"[\x00-\x1f]", "_", sanitized)
         # Remove trailing spaces and dots
-        sanitized = sanitized.rstrip('. ')
+        sanitized = sanitized.rstrip(". ")
         # Windows reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
-        reserved = ['CON', 'PRN', 'AUX', 'NUL'] + \
-                   [f'COM{i}' for i in range(1, 10)] + \
-                   [f'LPT{i}' for i in range(1, 10)]
-        if sanitized.upper() in reserved or sanitized.upper().split('.')[0] in reserved:
+        reserved = (
+            ["CON", "PRN", "AUX", "NUL"]
+            + [f"COM{i}" for i in range(1, 10)]
+            + [f"LPT{i}" for i in range(1, 10)]
+        )
+        if sanitized.upper() in reserved or sanitized.upper().split(".")[0] in reserved:
             sanitized = f"_{sanitized}"
     elif system == "Darwin":  # macOS
         # macOS illegal characters: : (colon is converted to / by the system)
         # Also can't start with dot (hidden file) for folders typically
-        sanitized = re.sub(r'[:]', '_', name)
+        sanitized = re.sub(r"[:]", "_", name)
         # Remove control characters
-        sanitized = re.sub(r'[\x00-\x1f]', '_', sanitized)
+        sanitized = re.sub(r"[\x00-\x1f]", "_", sanitized)
         # Avoid leading dot for folders (creates hidden folders)
-        if is_folder and sanitized.startswith('.'):
-            sanitized = '_' + sanitized[1:]
+        if is_folder and sanitized.startswith("."):
+            sanitized = "_" + sanitized[1:]
     else:  # Linux and others
         # Linux illegal characters: / and null character
         # Though / is illegal, most other chars are technically allowed
-        sanitized = re.sub(r'[/\x00]', '_', name)
+        sanitized = re.sub(r"[/\x00]", "_", name)
         # Remove other control characters for safety
-        sanitized = re.sub(r'[\x01-\x1f]', '_', sanitized)
+        sanitized = re.sub(r"[\x01-\x1f]", "_", sanitized)
         # Avoid leading dot for folders (creates hidden folders)
-        if is_folder and sanitized.startswith('.'):
-            sanitized = '_' + sanitized[1:]
-    
+        if is_folder and sanitized.startswith("."):
+            sanitized = "_" + sanitized[1:]
+
     # Ensure the name is not empty after sanitization
-    if not sanitized or sanitized.strip() == '':
+    if not sanitized or sanitized.strip() == "":
         sanitized = "audiobook"
-    
+
     # Limit length to 255 characters (common limit across filesystems)
     if len(sanitized) > 255:
-        sanitized = sanitized[:255].rstrip('. ')
-    
+        sanitized = sanitized[:255].rstrip(". ")
+
     return sanitized
 
 
@@ -310,7 +317,11 @@ class ConversionThread(QThread):
 
             # Normalize paths for consistent display (fixes Windows path separator issues)
             input_file = os.path.normpath(input_file) if input_file else input_file
-            processing_file = os.path.normpath(processing_file) if processing_file else processing_file
+            processing_file = (
+                os.path.normpath(processing_file)
+                if processing_file
+                else processing_file
+            )
 
             self.log_updated.emit(f"- Input File: {input_file}")
             if input_file != processing_file:
@@ -318,7 +329,9 @@ class ConversionThread(QThread):
 
             # Use file_name for logs if from_queue, otherwise use display_path if available
             if getattr(self, "from_queue", False):
-                base_path = self.save_base_path or self.file_name  # Use save_base_path if available
+                base_path = (
+                    self.save_base_path or self.file_name
+                )  # Use save_base_path if available
             else:
                 base_path = self.display_path if self.display_path else self.file_name
 
@@ -476,14 +489,16 @@ class ConversionThread(QThread):
 
             # Use file_name for logs if from_queue, otherwise use display_path if available
             if getattr(self, "from_queue", False):
-                base_path = self.save_base_path or self.file_name  # Use save_base_path if available
+                base_path = (
+                    self.save_base_path or self.file_name
+                )  # Use save_base_path if available
             else:
                 base_path = self.display_path if self.display_path else self.file_name
 
             base_name = os.path.splitext(os.path.basename(base_path))[0]
             # Sanitize base_name for folder/file creation based on OS
             sanitized_base_name = sanitize_name_for_os(base_name, is_folder=True)
-            
+
             if self.save_option == "Save to Desktop":
                 parent_dir = user_desktop_dir()
             elif self.save_option == "Save next to input file":
@@ -528,7 +543,9 @@ class ConversionThread(QThread):
             # Prepare merged output file for incremental writing ONLY if merge_chapters_at_end is True
             if merge_chapters_at_end:
                 out_dir = parent_dir
-                base_filepath_no_ext = os.path.join(out_dir, f"{sanitized_base_name}{suffix}")
+                base_filepath_no_ext = os.path.join(
+                    out_dir, f"{sanitized_base_name}{suffix}"
+                )
                 merged_out_path = f"{base_filepath_no_ext}.{self.output_format}"
                 subtitle_entries = []
                 current_time = 0.0
@@ -642,8 +659,12 @@ class ConversionThread(QThread):
                         # Add style definitions for karaoke highlighting
                         if self.subtitle_mode == "Sentence + Highlighting":
                             merged_subtitle_file.write("[V4+ Styles]\n")
-                            merged_subtitle_file.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-                            merged_subtitle_file.write("Style: Default,Arial,24,&H00FFFFFF,&H00808080,&H00000000,&H00404040,0,0,0,0,100,100,0,0,3,2,0,5,10,10,10,1\n\n")
+                            merged_subtitle_file.write(
+                                "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+                            )
+                            merged_subtitle_file.write(
+                                "Style: Default,Arial,24,&H00FFFFFF,&H00808080,&H00000000,&H00404040,0,0,0,0,100,100,0,0,3,2,0,5,10,10,10,1\n\n"
+                            )
                         merged_subtitle_file.write("[Events]\n")
                         merged_subtitle_file.write(
                             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
@@ -806,8 +827,12 @@ class ConversionThread(QThread):
                             # Add style definitions for karaoke highlighting
                             if self.subtitle_mode == "Sentence + Highlighting":
                                 chapter_subtitle_file.write("[V4+ Styles]\n")
-                                chapter_subtitle_file.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-                                chapter_subtitle_file.write("Style: Default,Arial,24,&H00FFFFFF,&H00808080,&H00000000,&H00404040,0,0,0,0,100,100,0,0,3,2,0,5,10,10,10,1\n\n")
+                                chapter_subtitle_file.write(
+                                    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+                                )
+                                chapter_subtitle_file.write(
+                                    "Style: Default,Arial,24,&H00FFFFFF,&H00808080,&H00000000,&H00404040,0,0,0,0,100,100,0,0,3,2,0,5,10,10,10,1\n\n"
+                                )
 
                             chapter_subtitle_file.write("[Events]\n")
                             chapter_subtitle_file.write(
@@ -922,7 +947,12 @@ class ConversionThread(QThread):
                                         start_time = self._ass_time(start)
                                         end_time = self._ass_time(end)
                                         # Use karaoke effect for highlighting mode
-                                        effect = "karaoke" if self.subtitle_mode == "Sentence + Highlighting" else ""
+                                        effect = (
+                                            "karaoke"
+                                            if self.subtitle_mode
+                                            == "Sentence + Highlighting"
+                                            else ""
+                                        )
                                         merged_subtitle_file.write(
                                             f"Dialogue: 0,{start_time},{end_time},Default,,{merged_subtitle_margin},{merged_subtitle_margin},0,{effect},{merged_subtitle_alignment_tag}{text}\n"
                                         )
@@ -951,7 +981,12 @@ class ConversionThread(QThread):
                                         start_time = self._ass_time(start)
                                         end_time = self._ass_time(end)
                                         # Use karaoke effect for highlighting mode
-                                        effect = "karaoke" if self.subtitle_mode == "Sentence + Highlighting" else ""
+                                        effect = (
+                                            "karaoke"
+                                            if self.subtitle_mode
+                                            == "Sentence + Highlighting"
+                                            else ""
+                                        )
                                         chapter_subtitle_file.write(
                                             f"Dialogue: 0,{start_time},{end_time},Default,,{chapter_subtitle_margin},{chapter_subtitle_margin},0,{effect},{chapter_subtitle_alignment_tag}{text}\n"
                                         )
@@ -997,15 +1032,17 @@ class ConversionThread(QThread):
 
                 # Add silence between chapters for merged output (except after the last chapter)
                 if merge_chapters_at_end and chapter_idx < total_chapters:
-                    silence_samples = int(self.silence_duration * 24000)  # Silence duration at 24,000 Hz
+                    silence_samples = int(
+                        self.silence_duration * 24000
+                    )  # Silence duration at 24,000 Hz
                     silence_audio = self.np.zeros(silence_samples, dtype="float32")
                     silence_bytes = silence_audio.tobytes()
-                    
+
                     if merged_out_file:
                         merged_out_file.write(silence_audio)
                     elif ffmpeg_proc:
                         ffmpeg_proc.stdin.write(silence_bytes)
-                    
+
                     # Update timing for the silence
                     current_time += self.silence_duration
                     if chapter_out_file or chapter_ffmpeg_proc:
@@ -1270,7 +1307,7 @@ class ConversionThread(QThread):
         """Helper function to process subtitle tokens according to the subtitle mode"""
         if not tokens_with_timestamps:
             return
-        
+
         processed_tokens = tokens_with_timestamps  # Use tokens directly
 
         # Use processed_tokens instead of tokens_with_timestamps for the rest of the method
@@ -1297,7 +1334,11 @@ class ConversionThread(QThread):
                         karaoke_text = ""
                         for t in current_sentence:
                             # Calculate duration in centiseconds
-                            duration = t["end"] - t["start"] if t["end"] and t["start"] else 0.5
+                            duration = (
+                                t["end"] - t["start"]
+                                if t["end"] and t["start"]
+                                else 0.5
+                            )
                             duration_cs = int(duration * 100)
                             # Add karaoke effect - relies on style's SecondaryColour for highlighting
                             karaoke_text += f"{{\\kf{duration_cs}}}{t['text']}{t.get('whitespace', '') or ''}"
@@ -1394,22 +1435,35 @@ class ConversionThread(QThread):
 
             for token in processed_tokens:
                 current_group.append(token)
-                
+
                 # Count spaces after tokens (in the whitespace field)
                 if token.get("whitespace", "") == " ":
                     space_count += 1
-                    
+
                     # Split after counting N spaces
                     if space_count >= word_count:
-                        text = "".join(t["text"] + (t.get("whitespace", "") or "") for t in current_group)
-                        subtitle_entries.append((current_group[0]["start"], current_group[-1]["end"], text.strip()))
+                        text = "".join(
+                            t["text"] + (t.get("whitespace", "") or "")
+                            for t in current_group
+                        )
+                        subtitle_entries.append(
+                            (
+                                current_group[0]["start"],
+                                current_group[-1]["end"],
+                                text.strip(),
+                            )
+                        )
                         current_group = []
                         space_count = 0
 
             # Add any remaining tokens
             if current_group:
-                text = "".join(t["text"] + (t.get("whitespace", "") or "") for t in current_group)
-                subtitle_entries.append((current_group[0]["start"], current_group[-1]["end"], text.strip()))
+                text = "".join(
+                    t["text"] + (t.get("whitespace", "") or "") for t in current_group
+                )
+                subtitle_entries.append(
+                    (current_group[0]["start"], current_group[-1]["end"], text.strip())
+                )
 
             # Fallback for last entry
             if subtitle_entries and fallback_end_time is not None:
@@ -1417,7 +1471,6 @@ class ConversionThread(QThread):
                 start, end, text = last_entry
                 if end is None or end <= start or end <= 0:
                     subtitle_entries[-1] = (start, fallback_end_time, text)
-
 
     def cancel(self):
         self.cancel_requested = True

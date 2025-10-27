@@ -8,16 +8,16 @@ import signal
 # Qt platform plugin detection (fixes #59)
 try:
     from PyQt6.QtCore import QLibraryInfo
-    
+
     # Get the path to the plugins directory
     plugins = QLibraryInfo.path(QLibraryInfo.LibraryPath.PluginsPath)
-    
+
     # Normalize path to use the OS-native separators and absolute path
     platform_dir = os.path.normpath(os.path.join(plugins, "platforms"))
-    
+
     # Ensure we work with an absolute path for clarity
     platform_dir = os.path.abspath(platform_dir)
-    
+
     if os.path.isdir(platform_dir):
         os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = platform_dir
         print("QT_QPA_PLATFORM_PLUGIN_PATH set to:", platform_dir)
@@ -31,6 +31,7 @@ if platform.system() == "Windows":
     try:
         from abogen.constants import PROGRAM_NAME, VERSION
         import ctypes
+
         app_id = f"{PROGRAM_NAME}.{VERSION}"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
     except Exception as e:

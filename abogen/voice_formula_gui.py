@@ -131,10 +131,14 @@ class FlowLayout(QLayout):
         for item in self._item_list:
             style = self.parentWidget().style() if self.parentWidget() else QStyle()
             layout_spacing_x = style.layoutSpacing(
-                QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton, Qt.Orientation.Horizontal
+                QSizePolicy.ControlType.PushButton,
+                QSizePolicy.ControlType.PushButton,
+                Qt.Orientation.Horizontal,
             )
             layout_spacing_y = style.layoutSpacing(
-                QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton, Qt.Orientation.Vertical
+                QSizePolicy.ControlType.PushButton,
+                QSizePolicy.ControlType.PushButton,
+                Qt.Orientation.Vertical,
             )
             space_x = spacing if spacing >= 0 else layout_spacing_x
             space_y = spacing if spacing >= 0 else layout_spacing_y
@@ -180,7 +184,9 @@ class VoiceMixer(QWidget):
         # Icons layout (flag and gender)
         icons_layout = QHBoxLayout()
         icons_layout.setSpacing(3)
-        icons_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Center the icons horizontally
+        icons_layout.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )  # Center the icons horizontally
 
         # Flag icon
         flag_icon_path = get_resource_path(
@@ -193,11 +199,21 @@ class VoiceMixer(QWidget):
         gender_label = QLabel()
         flag_pixmap = QPixmap(flag_icon_path)
         flag_label.setPixmap(
-            flag_pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            flag_pixmap.scaled(
+                16,
+                16,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         )
         gender_pixmap = QPixmap(gender_icon_path)
         gender_label.setPixmap(
-            gender_pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            gender_pixmap.scaled(
+                16,
+                16,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         )
         icons_layout.addWidget(flag_label)
         icons_layout.addWidget(gender_label)
@@ -221,7 +237,9 @@ class VoiceMixer(QWidget):
         self.slider = QSlider(Qt.Orientation.Vertical)
         self.slider.setRange(0, 100)
         self.slider.setValue(int(initial_weight * 100))
-        self.slider.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        self.slider.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding
+        )
         self.slider.setFixedWidth(SLIDER_WIDTH)
 
         # Fix slider in Windows
@@ -251,7 +269,9 @@ class VoiceMixer(QWidget):
         slider_layout.addWidget(QLabel("1", alignment=Qt.AlignmentFlag.AlignCenter))
 
         slider_center_layout = QHBoxLayout()
-        slider_center_layout.addWidget(self.slider, alignment=Qt.AlignmentFlag.AlignHCenter)
+        slider_center_layout.addWidget(
+            self.slider, alignment=Qt.AlignmentFlag.AlignHCenter
+        )
         slider_center_layout.setContentsMargins(0, 0, 0, 0)
 
         slider_center_widget = QWidget()
@@ -307,7 +327,9 @@ class HoverLabel(QLabel):
         )
         # Make sure the entire button is clickable, not just the text
         self.delete_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.delete_button.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.delete_button.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, False
+        )
         self.delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_button.hide()
 
@@ -408,7 +430,9 @@ class VoiceFormulaDialog(QDialog):
 
         self.setWindowTitle("Voice Mixer")
         self.setWindowFlags(
-            Qt.WindowType.Window | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowMaximizeButtonHint
+            Qt.WindowType.Window
+            | Qt.WindowType.WindowCloseButtonHint
+            | Qt.WindowType.WindowMaximizeButtonHint
         )
         self.setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         self.resize(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT)
@@ -473,8 +497,12 @@ class VoiceFormulaDialog(QDialog):
         # Voice list scroll area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self.scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
         self.scroll_area.viewport().installEventFilter(self)
 
         self.voice_list_widget = QWidget()
@@ -564,7 +592,9 @@ class VoiceFormulaDialog(QDialog):
                 self,
                 "Unsaved Changes",
                 msg,
-                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save
+                | QMessageBox.StandardButton.Discard
+                | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Save,
             )
             if ret == QMessageBox.StandardButton.Save:
@@ -620,7 +650,9 @@ class VoiceFormulaDialog(QDialog):
                 "You have unsaved changes in your profile. Do you want to save the changes?"
             )
             box.setStandardButtons(
-                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel
+                QMessageBox.StandardButton.Save
+                | QMessageBox.StandardButton.Discard
+                | QMessageBox.StandardButton.Cancel
             )
             box.setDefaultButton(QMessageBox.StandardButton.Save)
             ret = box.exec()
@@ -769,7 +801,9 @@ class VoiceFormulaDialog(QDialog):
                     f'<b><span style="color:{COLORS.get("BLUE")}">{name}: {percentage:.1f}%</span></b>',
                     name,
                 )
-                voice_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                voice_label.setSizePolicy(
+                    QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+                )
                 voice_label.delete_button.clicked.connect(
                     lambda _, vn=name: self.disable_voice_by_name(vn)
                 )
@@ -1138,7 +1172,10 @@ class VoiceFormulaDialog(QDialog):
                     msg += f"\nThis will overwrite an existing profile."
                 msg += "\nContinue?"
                 reply = QMessageBox.question(
-                    self, "Import Profile", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    self,
+                    "Import Profile",
+                    msg,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )
                 if reply != QMessageBox.StandardButton.Yes:
                     return
@@ -1155,7 +1192,10 @@ class VoiceFormulaDialog(QDialog):
                     msg += f"\n{len(collisions)} profile(s) will be overwritten."
                 msg += "\nContinue?"
                 reply = QMessageBox.question(
-                    self, "Import Profiles", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    self,
+                    "Import Profiles",
+                    msg,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )
                 if reply != QMessageBox.StandardButton.Yes:
                     return
@@ -1394,7 +1434,8 @@ class VoiceFormulaDialog(QDialog):
                 item.setData(Qt.ItemDataRole.BackgroundRole, color)
             else:
                 item.setData(
-                    Qt.ItemDataRole.BackgroundRole, self.profile_list.palette().base().color()
+                    Qt.ItemDataRole.BackgroundRole,
+                    self.profile_list.palette().base().color(),
                 )
                 weights = profiles.get(name, {}).get("voices", [])
                 total = 0
