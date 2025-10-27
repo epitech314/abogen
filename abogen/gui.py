@@ -852,6 +852,7 @@ class abogen(QWidget):
         # Enable/disable subtitle options based on selected language (profile or voice)
         enable = self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
         self.subtitle_combo.setEnabled(enable)
+        self.subtitle_format_combo.setEnabled(enable)
         # loading gif for preview button
         loading_gif_path = get_resource_path("abogen.assets", "loading.gif")
         if loading_gif_path:
@@ -1115,6 +1116,10 @@ class abogen(QWidget):
         except Exception:
             # Fail-safe: don't crash UI if model manipulation isn't supported on some platforms
             pass
+        # Enable/disable subtitle format based on selected language
+        self.subtitle_format_combo.setEnabled(
+            self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
+        )
         controls_layout.addLayout(subtitle_format_layout)
 
         # Replace single newlines dropdown (acts like checkbox)
@@ -1555,9 +1560,11 @@ class abogen(QWidget):
         # Enable/disable subtitle options based on language
         if self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION:
             self.subtitle_combo.setEnabled(True)
+            self.subtitle_format_combo.setEnabled(True)
             self.subtitle_mode = self.subtitle_combo.currentText()
         else:
             self.subtitle_combo.setEnabled(False)
+            self.subtitle_format_combo.setEnabled(False)
 
     def on_voice_combo_changed(self, index):
         data = self.voice_combo.itemData(index)
@@ -1582,6 +1589,9 @@ class abogen(QWidget):
             self.subtitle_combo.setEnabled(
                 self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
             )
+            self.subtitle_format_combo.setEnabled(
+                self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
+            )
         else:
             self.mixed_voice_state = None
             self.selected_profile_name = None
@@ -1592,9 +1602,11 @@ class abogen(QWidget):
             save_config(self.config)
             if self.selected_lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION:
                 self.subtitle_combo.setEnabled(True)
+                self.subtitle_format_combo.setEnabled(True)
                 self.subtitle_mode = self.subtitle_combo.currentText()
             else:
                 self.subtitle_combo.setEnabled(False)
+                self.subtitle_format_combo.setEnabled(False)
 
     def update_subtitle_combo_for_profile(self, profile_name):
         from abogen.voice_profiles import load_profiles
@@ -1603,6 +1615,7 @@ class abogen(QWidget):
         lang = entry.get("language") if isinstance(entry, dict) else None
         enable = lang in SUPPORTED_LANGUAGES_FOR_SUBTITLE_GENERATION
         self.subtitle_combo.setEnabled(enable)
+        self.subtitle_format_combo.setEnabled(enable)
 
     def populate_profiles_in_voice_combo(self):
         # preserve current voice or profile
