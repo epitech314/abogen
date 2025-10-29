@@ -14,6 +14,8 @@ RUN apt-get update \
         python3-pip \
         python3-pyqt6 \
         espeak-ng \
+        libxcb-cursor0 \
+        libgl1 \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
