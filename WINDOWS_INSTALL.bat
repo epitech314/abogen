@@ -8,9 +8,6 @@ cd /d "%~dp0"
 :: Japanese: "ja"
 set MISAKI_LANG=en
 
-:: Set PyTorch CUDA version
-set CUDA_VERSION=128
-
 :::
 :::      _    ____   ___   ____  _____ _   _ 
 :::     / \  | __ ) / _ \ / ___|| ____| \ | |
@@ -281,8 +278,9 @@ if /I "%IS_NVIDIA%"=="true" (
     for /f %%i in ('%PYTHON_CONSOLE_PATH% -c "from torch.cuda import is_available; print(is_available())"') do set cuda_available=%%i
 
     if "%cuda_available%"=="False" (
-        echo Installing PyTorch with CUDA %CUDA_VERSION% support...
-        %PYTHON_CONSOLE_PATH% -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu%CUDA_VERSION% --no-warn-script-location
+        echo Installing PyTorch with CUDA (12.8) support...
+        :: Temporarily set the PyTorch version to 2.0.8 to prevent [WinError 1114] error.
+        %PYTHON_CONSOLE_PATH% -m pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 --extra-index-url https://download.pytorch.org/whl/cu128 --no-warn-script-location
         echo.
         if errorlevel 1 (
             echo Failed to install PyTorch.
@@ -305,8 +303,9 @@ if /I "%IS_NVIDIA%"=="true" (
     if errorlevel 2 (
         echo Skipping PyTorch installation.
     ) else (
-        echo Installing PyTorch with CUDA %CUDA_VERSION% support...
-        %PYTHON_CONSOLE_PATH% -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu%CUDA_VERSION% --no-warn-script-location
+        echo Installing PyTorch with CUDA (12.8) support...
+        :: Temporarily set the PyTorch version to 2.0.8 to prevent [WinError 1114] error.
+        %PYTHON_CONSOLE_PATH% -m pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 --extra-index-url https://download.pytorch.org/whl/cu128 --no-warn-script-location
         if errorlevel 1 (
             echo Failed to install PyTorch.
             pause
