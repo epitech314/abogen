@@ -279,8 +279,7 @@ if /I "%IS_NVIDIA%"=="true" (
 
     if "%cuda_available%"=="False" (
         echo Installing PyTorch with CUDA (12.8) support...
-        :: Temporarily set the PyTorch version to 2.0.8 to prevent [WinError 1114] error.
-        %PYTHON_CONSOLE_PATH% -m pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 --extra-index-url https://download.pytorch.org/whl/cu128 --no-warn-script-location
+        %PYTHON_CONSOLE_PATH% -m pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128 --no-warn-script-location
         echo.
         if errorlevel 1 (
             echo Failed to install PyTorch.
@@ -304,8 +303,7 @@ if /I "%IS_NVIDIA%"=="true" (
         echo Skipping PyTorch installation.
     ) else (
         echo Installing PyTorch with CUDA (12.8) support...
-        :: Temporarily set the PyTorch version to 2.0.8 to prevent [WinError 1114] error.
-        %PYTHON_CONSOLE_PATH% -m pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 --extra-index-url https://download.pytorch.org/whl/cu128 --no-warn-script-location
+        %PYTHON_CONSOLE_PATH% -m pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128 --no-warn-script-location
         if errorlevel 1 (
             echo Failed to install PyTorch.
             pause

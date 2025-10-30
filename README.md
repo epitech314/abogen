@@ -42,7 +42,7 @@ python -m venv venv
 venv\Scripts\activate
 
 # For NVIDIA GPUs:
-pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128
+pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128
 
 # For AMD GPUs:
 # Not supported yet, because ROCm is not available on Windows. Use Linux if you have AMD GPU.
